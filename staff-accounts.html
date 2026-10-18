@@ -1,0 +1,1723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Staff Accounts | LabCore</title>
+<link rel="stylesheet" href="shared/labcore-nav.css">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+/* ============================================================
+   STAFF ACCOUNTS — LabCore 3.0 clinical theme
+   ============================================================ */
+
+/* KPI row */
+.sa-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+/* Toolbar */
+.sa-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.sa-toolbar-left,
+.sa-toolbar-right {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.sa-search {
+  position: relative;
+}
+.sa-search input {
+  padding-left: 34px;
+  min-width: 260px;
+  height: 36px;
+  border: 1px solid var(--lc-border-strong);
+  border-radius: var(--lc-radius);
+  font-size: var(--lc-fs-md);
+  background: var(--lc-surface);
+  color: var(--lc-text);
+  font-family: inherit;
+  transition: border-color var(--lc-transition), box-shadow var(--lc-transition);
+}
+.sa-search input:focus {
+  outline: none;
+  border-color: var(--lc-brand-accent);
+  box-shadow: 0 0 0 3px rgba(58,53,119,0.15);
+}
+.sa-search::before {
+  content: '';
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235C6B7A' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='8'/><line x1='21' y1='21' x2='16.65' y2='16.65'/></svg>");
+  background-size: contain;
+  opacity: 0.6;
+  pointer-events: none;
+}
+.sa-filter {
+  width: auto;
+  min-width: 150px;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--lc-border-strong);
+  border-radius: var(--lc-radius);
+  font-size: var(--lc-fs-sm);
+  background: var(--lc-surface);
+  color: var(--lc-text);
+  font-family: inherit;
+  cursor: pointer;
+}
+.sa-filter:focus {
+  outline: none;
+  border-color: var(--lc-brand-accent);
+  box-shadow: 0 0 0 3px rgba(58,53,119,0.15);
+}
+
+/* Role pills */
+.sa-role {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  
+  
+  border-radius: var(--lc-radius-sm);
+  white-space: nowrap;
+  background: var(--lc-surface-2);
+  color: var(--lc-text-muted);
+}
+.sa-role--doctor      { background: #E6F0F7; color: #0E5A8A; }
+.sa-role--nurse       { background: #E7F2EC; color: #1E7A46; }
+.sa-role--scientist   { background: #EFEDF4; color: #37516B; }
+.sa-role--receptionist{ background: #FBF1E0; color: #B8791E; }
+.sa-role--billing     { background: #F3ECF8; color: #6B21A8; }
+.sa-role--sonographer { background: #E4EFF7; color: #1F5F8B; }
+.sa-role--radiographer{ background: #FBF0DA; color: #B45309; }
+.sa-role--admin       { background: #FBEAEA; color: #B32424; }
+
+/* Ward chips */
+.sa-ward-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: 200px;
+}
+.sa-ward-chip {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  background: var(--lc-surface-2);
+  border: 1px solid var(--lc-border);
+  border-radius: 10px;
+  color: var(--lc-text-muted);
+  white-space: nowrap;
+}
+.sa-ward-more {
+  font-size: 10px;
+  color: var(--lc-text-subtle);
+  padding: 2px 4px;
+  cursor: help;
+}
+
+/* Action menu */
+.sa-actions {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+/* Detail drawer */
+.sa-drawer-bg {
+  position: fixed;
+  inset: 0;
+  background: rgba(33, 30, 72, 0.45);
+  z-index: 900;
+  display: none;
+  justify-content: flex-end;
+}
+.sa-drawer-bg.show { display: flex; }
+.sa-drawer {
+  width: min(560px, 100%);
+  height: 100vh;
+  background: var(--lc-surface);
+  box-shadow: -12px 0 40px rgba(33, 30, 72, 0.18);
+  display: flex;
+  flex-direction: column;
+  animation: saSlideIn 0.22s ease-out;
+}
+@keyframes saSlideIn {
+  from { transform: translateX(40px); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+.sa-drawer-head {
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--lc-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.sa-drawer-head h2 {
+  font-size: var(--lc-fs-lg);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.sa-drawer-head .emp {
+  font-size: var(--lc-fs-xs);
+  color: var(--lc-text-muted);
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+.sa-drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 22px;
+}
+.sa-drawer-foot {
+  padding: 14px 22px;
+  border-top: 1px solid var(--lc-border);
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  flex-shrink: 0;
+  background: var(--lc-surface-2);
+}
+
+/* Section inside drawer */
+.sa-section {
+  margin-bottom: 22px;
+}
+.sa-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  
+  
+  color: var(--lc-text-subtle);
+  padding-bottom: 8px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--lc-border);
+}
+.sa-section-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 20px;
+}
+.sa-field { min-width: 0; }
+.sa-field-label {
+  font-size: 10px;
+  font-weight: 700;
+  
+  
+  color: var(--lc-text-subtle);
+  margin-bottom: 3px;
+}
+.sa-field-value {
+  font-size: var(--lc-fs-sm);
+  color: var(--lc-text);
+  font-weight: 600;
+  word-break: break-word;
+}
+.sa-field-value.mono {
+  font-variant-numeric: tabular-nums;
+  font-family: 'SF Mono', Consolas, monospace;
+  font-size: var(--lc-fs-sm);
+}
+.sa-field-value.muted {
+  color: var(--lc-text-muted);
+  font-weight: 400;
+  font-style: italic;
+}
+
+/* Productivity tiles */
+.sa-prod-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.sa-prod-tile {
+  background: var(--lc-surface-2);
+  border: 1px solid var(--lc-border);
+  border-radius: var(--lc-radius);
+  padding: 12px 14px;
+  position: relative;
+}
+.sa-prod-tile::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--lc-brand-accent);
+}
+.sa-prod-tile--warn::before { background: var(--lc-warning); }
+.sa-prod-tile--danger::before { background: var(--lc-danger); }
+.sa-prod-tile--success::before { background: var(--lc-success); }
+.sa-prod-label {
+  font-size: 10px;
+  font-weight: 700;
+  
+  
+  color: var(--lc-text-muted);
+}
+.sa-prod-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--lc-text);
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+/* Audit timeline */
+.sa-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  max-height: 380px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.sa-tl-item {
+  display: flex;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--lc-rule);
+  font-size: var(--lc-fs-sm);
+}
+.sa-tl-item:last-child { border-bottom: none; }
+.sa-tl-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--lc-surface-2);
+  border: 2px solid var(--lc-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+.sa-tl-icon.green { border-color: var(--lc-success); }
+.sa-tl-icon.blue  { border-color: var(--lc-info); }
+.sa-tl-icon.amber { border-color: var(--lc-warning); }
+.sa-tl-icon.red   { border-color: var(--lc-danger); }
+.sa-tl-body { flex: 1; min-width: 0; }
+.sa-tl-title {
+  font-weight: 600;
+  color: var(--lc-text);
+  margin-bottom: 2px;
+}
+.sa-tl-meta {
+  font-size: 11px;
+  color: var(--lc-text-subtle);
+}
+.sa-tl-note {
+  font-size: 11px;
+  color: var(--lc-text-muted);
+  margin-top: 3px;
+  padding: 4px 8px;
+  background: var(--lc-surface-2);
+  border-radius: 3px;
+  border-left: 2px solid var(--lc-border);
+}
+
+/* Modal — reuse the lc-modal styles from labcore-nav.css */
+.sa-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.sa-form-grid .full { grid-column: 1 / -1; }
+.sa-form-group { margin-bottom: 0; }
+.sa-form-group label {
+  display: block;
+  font-size: var(--lc-fs-xs);
+  font-weight: 600;
+  color: var(--lc-text-muted);
+  margin-bottom: 5px;
+}
+.sa-form-group label .req { color: var(--lc-danger); }
+.sa-form-group input,
+.sa-form-group select,
+.sa-form-group textarea {
+  width: 100%;
+  padding: 9px 12px;
+  font-family: inherit;
+  font-size: var(--lc-fs-md);
+  color: var(--lc-text);
+  background: var(--lc-surface);
+  border: 1px solid var(--lc-border-strong);
+  border-radius: var(--lc-radius);
+  transition: border-color var(--lc-transition), box-shadow var(--lc-transition);
+}
+.sa-form-group input:focus,
+.sa-form-group select:focus,
+.sa-form-group textarea:focus {
+  outline: none;
+  border-color: var(--lc-brand-accent);
+  box-shadow: 0 0 0 3px rgba(58,53,119,0.15);
+}
+.sa-form-group textarea { resize: vertical; min-height: 68px; }
+.sa-form-hint {
+  font-size: 11px;
+  color: var(--lc-text-subtle);
+  margin-top: 4px;
+}
+.sa-err {
+  font-size: 11px;
+  color: var(--lc-danger);
+  margin-top: 4px;
+  font-weight: 600;
+  display: none;
+}
+.sa-err.show { display: block; }
+
+/* Multi-select ward picker */
+.sa-ward-picker {
+  border: 1px solid var(--lc-border-strong);
+  border-radius: var(--lc-radius);
+  max-height: 180px;
+  overflow-y: auto;
+  padding: 6px;
+  background: var(--lc-surface);
+}
+.sa-ward-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: var(--lc-radius-sm);
+  cursor: pointer;
+  font-size: var(--lc-fs-sm);
+  color: var(--lc-text);
+  transition: background var(--lc-transition);
+}
+.sa-ward-option:hover { background: var(--lc-surface-2); }
+.sa-ward-option input { accent-color: var(--lc-brand-accent); }
+.sa-ward-option .ward-type {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--lc-text-subtle);
+  
+  
+}
+
+/* Empty state */
+.sa-empty {
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--lc-text-muted);
+}
+.sa-empty .icon {
+  font-size: 40px;
+  opacity: 0.4;
+  margin-bottom: 12px;
+  display: block;
+}
+.sa-empty h3 {
+  font-size: var(--lc-fs-lg);
+  color: var(--lc-text);
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+.sa-empty p { font-size: var(--lc-fs-sm); }
+
+/* Login-credentials panel shown once after create/reset */
+.sa-cred-panel {
+  background: var(--lc-brand-primary);
+  border-radius: var(--lc-radius-lg);
+  padding: 22px;
+  text-align: center;
+  color: #fff;
+  margin: 14px 0;
+}
+.sa-cred-panel .label {
+  font-size: 10px;
+  letter-spacing: 2px;
+  
+  color: #C9A227;
+  margin-bottom: 10px;
+  font-weight: 700;
+}
+.sa-cred-panel .pin {
+  font-family: 'Courier New', monospace;
+  font-size: 34px;
+  font-weight: 900;
+  letter-spacing: 8px;
+  margin-bottom: 8px;
+}
+.sa-cred-panel .note {
+  font-size: 11px;
+  color: #C9D6E2;
+  line-height: 1.5;
+}
+
+/* Responsive */
+@media (max-width: 1100px) {
+  .sa-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 700px) {
+  .sa-kpi-grid { grid-template-columns: 1fr; }
+  .sa-form-grid { grid-template-columns: 1fr; }
+  .sa-prod-grid { grid-template-columns: repeat(2, 1fr); }
+  .sa-section-grid { grid-template-columns: 1fr; }
+  .sa-search input { min-width: 100%; }
+  .sa-drawer { width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<aside class="sidebar"></aside>
+<button class="lc-mobile-toggle" aria-label="Menu">☰</button>
+<div class="lc-sidebar-overlay"></div>
+
+<div class="main">
+  <!-- Top header -->
+  <div class="lc-top-header">
+    <div>
+      <div class="lc-page-eyebrow">Administration</div>
+      <h1>Staff Accounts</h1>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <button class="btn btn-sm lc-btn-outline" onclick="exportStaff()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Export
+      </button>
+      <button class="btn lc-btn-primary" onclick="openCreateModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round" width="15" height="15">
+          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        New Staff Account
+      </button>
+    </div>
+  </div>
+
+  <div class="lc-content">
+
+    <!-- KPIs -->
+    <div class="sa-kpi-grid" id="kpiGrid">
+      <div class="lc-kpi">
+        <div class="lc-kpi-label">Total staff</div>
+        <div class="lc-kpi-value" id="kpiTotal">0</div>
+        <div class="lc-kpi-sub" id="kpiTotalSub">across all roles</div>
+      </div>
+      <div class="lc-kpi lc-kpi--success">
+        <div class="lc-kpi-label">Active today</div>
+        <div class="lc-kpi-value" id="kpiActiveToday">0</div>
+        <div class="lc-kpi-sub">logged in during the last 24h</div>
+      </div>
+      <div class="lc-kpi lc-kpi--warning">
+        <div class="lc-kpi-label">Locked / disabled</div>
+        <div class="lc-kpi-value" id="kpiLocked">0</div>
+        <div class="lc-kpi-sub">accounts not usable</div>
+      </div>
+      <div class="lc-kpi lc-kpi--info">
+        <div class="lc-kpi-label">Events this week</div>
+        <div class="lc-kpi-value" id="kpiEvents">0</div>
+        <div class="lc-kpi-sub">across all staff</div>
+      </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="sa-toolbar">
+      <div class="sa-toolbar-left">
+        <div class="sa-search">
+          <input type="text" id="searchInput" placeholder="Search name, employee ID, email, phone…"
+                 oninput="renderTable()">
+        </div>
+        <select class="sa-filter" id="filterRole" onchange="renderTable()">
+          <option value="">All roles</option>
+        </select>
+        <select class="sa-filter" id="filterDepartment" onchange="renderTable()">
+          <option value="">All departments</option>
+        </select>
+        <select class="sa-filter" id="filterWard" onchange="renderTable()">
+          <option value="">All wards</option>
+        </select>
+        <select class="sa-filter" id="filterStatus" onchange="renderTable()">
+          <option value="">All statuses</option>
+          <option value="active">Active</option>
+          <option value="disabled">Disabled</option>
+        </select>
+        <button class="btn btn-sm lc-btn-ghost" onclick="clearFilters()">Clear</button>
+      </div>
+      <div class="sa-toolbar-right">
+        <span id="resultCount" style="font-size:var(--lc-fs-xs);color:var(--lc-text-muted)"></span>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="lc-card">
+      <div style="overflow-x:auto">
+        <table class="lc-table">
+          <thead>
+            <tr>
+              <th style="min-width:220px">Name</th>
+              <th>Employee ID</th>
+              <th>Role</th>
+              <th>Department</th>
+              <th>Wards</th>
+              <th>Last login</th>
+              <th style="text-align:right">Events (7d)</th>
+              <th>Status</th>
+              <th style="text-align:right;min-width:180px">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="staffBody">
+            <tr><td colspan="9">
+              <div class="sa-empty">
+                <span class="icon">👥</span>
+                <h3>Loading staff accounts…</h3>
+              </div>
+            </td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ============================================================
+     DETAIL DRAWER
+     ============================================================ -->
+<div class="sa-drawer-bg" id="drawerBg" onclick="closeDrawer(event)">
+  <div class="sa-drawer" id="drawer">
+    <div class="sa-drawer-head">
+      <div>
+        <h2 id="drawerName">—</h2>
+        <div class="emp" id="drawerEmp">—</div>
+      </div>
+      <button class="lc-modal-close" onclick="closeDrawer()">×</button>
+    </div>
+    <div class="sa-drawer-body" id="drawerBody"></div>
+    <div class="sa-drawer-foot" id="drawerFoot"></div>
+  </div>
+</div>
+
+<!-- ============================================================
+     CREATE / EDIT MODAL
+     ============================================================ -->
+<div class="lc-modal-bg" id="formModal">
+  <div class="lc-modal" style="width:min(760px,100%)">
+    <div class="lc-modal-head">
+      <div>
+        <h2 id="formModalTitle">New Staff Account</h2>
+        <div class="sub" id="formModalSub">Create a staff login and assign them to a role, department, and wards.</div>
+      </div>
+      <button class="lc-modal-close" onclick="closeFormModal()">×</button>
+    </div>
+    <div class="lc-modal-body">
+
+      <div id="formAlert"></div>
+
+      <div class="sa-section-title">Identity</div>
+      <div class="sa-form-grid">
+        <div class="sa-form-group full">
+          <label>Full Name <span class="req">*</span></label>
+          <input type="text" id="f_name" placeholder="e.g. Dr. Ama Owusu">
+          <div class="sa-err" id="err_name">Please enter a name</div>
+        </div>
+        <div class="sa-form-group">
+          <label>Employee ID</label>
+          <input type="text" id="f_employeeId" placeholder="Auto-generated if left blank">
+          <div class="sa-form-hint">Leave blank to auto-assign (EMP-#####)</div>
+        </div>
+        <div class="sa-form-group">
+          <label>Role <span class="req">*</span></label>
+          <select id="f_role"></select>
+          <div class="sa-err" id="err_role">Please select a role</div>
+        </div>
+      </div>
+
+      <div class="sa-section-title" style="margin-top:20px">Placement</div>
+      <div class="sa-form-grid">
+        <div class="sa-form-group">
+          <label>Department</label>
+          <input type="text" id="f_department" list="deptList"
+                 placeholder="e.g. Cardiology (or type a new one)">
+          <datalist id="deptList"></datalist>
+          <div class="sa-form-hint">New departments are saved automatically</div>
+        </div>
+        <div class="sa-form-group">
+          <label>&nbsp;</label>
+          <label style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:13px;color:var(--lc-text);cursor:pointer;padding:9px 0">
+            <input type="checkbox" id="f_showWards" onchange="toggleWardPicker()"
+                   style="accent-color:var(--lc-brand-accent)">
+            Assign to specific wards
+          </label>
+        </div>
+        <div class="sa-form-group full" id="wardPickerWrap" style="display:none">
+          <label>Wards / Units</label>
+          <div class="sa-ward-picker" id="wardPicker"></div>
+          <div class="sa-form-hint">Select every ward this staff member is assigned to.</div>
+        </div>
+      </div>
+
+      <div class="sa-section-title" style="margin-top:20px">Contact</div>
+      <div class="sa-form-grid">
+               <div class="sa-form-group">
+          <label>Email <span class="req">*</span></label>
+          <input type="email" id="f_email" placeholder="name@hospital.gh">
+          <div class="sa-form-hint">This is the staff member's login ID — must be unique.</div>
+        </div>
+        <div class="sa-form-group">
+          <label>Phone</label>
+          <input type="tel" id="f_phone" placeholder="+233 24 400 0111">
+        </div>
+      </div>
+
+      <div class="sa-section-title" style="margin-top:20px">
+        <span id="pinSectionLabel">Temporary setup PIN</span>
+      </div>
+      <div class="sa-form-grid" id="pinFields">
+        <div class="sa-form-group">
+          <label>Temporary setup PIN <span class="req">*</span></label>
+          <input type="text" inputmode="numeric" id="f_pin" placeholder="4+ digits"
+                 autocomplete="off" maxlength="8">
+          <div class="sa-err" id="err_pin">PIN must be at least 4 digits</div>
+        </div>
+        <div class="sa-form-group">
+          <label>Confirm PIN <span class="req">*</span></label>
+          <input type="text" inputmode="numeric" id="f_pin2" placeholder="Re-enter PIN"
+                 autocomplete="off" maxlength="8">
+          <div class="sa-err" id="err_pin2">PINs do not match</div>
+        </div>
+        <div class="sa-form-group full">
+          <div class="sa-form-hint">
+            This temporary setup PIN is replaced when the staff member sets up a strong password and authenticator app at first sign-in.
+            You can reset it later from the drawer or the actions column.
+          </div>
+        </div>
+      </div>
+
+      <div class="sa-section-title" style="margin-top:20px">Notes</div>
+      <div class="sa-form-group">
+        <textarea id="f_notes" placeholder="Optional notes — specialties, working hours, anything relevant"></textarea>
+      </div>
+
+    </div>
+    <div class="lc-modal-foot">
+      <button class="btn lc-btn-outline" onclick="closeFormModal()">Cancel</button>
+      <button class="btn lc-btn-primary" id="formSubmitBtn" onclick="submitForm()">
+        Create Account
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     CREDENTIALS SHOW-ONCE MODAL (after create / pin reset)
+     ============================================================ -->
+<div class="lc-modal-bg" id="credModal">
+  <div class="lc-modal" style="width:min(520px,100%)">
+    <div class="lc-modal-head">
+      <div>
+        <h2 id="credModalTitle">Account Created</h2>
+        <div class="sub" id="credModalSub">—</div>
+      </div>
+      <button class="lc-modal-close" onclick="closeCredModal()">×</button>
+    </div>
+    <div class="lc-modal-body" style="text-align:center">
+      <div class="sa-cred-panel">
+        <div class="label">Temporary setup PIN — save it now</div>
+        <div class="pin" id="credPin">————</div>
+        <div class="note">
+          This temporary PIN is shown only once. The staff member must enroll a password and authenticator app at sign-in.<br>
+          Hand it to the staff member directly, or send it via a private channel.
+        </div>
+      </div>
+      <div id="credExtra" style="text-align:left;font-size:var(--lc-fs-sm);margin-top:10px"></div>
+    </div>
+    <div class="lc-modal-foot">
+      <button class="btn lc-btn-outline" onclick="copyCredPin()">📋 Copy PIN</button>
+      <button class="btn lc-btn-primary" onclick="closeCredModal()">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     RESET PIN MODAL
+     ============================================================ -->
+<div class="lc-modal-bg" id="resetPinModal">
+  <div class="lc-modal" style="width:min(460px,100%)">
+    <div class="lc-modal-head">
+      <div>
+        <h2>Reset Staff PIN</h2>
+        <div class="sub" id="resetPinSub">—</div>
+      </div>
+      <button class="lc-modal-close" onclick="closeResetPinModal()">×</button>
+    </div>
+    <div class="lc-modal-body">
+      <div class="sa-form-group">
+        <label>New PIN <span class="req">*</span></label>
+        <input type="text" inputmode="numeric" id="resetPin1" placeholder="4+ digits"
+               autocomplete="off" maxlength="8">
+      </div>
+      <div class="sa-form-group" style="margin-top:12px">
+        <label>Confirm PIN <span class="req">*</span></label>
+        <input type="text" inputmode="numeric" id="resetPin2" placeholder="Re-enter PIN"
+               autocomplete="off" maxlength="8">
+      </div>
+      <div class="sa-err" id="err_resetPin" style="margin-top:8px"></div>
+    </div>
+    <div class="lc-modal-foot">
+      <button class="btn lc-btn-outline" onclick="closeResetPinModal()">Cancel</button>
+      <button class="btn lc-btn-primary" onclick="submitResetPin()">Reset PIN</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container is injected by labcore-utils.js -->
+<script src="shared/labcore-api.js"></script>
+<script src="shared/labcore-utils.js"></script>
+<script src="shared/labcore-ward.js"></script>
+<script src="shared/labcore-auth.js"></script>
+<script src="shared/labcore-staff.js"></script>
+<script src="shared/labcore-audit.js"></script>
+<script src="shared/labcore-icons.js"></script>
+<script src="shared/labcore-nav.js"></script>
+<script src="shared/labcore-search.js"></script>
+<script src="shared/labcore-notifications.js"></script>
+<script>
+/* ============================================================
+   STAFF ACCOUNTS — page controller
+   ============================================================ */
+(function () {
+  'use strict';
+
+  /* ---------- AUTH GATE ---------- */
+  var user = window.lcRequireAuth ? window.lcRequireAuth() : null;
+  if (!user) return;
+  if (user.id !== 'admin') {
+    if (window.lcToast) window.lcToast('Only administrators can manage staff accounts', 'warning');
+    window.location.href = 'dashboard.html';
+    return;
+  }
+
+  /* ---------- STATE ---------- */
+  var currentFormMode = 'create';   // 'create' | 'edit'
+  var currentEditId   = null;
+  var currentDrawerId = null;
+  var currentResetId  = null;
+  var wardCatalogue   = (window.lcWardCatalogue && window.lcWardCatalogue.wards) || [];
+
+  /* ---------- HELPERS ---------- */
+  function $(id) { return document.getElementById(id); }
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function roleLabel(roleId) {
+    var r = window.lcRoles && window.lcRoles[roleId];
+    return r ? r.label : roleId;
+  }
+  function roleShort(roleId) {
+    var r = window.lcRoles && window.lcRoles[roleId];
+    return r ? r.short : '—';
+  }
+  function fmtDateTime(iso) {
+    if (!iso) return '—';
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return '—';
+    return d.toLocaleString('en-GB', {
+      day: '2-digit', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    });
+  }
+  function timeAgo(iso) {
+    if (!iso) return '—';
+    var s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+    if (s < 60) return s + 's ago';
+    if (s < 3600) return Math.floor(s / 60) + 'm ago';
+    if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+    if (s < 30 * 86400) return Math.floor(s / 86400) + 'd ago';
+    return fmtDateTime(iso);
+  }
+  function wardName(id) {
+    var w = wardCatalogue.find(function (x) { return x.id === id; });
+    return w ? w.name : id;
+  }
+  function initials(name) {
+    var parts = String(name || '').trim().split(/\s+/);
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+
+  /* ============================================================
+     KPIs
+     ============================================================ */
+  function renderKPIs() {
+    var all = window.lcListStaff({});
+
+    var cutoff24 = Date.now() - 24 * 3600 * 1000;
+    var activeToday = all.filter(function (s) {
+      return s.lastLoginAt && new Date(s.lastLoginAt).getTime() >= cutoff24;
+    }).length;
+
+    var locked = all.filter(function (s) {
+      return s.status === 'disabled' ||
+             (typeof window.lcIsRoleLocked === 'function' && window.lcIsRoleLocked(s.role) && s.loginCount > 0);
+    }).length;
+
+    // Events this week — from audit log, filter by staff names
+    var weekAgo = Date.now() - 7 * 24 * 3600 * 1000;
+    var staffNames = {};
+    all.forEach(function (s) { staffNames[s.name] = true; });
+
+    var log = [];
+    try { log = JSON.parse(localStorage.getItem('labcore_audit_log') || '[]'); } catch (e) {}
+    var events = log.filter(function (e) {
+      return staffNames[e.by] && new Date(e.at).getTime() >= weekAgo;
+    }).length;
+
+    $('kpiTotal').textContent = all.length;
+    $('kpiTotalSub').textContent = all.length === 1
+      ? 'across 1 role'
+      : 'across ' + new Set(all.map(function (s) { return s.role; })).size + ' roles';
+
+    $('kpiActiveToday').textContent = activeToday;
+    $('kpiLocked').textContent = locked;
+    $('kpiEvents').textContent = events;
+  }
+
+  /* ============================================================
+     FILTERS
+     ============================================================ */
+  function populateFilterOptions() {
+    var roleSel = $('filterRole');
+    var currentRole = roleSel.value;
+    roleSel.innerHTML = '<option value="">All roles</option>' +
+      Object.keys(window.lcRoles).map(function (r) {
+        return '<option value="' + esc(r) + '">' + esc(roleLabel(r)) + '</option>';
+      }).join('');
+    if ([...roleSel.options].some(function (o) { return o.value === currentRole; })) {
+      roleSel.value = currentRole;
+    }
+
+    var deptSel = $('filterDepartment');
+    var currentDept = deptSel.value;
+    deptSel.innerHTML = '<option value="">All departments</option>' +
+      window.lcDepartments().map(function (d) {
+        return '<option value="' + esc(d) + '">' + esc(d) + '</option>';
+      }).join('');
+    if ([...deptSel.options].some(function (o) { return o.value === currentDept; })) {
+      deptSel.value = currentDept;
+    }
+
+    var wardSel = $('filterWard');
+    var currentWard = wardSel.value;
+    wardSel.innerHTML = '<option value="">All wards</option>' +
+      wardCatalogue.map(function (w) {
+        return '<option value="' + esc(w.id) + '">' + esc(w.name) + '</option>';
+      }).join('');
+    if ([...wardSel.options].some(function (o) { return o.value === currentWard; })) {
+      wardSel.value = currentWard;
+    }
+  }
+
+  function clearFilters() {
+    $('searchInput').value = '';
+    $('filterRole').value = '';
+    $('filterDepartment').value = '';
+    $('filterWard').value = '';
+    $('filterStatus').value = '';
+    renderTable();
+  }
+
+  /* ============================================================
+     TABLE RENDER
+     ============================================================ */
+  function renderTable() {
+    var filter = {
+      search:     $('searchInput').value,
+      role:       $('filterRole').value,
+      department: $('filterDepartment').value,
+      wardId:     $('filterWard').value,
+      status:     $('filterStatus').value
+    };
+
+    var list = window.lcListStaff(filter);
+
+    $('resultCount').textContent = list.length + ' account' + (list.length === 1 ? '' : 's');
+
+    var body = $('staffBody');
+    if (!list.length) {
+      body.innerHTML =
+        '<tr><td colspan="9">' +
+          '<div class="sa-empty">' +
+            '<span class="icon">👥</span>' +
+            '<h3>No staff accounts found</h3>' +
+            '<p>Click "New Staff Account" to create the first one.</p>' +
+          '</div>' +
+        '</td></tr>';
+      return;
+    }
+
+    body.innerHTML = list.map(function (s) {
+      var prod = window.lcStaffProductivity(s.name, 7);
+      var wardList = (s.wardIds || []).slice(0, 3);
+      var extraWards = (s.wardIds || []).length - wardList.length;
+      var statusCls = s.status === 'active' ? 'lc-status--active' : 'lc-status--danger';
+      var statusLabel = s.status === 'active' ? 'Active' : 'Disabled';
+
+      return '<tr>' +
+        '<td>' +
+          '<div style="display:flex;align-items:center;gap:10px">' +
+            '<div class="lc-avatar" style="width:28px;height:28px;font-size:10px;background:var(--lc-brand-accent)">' +
+              esc(initials(s.name)) +
+            '</div>' +
+            '<div style="min-width:0">' +
+              '<div style="font-weight:600;color:var(--lc-text)">' + esc(s.name) + '</div>' +
+              (s.email ? '<div style="font-size:11px;color:var(--lc-text-subtle)">' + esc(s.email) + '</div>' : '') +
+            '</div>' +
+          '</div>' +
+        '</td>' +
+        '<td><span style="font-family:monospace;font-size:12px">' + esc(s.employeeId || '—') + '</span></td>' +
+        '<td><span class="sa-role sa-role--' + esc(s.role) + '">' + esc(roleLabel(s.role)) + '</span></td>' +
+        '<td>' + (s.department ? esc(s.department) : '<span style="color:var(--lc-text-subtle)">—</span>') + '</td>' +
+        '<td>' +
+          (wardList.length
+            ? '<div class="sa-ward-chips">' +
+                wardList.map(function (wid) {
+                  return '<span class="sa-ward-chip">' + esc(wardName(wid)) + '</span>';
+                }).join('') +
+                (extraWards > 0
+                  ? '<span class="sa-ward-more" title="' +
+                      esc((s.wardIds || []).slice(3).map(wardName).join(', ')) +
+                    '">+' + extraWards + '</span>'
+                  : '') +
+              '</div>'
+            : '<span style="color:var(--lc-text-subtle);font-size:11px">None</span>') +
+        '</td>' +
+        '<td style="font-size:12px;color:var(--lc-text-muted)">' + esc(timeAgo(s.lastLoginAt)) + '</td>' +
+        '<td style="text-align:right;font-variant-numeric:tabular-nums">' +
+          '<strong>' + prod.events + '</strong>' +
+          (prod.events > 0 ? '<div style="font-size:10px;color:var(--lc-text-subtle)">' +
+            prod.validated + ' val · ' + prod.entered + ' ent</div>' : '') +
+        '</td>' +
+        '<td><span class="lc-status ' + statusCls + '">' + statusLabel + '</span></td>' +
+        '<td style="text-align:right">' +
+          '<div class="sa-actions" style="justify-content:flex-end">' +
+            '<button class="btn btn-sm lc-btn-outline" onclick="event.stopPropagation();openDrawer(\'' +
+              esc(s.id) + '\')" title="View details">View</button>' +
+            '<button class="btn btn-sm lc-btn-outline" onclick="event.stopPropagation();openEditModal(\'' +
+              esc(s.id) + '\')" title="Edit">Edit</button>' +
+            '<button class="btn btn-sm lc-btn-ghost" onclick="event.stopPropagation();openResetPinModal(\'' +
+              esc(s.id) + '\')" title="Reset PIN">🔑</button>' +
+            (s.status === 'active'
+              ? '<button class="btn btn-sm lc-btn-ghost" style="color:var(--lc-warning)" ' +
+                'onclick="event.stopPropagation();toggleDisable(\'' + esc(s.id) + '\')" title="Disable">Disable</button>'
+              : '<button class="btn btn-sm lc-btn-ghost" style="color:var(--lc-success)" ' +
+                'onclick="event.stopPropagation();toggleDisable(\'' + esc(s.id) + '\')" title="Enable">Enable</button>') +
+          '</div>' +
+        '</td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  /* ============================================================
+     CREATE / EDIT MODAL
+     ============================================================ */
+  function populateRoleSelect() {
+    var sel = $('f_role');
+    sel.innerHTML = '<option value="">Select role…</option>' +
+      Object.keys(window.lcRoles).map(function (r) {
+        return '<option value="' + esc(r) + '">' + esc(roleLabel(r)) + '</option>';
+      }).join('');
+  }
+
+  function populateDeptDatalist() {
+    var list = $('deptList');
+    list.innerHTML = window.lcDepartments().map(function (d) {
+      return '<option value="' + esc(d) + '">';
+    }).join('');
+  }
+
+  function populateWardPicker(selectedIds) {
+    selectedIds = selectedIds || [];
+    var picker = $('wardPicker');
+    if (!wardCatalogue.length) {
+      picker.innerHTML = '<div style="padding:12px;color:var(--lc-text-subtle);font-size:12px">No wards configured</div>';
+      return;
+    }
+    picker.innerHTML = wardCatalogue.map(function (w) {
+      var checked = selectedIds.indexOf(w.id) >= 0 ? 'checked' : '';
+      return '<label class="sa-ward-option">' +
+        '<input type="checkbox" value="' + esc(w.id) + '" ' + checked + '>' +
+        '<span>' + esc(w.name) + '</span>' +
+        '<span class="ward-type">' + esc(w.type || '') + '</span>' +
+        '</label>';
+    }).join('');
+  }
+
+  function toggleWardPicker() {
+    var show = $('f_showWards').checked;
+    $('wardPickerWrap').style.display = show ? 'block' : 'none';
+  }
+
+  function getSelectedWardIds() {
+    if (!$('f_showWards').checked) return [];
+    var ids = [];
+    $('wardPicker').querySelectorAll('input[type="checkbox"]:checked').forEach(function (cb) {
+      ids.push(cb.value);
+    });
+    return ids;
+  }
+
+  function openCreateModal() {
+    currentFormMode = 'create';
+    currentEditId = null;
+
+    $('formModalTitle').textContent = 'New Staff Account';
+    $('formModalSub').textContent = 'Create a staff login and assign them to a role, department, and wards.';
+    $('formSubmitBtn').textContent = 'Create Account';
+    $('pinSectionLabel').textContent = 'Temporary setup PIN';
+    $('pinFields').style.display = '';
+
+    $('f_name').value = '';
+    $('f_employeeId').value = '';
+    $('f_employeeId').placeholder = 'Auto-generated if left blank';
+    $('f_role').value = '';
+    $('f_department').value = '';
+    $('f_email').value = '';
+    $('f_phone').value = '';
+    $('f_pin').value = '';
+    $('f_pin2').value = '';
+    $('f_notes').value = '';
+    $('f_showWards').checked = false;
+
+    populateRoleSelect();
+    populateDeptDatalist();
+    populateWardPicker([]);
+    toggleWardPicker();
+
+    clearFormErrors();
+    $('formAlert').innerHTML = '';
+    $('formModal').classList.add('show');
+    setTimeout(function () { $('f_name').focus(); }, 60);
+  }
+
+  function openEditModal(id) {
+    var s = window.lcGetStaff(id);
+    if (!s) { window.lcToast('Staff not found', 'error'); return; }
+
+    currentFormMode = 'edit';
+    currentEditId = id;
+
+    $('formModalTitle').textContent = 'Edit Staff Account';
+    $('formModalSub').textContent = s.name + ' · ' + (s.employeeId || '—');
+    $('formSubmitBtn').textContent = 'Save Changes';
+    $('pinSectionLabel').textContent = 'PIN';
+    $('pinFields').style.display = 'none';
+
+    $('f_name').value = s.name || '';
+    $('f_employeeId').value = s.employeeId || '';
+    $('f_role').value = s.role || '';
+    $('f_department').value = s.department || '';
+    $('f_email').value = s.email || '';
+    $('f_phone').value = s.phone || '';
+    $('f_notes').value = s.notes || '';
+    $('f_showWards').checked = (s.wardIds || []).length > 0;
+
+    populateRoleSelect();
+    populateDeptDatalist();
+    populateWardPicker(s.wardIds || []);
+    toggleWardPicker();
+
+    clearFormErrors();
+    $('formAlert').innerHTML =
+      '<div class="lc-alert lc-alert-info" style="font-size:12px">' +
+        'To reset this staff member\u2019s sign-in, use the 🔑 button on the table row. This revokes sessions and requires password and authenticator setup again.' +
+      '</div>';
+    $('formModal').classList.add('show');
+    setTimeout(function () { $('f_name').focus(); }, 60);
+  }
+
+  function closeFormModal() {
+    $('formModal').classList.remove('show');
+    currentFormMode = 'create';
+    currentEditId = null;
+  }
+
+  function clearFormErrors() {
+    document.querySelectorAll('.sa-err').forEach(function (el) { el.classList.remove('show'); });
+  }
+
+  function showFormError(id, msg) {
+    var el = $(id);
+    if (!el) return;
+    if (msg) el.textContent = msg;
+    el.classList.add('show');
+  }
+
+  function setStaffCache(records) {
+    localStorage.setItem('labcore_staff_v1', JSON.stringify(records));
+  }
+
+  async function refreshStaffCache() {
+    var records = await window.lcApiGetStaff();
+    if (!Array.isArray(records)) throw new Error('Backend returned an invalid staff list');
+    setStaffCache(records);
+    return records;
+  }
+
+  async function submitForm() {
+    clearFormErrors();
+    $('formAlert').innerHTML = '';
+
+    var name = $('f_name').value.trim();
+    var role = $('f_role').value;
+    var dept = $('f_department').value.trim();
+    var empId = $('f_employeeId').value.trim();
+       var email = $('f_email').value.trim();
+    if (!email) {
+      $('formAlert').innerHTML =
+        '<div class="lc-alert lc-alert-danger">Email is required — it is the login ID.</div>';
+      $('f_email').focus();
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      $('formAlert').innerHTML =
+        '<div class="lc-alert lc-alert-danger">Please enter a valid email address.</div>';
+      $('f_email').focus();
+      return;
+    }
+    var phone = $('f_phone').value.trim();
+    var notes = $('f_notes').value.trim();
+    var wardIds = getSelectedWardIds();
+
+    var ok = true;
+    if (!name) { showFormError('err_name', 'Please enter a name'); ok = false; }
+    if (!role) { showFormError('err_role', 'Please select a role'); ok = false; }
+
+    var pin = '', pin2 = '';
+    if (currentFormMode === 'create') {
+      pin = $('f_pin').value.trim();
+      pin2 = $('f_pin2').value.trim();
+      if (!pin || pin.length < 4) { showFormError('err_pin', 'PIN must be at least 4 digits'); ok = false; }
+      if (pin !== pin2) { showFormError('err_pin2', 'PINs do not match'); ok = false; }
+    }
+
+    if (!ok) return;
+
+    try {
+      if (currentFormMode === 'create') {
+        var rec = await window.lcApiCreateStaff({
+          name: name,
+          role: role,
+          department: dept,
+          employeeId: empId,       // empty string → auto
+          wardIds: wardIds,
+          email: email,
+          phone: phone,
+          notes: notes,
+          pin: pin
+        });
+        await refreshStaffCache();
+        closeFormModal();
+        renderKPIs();
+        populateFilterOptions();
+        renderTable();
+        showCredModal(rec, pin, 'Account Created', 'Staff account for ' + rec.name + ' has been created.');
+      } else {
+        await window.lcApiUpdateStaff(currentEditId, {
+          name: name,
+          role: role,
+          department: dept,
+          employeeId: empId,
+          wardIds: wardIds,
+          email: email,
+          phone: phone,
+          notes: notes
+        });
+        await refreshStaffCache();
+        closeFormModal();
+        renderKPIs();
+        populateFilterOptions();
+        renderTable();
+        if (window.lcToast) window.lcToast('Changes saved for ' + name, 'success');
+      }
+    } catch (err) {
+      $('formAlert').innerHTML =
+        '<div class="lc-alert lc-alert-danger">' + esc(err.message || 'Save failed') + '</div>';
+    }
+  }
+
+  /* ============================================================
+     CREDENTIALS SHOW-ONCE MODAL
+     ============================================================ */
+  var _credPinValue = '';
+  function showCredModal(rec, pin, title, sub) {
+    _credPinValue = pin;
+    $('credModalTitle').textContent = title;
+    $('credModalSub').textContent = sub;
+    $('credPin').textContent = pin;
+    $('credExtra').innerHTML =
+      '<div style="padding:12px 14px;background:var(--lc-surface-2);border-radius:6px;border-left:3px solid var(--lc-brand-accent);margin-top:10px">' +
+        '<div style="font-weight:700;margin-bottom:6px">' + esc(rec.name) + '</div>' +
+        '<div style="font-size:12px;color:var(--lc-text-muted);line-height:1.6">' +
+          'Employee ID: <strong>' + esc(rec.employeeId) + '</strong><br>' +
+          'Role: <strong>' + esc(roleLabel(rec.role)) + '</strong>' +
+          (rec.department ? '<br>Department: <strong>' + esc(rec.department) + '</strong>' : '') +
+          (rec.wardIds && rec.wardIds.length
+            ? '<br>Wards: <strong>' + esc(rec.wardIds.map(wardName).join(', ')) + '</strong>'
+            : '') +
+        '</div>' +
+      '</div>';
+    $('credModal').classList.add('show');
+  }
+  function closeCredModal() {
+    $('credModal').classList.remove('show');
+    _credPinValue = '';
+  }
+  window.copyCredPin = function () {
+    if (!_credPinValue) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(_credPinValue).then(function () {
+        if (window.lcToast) window.lcToast('PIN copied', 'success');
+      }, function () { fallbackCopy(_credPinValue); });
+    } else {
+      fallbackCopy(_credPinValue);
+    }
+  };
+  function fallbackCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); if (window.lcToast) window.lcToast('PIN copied', 'success'); }
+    catch (e) { if (window.lcToast) window.lcToast('Copy failed', 'error'); }
+    document.body.removeChild(ta);
+  }
+
+  /* ============================================================
+     RESET PIN MODAL
+     ============================================================ */
+  function openResetPinModal(id) {
+    var s = window.lcGetStaff(id);
+    if (!s) { window.lcToast('Staff not found', 'error'); return; }
+    currentResetId = id;
+    $('resetPinSub').textContent = s.name + ' · ' + (s.employeeId || '—');
+    $('resetPin1').value = '';
+    $('resetPin2').value = '';
+    $('err_resetPin').classList.remove('show');
+    $('resetPinModal').classList.add('show');
+    setTimeout(function () { $('resetPin1').focus(); }, 60);
+  }
+  function closeResetPinModal() {
+    $('resetPinModal').classList.remove('show');
+    currentResetId = null;
+  }
+  async function submitResetPin() {
+    if (!currentResetId) return;
+    var p1 = $('resetPin1').value.trim();
+    var p2 = $('resetPin2').value.trim();
+    var err = $('err_resetPin');
+
+    if (!p1 || p1.length < 4) {
+      err.textContent = 'PIN must be at least 4 digits';
+      err.classList.add('show');
+      return;
+    }
+    if (p1 !== p2) {
+      err.textContent = 'PINs do not match';
+      err.classList.add('show');
+      return;
+    }
+
+    try {
+      await window.lcApiResetStaffPin(currentResetId, p1);
+      await refreshStaffCache();
+      var s = window.lcGetStaff(currentResetId);
+      closeResetPinModal();
+      renderTable();
+      showCredModal(
+        s,
+        p1,
+        'PIN Reset',
+        'New PIN for ' + s.name + '. The previous PIN no longer works.'
+      );
+    } catch (e) {
+      err.textContent = e.message || 'Reset failed';
+      err.classList.add('show');
+    }
+  }
+
+  /* ============================================================
+     DISABLE / ENABLE / DELETE
+     ============================================================ */
+  async function toggleDisable(id) {
+    var s = window.lcGetStaff(id);
+    if (!s) return;
+    if (s.status === 'active') {
+      var reason = prompt('Reason for disabling ' + s.name + '? (optional)');
+      if (reason === null) return;
+      try {
+        await window.lcApiSetStaffStatus(id, false, reason || '');
+        await refreshStaffCache();
+        window.lcToast(s.name + ' has been disabled', 'info');
+      } catch (e) {
+        window.lcToast(e.message || 'Failed to disable', 'error');
+      }
+    } else {
+      if (!confirm('Re-enable ' + s.name + '? They will be able to log in again.')) return;
+      try {
+        await window.lcApiSetStaffStatus(id, true);
+        await refreshStaffCache();
+        window.lcToast(s.name + ' has been re-enabled', 'success');
+      } catch (e) {
+        window.lcToast(e.message || 'Failed to enable', 'error');
+      }
+    }
+    renderKPIs();
+    renderTable();
+  }
+
+  async function deleteStaff(id) {
+    var s = window.lcGetStaff(id);
+    if (!s) return;
+    if ((s.loginCount || 0) > 0) {
+      window.lcToast('This account has login history. Disable it instead to preserve the audit trail.', 'warning');
+      return;
+    }
+    if (!confirm('Permanently delete ' + s.name + ' (' + s.employeeId + ')?\n\nThis cannot be undone.')) return;
+    try {
+      await window.lcApiDeleteStaff(id);
+      await refreshStaffCache();
+      window.lcToast(s.name + ' deleted', 'info');
+      closeDrawer();
+      renderKPIs();
+      populateFilterOptions();
+      renderTable();
+    } catch (e) {
+      window.lcToast(e.message || 'Delete failed', 'error');
+    }
+  }
+
+  /* ============================================================
+     DETAIL DRAWER
+     ============================================================ */
+  function openDrawer(id) {
+    var s = window.lcGetStaff(id);
+    if (!s) return;
+    currentDrawerId = id;
+
+    $('drawerName').textContent = s.name;
+    $('drawerEmp').textContent = (s.employeeId || '—') + ' · ' + roleLabel(s.role);
+
+    var prod = window.lcStaffProductivity(s.name, 7);
+    var timeline = window.lcStaffAuditTimeline(s.name, 30);
+
+    var statusCls = s.status === 'active' ? 'lc-status--active' : 'lc-status--danger';
+    var statusLabel = s.status === 'active' ? 'Active' : 'Disabled';
+
+    var html = '';
+
+    // Status banner
+    html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:18px">' +
+      '<span class="sa-role sa-role--' + esc(s.role) + '">' + esc(roleLabel(s.role)) + '</span>' +
+      '<span class="lc-status ' + statusCls + '">' + statusLabel + '</span>' +
+      '</div>';
+
+    // Identity
+    html += '<div class="sa-section">' +
+      '<div class="sa-section-title">Identity</div>' +
+      '<div class="sa-section-grid">' +
+        field('Full Name', s.name) +
+        field('Employee ID', s.employeeId || '—', 'mono') +
+        field('Role', roleLabel(s.role)) +
+        field('Status', statusLabel) +
+      '</div>' +
+    '</div>';
+
+    // Placement
+    html += '<div class="sa-section">' +
+      '<div class="sa-section-title">Placement</div>' +
+      '<div class="sa-section-grid">' +
+        field('Department', s.department || 'Not assigned', '', !s.department) +
+        '<div class="sa-field">' +
+          '<div class="sa-field-label">Wards</div>' +
+          '<div class="sa-field-value">' +
+            ((s.wardIds && s.wardIds.length)
+              ? '<div class="sa-ward-chips">' +
+                  s.wardIds.map(function (wid) {
+                    return '<span class="sa-ward-chip">' + esc(wardName(wid)) + '</span>';
+                  }).join('') +
+                '</div>'
+              : '<span style="color:var(--lc-text-subtle);font-style:italic;font-weight:400">Not assigned</span>') +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+
+    // Contact
+    html += '<div class="sa-section">' +
+      '<div class="sa-section-title">Contact</div>' +
+      '<div class="sa-section-grid">' +
+        field('Email', s.email || 'Not provided', '', !s.email) +
+        field('Phone', s.phone || 'Not provided', '', !s.phone) +
+      '</div>' +
+    '</div>';
+
+    // Lifecycle
+    html += '<div class="sa-section">' +
+      '<div class="sa-section-title">Account Lifecycle</div>' +
+      '<div class="sa-section-grid">' +
+        field('Created', fmtDateTime(s.createdAt)) +
+        field('Created by', s.createdBy || '—') +
+        field('Last login', s.lastLoginAt ? timeAgo(s.lastLoginAt) : 'Never', '', !s.lastLoginAt) +
+        field('Total logins', String(s.loginCount || 0), 'mono') +
+      '</div>' +
+    '</div>';
+
+    // Notes
+    if (s.notes) {
+      html += '<div class="sa-section">' +
+        '<div class="sa-section-title">Notes</div>' +
+        '<div style="font-size:var(--lc-fs-sm);color:var(--lc-text);padding:10px 12px;' +
+          'background:var(--lc-surface-2);border-left:3px solid var(--lc-brand-accent);border-radius:4px">' +
+          esc(s.notes) +
+        '</div>' +
+      '</div>';
+    }
+
+    // Productivity
+    html += '<div class="sa-section">' +
+      '<div class="sa-section-title">Productivity — last 7 days</div>' +
+      '<div class="sa-prod-grid">' +
+        prodTile('Cases entered', prod.entered, '') +
+        prodTile('Validated', prod.validated, 'success') +
+        prodTile('Amendments', prod.amended, prod.amended > 0 ? 'warn' : '') +
+        prodTile('Rejections', prod.rejected, prod.rejected > 0 ? 'warn' : '') +
+        prodTile('Criticals acked', prod.criticalsAcked, prod.criticalsAcked > 0 ? 'danger' : '') +
+        prodTile('Logins', prod.logins, '') +
+      '</div>' +
+    '</div>';
+
+    // Audit timeline
+    html += '<div class="sa-section">' +
+      '<div class="sa-section-title">Activity Timeline (' + timeline.length + ')</div>';
+    if (!timeline.length) {
+      html += '<div style="padding:20px;text-align:center;color:var(--lc-text-subtle);font-size:12px">' +
+        'No recorded activity for this account.</div>';
+    } else {
+      html += '<div class="sa-timeline">';
+      timeline.forEach(function (e) {
+        var cls = 'blue';
+        var ev = String(e.event || '').toLowerCase();
+        if (ev.indexOf('validated') >= 0) cls = 'green';
+        else if (ev.indexOf('reject') >= 0 || ev.indexOf('critical') >= 0) cls = 'red';
+        else if (ev.indexOf('amend') >= 0 || ev.indexOf('lock') >= 0) cls = 'amber';
+
+        html += '<div class="sa-tl-item">' +
+          '<div class="sa-tl-icon ' + cls + '">●</div>' +
+          '<div class="sa-tl-body">' +
+            '<div class="sa-tl-title">' + esc(e.event || '—') + '</div>' +
+            '<div class="sa-tl-meta">' + fmtDateTime(e.at) + '</div>' +
+            (e.note ? '<div class="sa-tl-note">' + esc(e.note) + '</div>' : '') +
+          '</div>' +
+        '</div>';
+      });
+      html += '</div>';
+    }
+    html += '</div>';
+
+    $('drawerBody').innerHTML = html;
+
+    // Drawer footer actions
+    $('drawerFoot').innerHTML =
+      '<button class="btn btn-sm lc-btn-outline" onclick="deleteFromDrawer()" ' +
+        'style="margin-right:auto;color:var(--lc-danger);border-color:var(--lc-danger)">Delete</button>' +
+      '<button class="btn btn-sm lc-btn-outline" onclick="resetPinFromDrawer()">Reset PIN</button>' +
+      (s.status === 'active'
+        ? '<button class="btn btn-sm lc-btn-danger" onclick="disableFromDrawer()">Disable Account</button>'
+        : '<button class="btn btn-sm lc-btn-success" onclick="enableFromDrawer()">Enable Account</button>') +
+      '<button class="btn btn-sm lc-btn-primary" onclick="editFromDrawer()">Edit Details</button>';
+
+    $('drawerBg').classList.add('show');
+  }
+
+  function field(label, value, mono, muted) {
+    return '<div class="sa-field">' +
+      '<div class="sa-field-label">' + esc(label) + '</div>' +
+      '<div class="sa-field-value' +
+        (mono ? ' mono' : '') +
+        (muted ? ' muted' : '') + '">' +
+        esc(value) +
+      '</div>' +
+    '</div>';
+  }
+
+  function prodTile(label, value, variant) {
+    return '<div class="sa-prod-tile' + (variant ? ' sa-prod-tile--' + variant : '') + '">' +
+      '<div class="sa-prod-label">' + esc(label) + '</div>' +
+      '<div class="sa-prod-value">' + value + '</div>' +
+    '</div>';
+  }
+
+  function closeDrawer(e) {
+    if (e && e.target && e.target.id !== 'drawerBg') return;
+    $('drawerBg').classList.remove('show');
+    currentDrawerId = null;
+  }
+  window.closeDrawer = closeDrawer;
+
+  /* Drawer footer button handlers — exposed globally for onclick */
+  window.openDrawer = openDrawer;
+  window.openEditModal = openEditModal;
+  window.openResetPinModal = openResetPinModal;
+  window.toggleDisable = toggleDisable;
+    /* Modal + form handlers — exposed globally for inline onclick */
+  window.openCreateModal = openCreateModal;
+  window.closeFormModal = closeFormModal;
+  window.submitForm = submitForm;
+  window.closeResetPinModal = closeResetPinModal;
+  window.submitResetPin = submitResetPin;
+  window.closeCredModal = closeCredModal;
+  window.clearFilters = clearFilters;
+  window.renderTable = renderTable;
+  
+  window.deleteFromDrawer = function () {
+    if (currentDrawerId) deleteStaff(currentDrawerId);
+  };
+  window.resetPinFromDrawer = function () {
+    if (!currentDrawerId) return;
+    var id = currentDrawerId;
+    closeDrawer();
+    openResetPinModal(id);
+  };
+  window.disableFromDrawer = function () {
+    if (currentDrawerId) toggleDisable(currentDrawerId);
+  };
+  window.enableFromDrawer = function () {
+    if (currentDrawerId) toggleDisable(currentDrawerId);
+  };
+  window.editFromDrawer = function () {
+    if (!currentDrawerId) return;
+    var id = currentDrawerId;
+    closeDrawer();
+    openEditModal(id);
+  };
+
+  /* ============================================================
+     EXPORT
+     ============================================================ */
+  window.exportStaff = function () {
+    var list = window.lcListStaff({
+      search:     $('searchInput').value,
+      role:       $('filterRole').value,
+      department: $('filterDepartment').value,
+      wardId:     $('filterWard').value,
+      status:     $('filterStatus').value
+    });
+
+    if (!list.length) { window.lcToast('No staff to export', 'warning'); return; }
+
+    var rows = [['Name','Employee ID','Role','Department','Wards','Email','Phone',
+      'Status','Last Login','Login Count','Created','Created By','Events (7d)']];
+
+    list.forEach(function (s) {
+      var prod = window.lcStaffProductivity(s.name, 7);
+      rows.push([
+        s.name,
+        s.employeeId || '',
+        roleLabel(s.role),
+        s.department || '',
+        (s.wardIds || []).map(wardName).join('; '),
+        s.email || '',
+        s.phone || '',
+        s.status,
+        s.lastLoginAt ? fmtDateTime(s.lastLoginAt) : 'Never',
+        s.loginCount || 0,
+        fmtDateTime(s.createdAt),
+        s.createdBy || '',
+        prod.events
+      ]);
+    });
+
+    try {
+      var ws = XLSX.utils.aoa_to_sheet(rows);
+      var wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Staff');
+      XLSX.writeFile(wb, 'LabCore_Staff_' + new Date().toISOString().slice(0, 10) + '.xlsx');
+      window.lcToast('Exported ' + list.length + ' staff record(s)', 'success');
+    } catch (e) {
+      window.lcToast('Export failed: ' + e.message, 'error');
+    }
+  };
+
+  /* ============================================================
+     KEYBOARD
+     ============================================================ */
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      if ($('formModal').classList.contains('show')) closeFormModal();
+      else if ($('resetPinModal').classList.contains('show')) closeResetPinModal();
+      else if ($('credModal').classList.contains('show')) closeCredModal();
+      else if ($('drawerBg').classList.contains('show')) closeDrawer();
+    }
+  });
+
+  /* Modal background click closes */
+  $('formModal').addEventListener('click', function (e) {
+    if (e.target === this) closeFormModal();
+  });
+  $('resetPinModal').addEventListener('click', function (e) {
+    if (e.target === this) closeResetPinModal();
+  });
+  $('credModal').addEventListener('click', function (e) {
+    if (e.target === this) closeCredModal();
+  });
+
+  /* ============================================================
+     INIT
+     ============================================================ */
+  (async function initializeStaffPage() {
+    try {
+      await refreshStaffCache();
+      populateFilterOptions();
+      renderKPIs();
+      renderTable();
+    } catch (error) {
+      setStaffCache([]);
+      populateFilterOptions();
+      renderKPIs();
+      renderTable();
+      window.lcToast('Could not load staff accounts from the backend: ' +
+        (error.message || 'request failed'), 'error');
+    }
+  })();
+
+  console.log('👥 Staff Accounts ready — ' +
+    window.lcListStaff({}).length + ' account(s), ' +
+    window.lcDepartments().length + ' departments, ' +
+    wardCatalogue.length + ' wards');
+
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login | LabCore</title>
+<link rel="stylesheet" href="shared/labcore-nav.css">
+<style>
+/* Login — the card is laid out like a specimen label: identity on top,
+   a tear-off barcode strip along the bottom. */
+body {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--lc-sidebar-bg);
+  margin: 0;
+  padding: 20px;
+}
+.login-card {
+  background: var(--lc-surface);
+  border-radius: 6px;
+  width: 440px;
+  max-width: 100%;
+  padding: 32px 32px 0;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.06), 0 24px 60px -20px rgba(0,0,0,0.6);
+  overflow: hidden;
+}
+.brand { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
+.brand-mark {
+  width: 40px; height: 40px; background: var(--lc-brand-accent); color: #fff;
+  border-radius: 50% 50% 50% 5px; display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 16px;
+}
+.brand h1 { font-size: 22px; margin: 0; }
+.brand p { font-size: 13px; color: var(--lc-text-muted); margin: 1px 0 0; }
+.subtitle { font-size: 15px; color: var(--lc-text); margin: 22px 0 16px; font-weight: 600; }
+
+label { display: block; font-size: 13px; font-weight: 600; color: var(--lc-text-muted); margin-bottom: 5px; }
+input[type=email] {
+  width: 100%; padding: 11px 12px; border: 1px solid var(--lc-border-strong);
+  border-radius: var(--lc-radius); font-size: 15px; margin-bottom: 18px;
+}
+input[type=email]:focus {
+  outline: none; border-color: var(--lc-brand-primary-hi);
+  box-shadow: 0 0 0 3px rgba(58,53,119,0.18);
+}
+
+.pin-row { display: flex; gap: 10px; margin-bottom: 18px; }
+.pin-digit {
+  width: 56px; height: 60px; text-align: center;
+  font-size: 24px; font-weight: 700;
+  border-radius: var(--lc-radius); border: 1px solid var(--lc-border-strong);
+  background: var(--lc-surface); color: var(--lc-text);
+  transition: border-color var(--lc-transition), background var(--lc-transition);
+}
+.pin-digit:focus {
+  outline: none; border-color: var(--lc-brand-primary-hi);
+  box-shadow: 0 0 0 3px rgba(58,53,119,0.18);
+}
+.pin-digit.filled { border-color: var(--lc-brand-primary-hi); background: var(--lc-surface-2); }
+
+.btn {
+  width: 100%; padding: 12px; border: 1px solid var(--lc-brand-primary); border-radius: var(--lc-radius);
+  background: var(--lc-brand-primary); color: #fff; font-size: 15px; font-weight: 600;
+  cursor: pointer;
+}
+.btn:hover { background: var(--lc-brand-primary-hi); border-color: var(--lc-brand-primary-hi); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.hint { margin-top: 14px; font-size: 13px; color: var(--lc-text-muted); line-height: 1.5; }
+.error {
+  background: var(--lc-danger-bg); color: var(--lc-danger); border: 1px solid var(--lc-danger);
+  padding: 8px 12px; border-radius: var(--lc-radius); font-size: 13px; margin-bottom: 14px; display: none;
+}
+.error.show { display: block; }
+
+/* tear-off strip */
+.label-strip {
+  margin: 26px -32px 0; height: 44px;
+  border-top: 2px dashed var(--lc-border-strong);
+  background:
+    repeating-linear-gradient(90deg,
+      var(--lc-text) 0 2px, transparent 2px 5px,
+      var(--lc-text) 5px 6px, transparent 6px 10px,
+      var(--lc-text) 10px 13px, transparent 13px 15px,
+      var(--lc-text) 15px 16px, transparent 16px 21px) 32px 12px / calc(100% - 64px) 20px no-repeat;
+}
+</style>
+</head>
+<body>
+<div class="login-card">
+  <div class="brand">
+    <div class="brand-mark">LC</div>
+    <div>
+      <h1>LabCore</h1>
+      <p>Laboratory Information System</p>
+    </div>
+  </div>
+  <div class="subtitle">Secure sign in</div>
+
+  <div class="error" id="errorBox"></div>
+
+  <label>Email</label>
+  <input type="email" id="email" placeholder="you@hospital.gh" autocomplete="username">
+
+  <label for="credential">Password or temporary setup PIN</label>
+  <input type="password" id="credential" autocomplete="current-password" style="width:100%;padding:11px 12px;border:1px solid var(--lc-border-strong);border-radius:var(--lc-radius);font-size:15px;margin-bottom:16px">
+  <label for="totp">Authenticator code</label>
+  <input type="text" id="totp" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="6-digit code" style="width:100%;padding:11px 12px;border:1px solid var(--lc-border-strong);border-radius:var(--lc-radius);font-size:15px;margin-bottom:18px">
+
+  <button class="btn" id="loginBtn" onclick="doLogin()" disabled>Sign in</button>
+
+  <div class="hint">
+    First sign-in or a reset? Use your temporary PIN to set a strong password and authenticator app. After setup, use your password and the current 6-digit authenticator code.
+  </div>
+  <div class="label-strip" aria-hidden="true"></div>
+</div>
+
+<script src="shared/labcore-api.js"></script>
+<script src="shared/labcore-auth.js"></script>
+<script src="shared/labcore-staff.js"></script>
+<script src="shared/labcore-audit.js"></script>
+<script>
+if (window.lcGetUser && window.lcGetUser() && window.lcGetToken && window.lcGetToken()) {
+  window.location.href = 'dashboard.html';
+}
+
+function showError(msg) {
+  var el = document.getElementById('errorBox');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(function () { el.classList.remove('show'); }, 5000);
+}
+
+/* ---------- Login (talks to the real backend) ---------- */
+async function doLogin() {
+  var email = document.getElementById('email').value.trim();
+  if (!email) { showError('Please enter your email.'); return; }
+  var credential = document.getElementById('credential').value;
+  if (!credential) { showError('Enter your password or temporary setup PIN.'); return; }
+  var totp = document.getElementById('totp').value.replace(/\D/g, '');
+  if (totp && totp.length !== 6) { showError('Authenticator codes contain 6 digits.'); return; }
+
+  var btn = document.getElementById('loginBtn');
+  var originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Signing in…';
+
+  try {
+    var result = await window.lcApiLogin(email, credential, totp);
+    window.location.href = result.setupRequired ? 'security-setup.html' : 'dashboard.html';
+  } catch (err) {
+    var msg = 'Login failed.';
+    var code = err && err.data && err.data.error;
+    if (code === 'invalid_credentials') msg = 'Email or password is incorrect.';
+    else if (code === 'invalid_mfa') msg = err.message || 'Authenticator code is invalid. Use the current code and try again.';
+    else if (code === 'disabled')   msg = 'This account has been disabled.';
+    else if (code === 'network')    msg = 'Cannot reach the server. Is the backend running on port 4000?';
+    else if (code === 'too_many_requests') msg = 'Too many attempts. Please wait a few minutes.';
+    else if (err && err.message)    msg = err.message;
+
+    showError(msg);
+    document.getElementById('credential').value = '';
+    document.getElementById('totp').value = '';
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+}
+
+document.querySelectorAll('#email,#credential,#totp').forEach(function (input) {
+  input.addEventListener('input', function () {
+    var complete = document.getElementById('email').value.trim() && document.getElementById('credential').value;
+    document.getElementById('loginBtn').disabled = !complete;
+  });
+  input.addEventListener('keydown', function (event) {
+    if (event.key === 'Enter' && !document.getElementById('loginBtn').disabled) doLogin();
+  });
+});
+document.getElementById('email').focus();
+</script>
+</body>
+</html>

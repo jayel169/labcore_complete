@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Secure account setup | LabCore</title>
+  <link rel="stylesheet" href="shared/labcore-nav.css">
+  <style>
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; display:grid; place-items:center; padding:20px; background:var(--lc-sidebar-bg); font-family:var(--lc-font); color:var(--lc-text); }
+    .card { width:min(620px,100%); padding:26px; background:#fff; border-radius:8px; }
+    h1 { margin:0 0 6px; font-size:24px; } p { color:var(--lc-muted); font-size:14px; line-height:1.55; }
+    label { display:block; margin:13px 0 5px; font-weight:600; font-size:13px; }
+    input { width:100%; padding:11px; border:1px solid var(--lc-border-strong); border-radius:5px; font:inherit; font-size:15px; }
+    .secret { padding:12px; background:var(--lc-surface-2); overflow-wrap:anywhere; font-family:monospace; font-size:16px; }
+    .notice { display:none; padding:10px; margin:12px 0; border-radius:5px; background:var(--lc-danger-bg); color:var(--lc-danger); }
+    .btn { border:0; width:100%; margin-top:14px; padding:11px; border-radius:5px; background:var(--lc-brand-primary); color:#fff; font:inherit; font-weight:700; cursor:pointer; }
+    .btn:disabled { opacity:.6; cursor:wait; }
+    .foot { margin-top:14px; text-align:center; color:var(--lc-muted); font-size:12px; }
+    .foot a { color:var(--lc-brand-primary-hi); }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>Secure your LabCore account</h1>
+    <p id="accountText">Before continuing, set a strong password and pair an authenticator app. This replaces temporary PIN sign-in and is required for all staff accounts.</p>
+    <div class="notice" id="notice" role="alert"></div>
+    <form id="setupForm">
+      <label for="newPassword">New password</label>
+      <input id="newPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" required>
+      <label for="confirmPassword">Confirm password</label>
+      <input id="confirmPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" required>
+      <h2 style="font-size:16px;margin:20px 0 5px">Set up authenticator app</h2>
+      <p>In Google Authenticator, Microsoft Authenticator, 1Password or another TOTP app, choose “Add account” → “Enter setup key”. Use issuer LabCore and the key below. The code changes every 30 seconds.</p>
+      <label for="secretText">One-time setup key</label>
+      <div id="secretText" class="secret"></div>
+      <button type="button" class="btn" id="newSecretButton" style="background:#eceaf4;color:#211E48">Generate a new setup key</button>
+      <label for="code">6-digit authenticator code</label>
+      <input id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required>
+      <button class="btn" id="saveButton" type="submit">Verify and secure account</button>
+    </form>
+    <div class="foot">If you did not start this setup, <a href="#" id="cancelButton">cancel and sign out</a>.</div>
+  </main>
+  <script src="shared/labcore-api.js"></script>
+  <script>
+    (function () {
+      'use strict';
+      var alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+      var secret = '';
+      var $ = function (id) { return document.getElementById(id); };
+      function base32(bytes) {
+        var bits = 0, value = 0, output = '';
+        for (var i = 0; i < bytes.length; i++) {
+          value = (value << 8) | bytes[i]; bits += 8;
+          while (bits >= 5) { output += alphabet[(value >>> (bits - 5)) & 31]; bits -= 5; }
+        }
+        if (bits) output += alphabet[(value << (5 - bits)) & 31];
+        return output;
+      }
+      function generateSecret() {
+        var bytes = new Uint8Array(20);
+        window.crypto.getRandomValues(bytes);
+        secret = base32(bytes);
+        $('secretText').textContent = secret;
+        $('code').value = '';
+      }
+      function showError(message) { $('notice').textContent = message; $('notice').style.display = 'block'; }
+      if (!window.lcGetToken || !window.lcGetToken()) {
+        window.location.href = 'login.html';
+        return;
+      }
+      var user = window.lcGetUser && window.lcGetUser();
+      if (user) $('accountText').textContent = 'Welcome, ' + user.name + '. Set a strong password and pair an authenticator app. This is required for all staff accounts.';
+      if (!window.crypto || !window.crypto.getRandomValues) {
+        showError('A secure browser is required to create an authenticator key. Open LabCore over HTTPS or localhost.');
+        $('saveButton').disabled = true;
+        return;
+      }
+      generateSecret();
+      $('newSecretButton').addEventListener('click', generateSecret);
+      $('cancelButton').addEventListener('click', function (event) {
+        event.preventDefault();
+        window.lcClearToken();
+        localStorage.removeItem('labcore_current_user');
+        window.location.href = 'login.html';
+      });
+      $('setupForm').addEventListener('submit', async function (event) {
+        event.preventDefault();
+        var password = $('newPassword').value;
+        if (password !== $('confirmPassword').value) { showError('Passwords do not match.'); return; }
+        if (!/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/\d/.test(password) || password.length < 12) {
+          showError('Use at least 12 characters, including uppercase and lowercase letters and a number.');
+          return;
+        }
+        if (!/^\d{6}$/.test($('code').value)) { showError('Enter the current 6-digit code from the authenticator app.'); return; }
+        $('notice').style.display = 'none';
+        $('saveButton').disabled = true;
+        try {
+          await window.lcApiCompleteSecuritySetup({ password: password, secret: secret, code: $('code').value });
+          window.location.href = 'dashboard.html';
+        } catch (error) {
+          showError('Account setup was not completed: ' + error.message);
+          $('saveButton').disabled = false;
+        }
+      });
+    }());
+  </script>
+</body>
+</html>

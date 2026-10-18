@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Account | LabCore</title>
+<link rel="stylesheet" href="shared/labcore-nav.css">
+<style>
+.ma-card {
+  background: #fff;
+  border: 1px solid var(--lc-border);
+  border-radius: 10px;
+  padding: 22px 24px;
+  margin-bottom: 18px;
+  max-width: 720px;
+}
+.ma-card h2 {
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 4px;
+  color: var(--lc-text);
+}
+.ma-card .sub {
+  font-size: 12px;
+  color: var(--lc-text-muted);
+  margin-bottom: 18px;
+}
+.ma-row {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 8px 18px;
+  font-size: 13px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--lc-rule);
+}
+.ma-row:last-child { border-bottom: none; }
+.ma-row .k {
+  font-size: 11px;
+  font-weight: 700;
+  
+  
+  color: var(--lc-text-subtle);
+  padding-top: 3px;
+}
+.ma-row .v {
+  color: var(--lc-text);
+  font-weight: 600;
+  word-break: break-word;
+}
+.ma-form-row {
+  margin-bottom: 14px;
+}
+.ma-form-row label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--lc-text-muted);
+  margin-bottom: 5px;
+}
+.ma-form-row input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--lc-border-strong);
+  border-radius: var(--lc-radius);
+  font-size: 14px;
+  font-family: inherit;
+  background: var(--lc-surface);
+  color: var(--lc-text);
+  transition: border-color var(--lc-transition), box-shadow var(--lc-transition);
+}
+.ma-form-row input:focus {
+  outline: none;
+  border-color: var(--lc-brand-accent);
+  box-shadow: 0 0 0 3px rgba(58,53,119,0.15);
+}
+.ma-form-row .hint {
+  font-size: 11px;
+  color: var(--lc-text-subtle);
+  margin-top: 4px;
+}
+.ma-error {
+  background: var(--lc-danger-bg);
+  color: var(--lc-danger);
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  margin-bottom: 14px;
+  border-left: 3px solid var(--lc-danger);
+  display: none;
+}
+.ma-error.show { display: block; }
+.ma-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+.pin-row {
+  display: flex;
+  gap: 8px;
+}
+.pin-row input {
+  width: 46px;
+  height: 52px;
+  text-align: center;
+  font-size: 20px;
+  font-weight: 700;
+  border-radius: 8px;
+  border: 2px solid var(--lc-border-strong);
+  background: var(--lc-surface);
+  color: var(--lc-text);
+  font-family: inherit;
+  transition: border-color var(--lc-transition);
+}
+.pin-row input:focus {
+  outline: none;
+  border-color: var(--lc-brand-accent);
+  box-shadow: 0 0 0 3px rgba(58,53,119,0.15);
+}
+@media (max-width: 700px) {
+  .ma-row { grid-template-columns: 1fr; gap: 2px; }
+  .ma-row .k { padding-top: 0; }
+}
+</style>
+</head>
+<body>
+
+<aside class="sidebar"></aside>
+<button class="lc-mobile-toggle" aria-label="Menu">☰</button>
+<div class="lc-sidebar-overlay"></div>
+
+<div class="main">
+  <div class="lc-top-header">
+    <div>
+      <div class="lc-page-eyebrow">Account</div>
+      <h1>My Account</h1>
+    </div>
+  </div>
+
+  <div class="lc-content">
+
+    <div id="pageAlert"></div>
+
+    <!-- Identity -->
+    <div class="ma-card">
+      <h2>Profile</h2>
+      <div class="sub">Your role, department, and assignments — read-only. Contact an administrator to change these.</div>
+      <div id="profileRows"></div>
+    </div>
+
+    <!-- Email -->
+    <div class="ma-card">
+      <h2>Change email</h2>
+      <div class="sub">Your email is your login ID. It must be unique across all staff accounts.</div>
+      <div class="ma-error" id="emailError"></div>
+      <div class="ma-form-row">
+        <label>New email</label>
+        <input type="email" id="newEmail" placeholder="you@hospital.gh" autocomplete="off">
+      </div>
+      <div class="ma-form-row">
+        <label>Confirm with your current PIN</label>
+        <div class="pin-row" id="emailPinRow">
+          <input type="password" inputmode="numeric" maxlength="1" data-group="email" data-index="0">
+          <input type="password" inputmode="numeric" maxlength="1" data-group="email" data-index="1">
+          <input type="password" inputmode="numeric" maxlength="1" data-group="email" data-index="2">
+          <input type="password" inputmode="numeric" maxlength="1" data-group="email" data-index="3">
+        </div>
+      </div>
+      <div class="ma-actions">
+        <button class="btn lc-btn-primary" onclick="saveEmail()">Save email</button>
+      </div>
+    </div>
+
+    <!-- SIGN-IN SECURITY -->
+    <div class="ma-card">
+      <h2>Sign-in security</h2>
+      <div class="sub">LabCore requires a strong password and an authenticator-app code. Change your password or check MFA status in account security.</div>
+      <div class="ma-actions">
+        <a class="btn lc-btn-primary" href="security.html">Manage account security</a>
+      </div>
+    </div>
+
+  </div>
+</div>
+<script src="shared/labcore-api.js"></script>
+<script src="shared/labcore-utils.js"></script>
+<script src="shared/labcore-ward.js"></script>
+<script src="shared/labcore-auth.js"></script>
+<script src="shared/labcore-staff.js"></script>
+<script src="shared/labcore-audit.js"></script>
+<script src="shared/labcore-icons.js"></script>
+<script src="shared/labcore-nav.js"></script>
+<script src="shared/labcore-search.js"></script>
+<script src="shared/labcore-notifications.js"></script>
+
+<script>
+(function () {
+  'use strict';
+
+  var user = window.lcRequireAuth ? window.lcRequireAuth() : null;
+  if (!user) return;
+
+  var staff = user.staffId ? window.lcGetStaff(user.staffId) : null;
+
+  /* =========================================================
+     RENDER PROFILE
+  ========================================================= */
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function roleLabel(id) {
+    var r = window.lcRoles && window.lcRoles[id];
+    return r ? r.label : id;
+  }
+
+  function renderProfile() {
+    var host = document.getElementById('profileRows');
+    if (!host) return;
+
+    if (!staff) {
+      host.innerHTML =
+        '<div class="ma-error show">' +
+          'You are logged in as a built-in role. Staff-account features are not available for this session.' +
+        '</div>';
+      return;
+    }
+
+    var rows = [
+      ['Name', staff.name],
+      ['Employee ID', staff.employeeId || '—'],
+      ['Email (login ID)', staff.email || '—'],
+      ['Role', roleLabel(staff.role)],
+      ['Department', staff.department || '—'],
+      ['Account status', staff.status === 'active' ? 'Active' : 'Disabled'],
+      ['Created', staff.createdAt ? new Date(staff.createdAt).toLocaleString() : '—'],
+      ['Last login', staff.lastLoginAt ? new Date(staff.lastLoginAt).toLocaleString() : 'Never']
+    ];
+
+    host.innerHTML = rows.map(function (r) {
+      return '<div class="ma-row"><div class="k">' + esc(r[0]) + '</div>' +
+        '<div class="v">' + esc(r[1]) + '</div></div>';
+    }).join('');
+
+    document.getElementById('newEmail').value = staff.email || '';
+  }
+
+  /* =========================================================
+     PIN WIDGETS
+  ========================================================= */
+  function pinValue(group) {
+    return Array.from(document.querySelectorAll('.pin-row input[data-group="' + group + '"]'))
+      .map(function (d) { return d.value; }).join('');
+  }
+  function clearPins(groups) {
+    groups.forEach(function (g) {
+      document.querySelectorAll('.pin-row input[data-group="' + g + '"]').forEach(function (d) {
+        d.value = '';
+      });
+    });
+  }
+  function bindPinWidgets() {
+    document.querySelectorAll('.pin-row input').forEach(function (input, _i, all) {
+      var group = input.dataset.group;
+      var idx = Number(input.dataset.index);
+      var siblings = Array.from(all).filter(function (x) {
+        return x.dataset.group === group;
+      }).sort(function (a, b) {
+        return Number(a.dataset.index) - Number(b.dataset.index);
+      });
+
+      input.addEventListener('input', function () {
+        var v = this.value.replace(/\D/g, '');
+        this.value = v.slice(-1);
+        if (this.value && idx < siblings.length - 1) siblings[idx + 1].focus();
+      });
+      input.addEventListener('keydown', function (e) {
+        if (e.key === 'Backspace' && !this.value && idx > 0) siblings[idx - 1].focus();
+      });
+    });
+  }
+
+  /* =========================================================
+     ALERTS
+  ========================================================= */
+  function showPageAlert(msg, type) {
+    var el = document.getElementById('pageAlert');
+    var cls = type === 'success' ? 'lc-alert-success'
+            : type === 'error' ? 'lc-alert-danger'
+            : type === 'warning' ? 'lc-alert-warning'
+            : 'lc-alert-info';
+    el.innerHTML = '<div class="lc-alert ' + cls + '">' + esc(msg) + '</div>';
+    setTimeout(function () { el.innerHTML = ''; }, 5000);
+  }
+  function showFormError(id, msg) {
+    var el = document.getElementById(id);
+    el.textContent = msg;
+    el.classList.add('show');
+    setTimeout(function () { el.classList.remove('show'); }, 6000);
+  }
+  function hideFormError(id) {
+    document.getElementById(id).classList.remove('show');
+  }
+
+  /* =========================================================
+     SAVE EMAIL
+  ========================================================= */
+  window.saveEmail = function () {
+    if (!staff) return;
+    hideFormError('emailError');
+
+    var newEmail = document.getElementById('newEmail').value.trim();
+    var pin = pinValue('email');
+
+    if (!newEmail) { showFormError('emailError', 'Please enter an email address.'); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
+      showFormError('emailError', 'That does not look like a valid email.'); return;
+    }
+    if (newEmail.toLowerCase() === String(staff.email || '').toLowerCase()) {
+      showFormError('emailError', 'This is already your current email.'); return;
+    }
+    if (pin.length !== 4) { showFormError('emailError', 'Enter your current 4-digit PIN to confirm.'); return; }
+
+    var auth = window.lcVerifyStaffPin(staff.id, pin);
+    if (!auth.ok) {
+      showFormError('emailError', auth.reason === 'wrong_pin' ? 'Incorrect PIN.' : 'Could not verify your PIN.');
+      clearPins(['email']);
+      return;
+    }
+
+    var clash = window.lcFindStaffByEmail ? window.lcFindStaffByEmail(newEmail) : null;
+    if (clash && clash.id !== staff.id) {
+      showFormError('emailError', 'That email is already used by ' + clash.name + '.');
+      return;
+    }
+
+    try {
+      window.lcUpdateStaff(staff.id, { email: newEmail });
+    } catch (err) {
+      showFormError('emailError', err.message || 'Could not update email.');
+      return;
+    }
+
+    if (window.lcAudit) {
+      window.lcAudit('account.email_changed', {
+        entity: 'staff',
+        entityId: staff.id,
+        before: { email: staff.email || '' },
+        after: { email: newEmail },
+        note: 'User changed own login email'
+      });
+    }
+
+    clearPins(['email']);
+    staff = window.lcGetStaff(staff.id);
+    renderProfile();
+    showPageAlert('Email updated. Use the new email next time you sign in.', 'success');
+  };
+
+  /* =========================================================
+     INIT
+  ========================================================= */
+  renderProfile();
+  bindPinWidgets();
+
+  console.log('👤 My Account ready for', user.name);
+})();
+</script>
+</body>
+</html>

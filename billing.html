@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Billing Desk | LabCore</title>
+<link rel="stylesheet" href="shared/labcore-nav.css">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--lc-font); background: var(--lc-bg); color: var(--lc-text); }
+.main { margin-left: 245px; min-height: 100vh; padding: 24px 28px; }
+.topbar { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+.topbar h1 { font-size: 22px; }
+.topbar p { font-size: 13px; color: var(--lc-muted); margin-top: 4px; }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
+.stat-card { background: #fff; border: 1px solid var(--lc-border); border-radius: 10px; padding: 16px; }
+.stat-card .label { font-size: 11px; color: var(--lc-muted);  }
+.stat-card .number { font-size: 24px; font-weight: 700; margin-top: 6px; }
+.stat-card .sub { font-size: 11px; color: var(--lc-muted); margin-top: 4px; }
+.card { background: #fff; border: 1px solid var(--lc-border); border-radius: 10px; overflow: hidden; }
+.card-head { padding: 14px 18px; border-bottom: 1px solid var(--lc-border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+.card-head h2 { font-size: 15px; }
+.toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.search { height: 36px; border: 1px solid var(--lc-border); border-radius: 6px; padding: 0 12px; font-size: 13px; min-width: 220px; }
+select.filter { height: 36px; border: 1px solid var(--lc-border); border-radius: 6px; padding: 0 10px; font-size: 12px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; padding: 11px 14px; background: #F8F7FB; font-size: 10px;  color: #5F5B75; border-bottom: 1px solid var(--lc-border); }
+td { padding: 12px 14px; border-bottom: 1px solid #eee; vertical-align: middle; }
+tr:hover { background: #F8F7FB; }
+.badge { display: inline-block; padding: 3px 8px; border-radius: 10px; font-size: 10px; font-weight: 700; }
+.badge-unpaid { background: #FBE9E7; color: #8C1C16; }
+.badge-partial { background: #fff3cd; color: #856404; }
+.badge-paid { background: #E5F1EA; color: #2B7A4B; }
+.badge-nobill { background: #EFEDF4; color: #5F5B75; }
+.btn { padding: 7px 12px; border-radius: 6px; border: 1px solid var(--lc-border); background: #fff; cursor: pointer; font-size: 12px; font-weight: 600; }
+.btn:hover { background: var(--lc-bg); }
+.btn-primary { background: var(--lc-blue); border-color: var(--lc-blue); color: #fff; }
+.btn-success { background: var(--lc-green); border-color: var(--lc-green); color: #fff; }
+.btn-sm { padding: 4px 10px; font-size: 11px; }
+.money { font-weight: 700; font-variant-numeric: tabular-nums; }
+.empty { text-align: center; padding: 40px; color: var(--lc-muted); font-size: 13px; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 16px; }
+.modal-overlay.show { display: flex; }
+.modal { background: #fff; border-radius: 10px; width: 640px; max-width: 100%; max-height: 90vh; overflow: auto; }
+.modal-header { padding: 16px 20px; border-bottom: 1px solid var(--lc-border); display: flex; justify-content: space-between; align-items: center; }
+.modal-body { padding: 20px; }
+.modal-footer { padding: 14px 20px; border-top: 1px solid var(--lc-border); display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.line { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #EFEDF4; font-size: 13px; }
+.total-row { font-weight: 700; font-size: 15px; margin-top: 10px; padding-top: 10px; border-top: 2px solid var(--lc-border); }
+.form-row { margin-bottom: 12px; }
+.form-row label { display: block; font-size: 11px; font-weight: 600; margin-bottom: 4px; color: #555; }
+.form-row input, .form-row select { width: 100%; height: 36px; border: 1px solid var(--lc-border); border-radius: 6px; padding: 0 10px; }
+.readonly-note { background: #fff8e1; border: 1px solid #f0d78c; color: #6b5a1e; padding: 10px 14px; border-radius: 6px; font-size: 12px; margin-bottom: 12px; }
+.billing-panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 18px; }
+.billing-panel { min-width: 0; }
+.billing-panel table { min-width: 580px; }
+.status-note { padding: 10px 14px; color: var(--lc-muted); font-size: 12px; }
+.method-summary { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 18px; }
+.method-chip { border: 1px solid var(--lc-border); border-radius: 18px; padding: 6px 10px; font-size: 11px; }
+@media (max-width: 900px) {
+  .main { margin-left: 0; padding-top: 70px; }
+  .stats { grid-template-columns: 1fr 1fr; }
+  .billing-panels { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .stats { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<aside class="sidebar"></aside>
+<button class="lc-mobile-toggle" aria-label="Menu">☰</button>
+<div class="lc-sidebar-overlay"></div>
+
+<div class="main">
+  <div class="topbar">
+    <div>
+      <h1>Billing Desk</h1>
+      <p>Track collections, reconcile transfers, manage insurer claims · GHS</p>
+    </div>
+    <div>
+      <button class="btn" onclick="exportBilling()">Export Excel</button>
+      <button class="btn btn-primary" onclick="loadBilling()">Refresh</button>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat-card">
+      <div class="label">Billed today</div>
+      <div class="number money" id="statBilled">GHS 0.00</div>
+      <div class="sub">All charges dated today</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Collected today</div>
+      <div class="number money" id="statCollected" style="color:var(--lc-green)">GHS 0.00</div>
+      <div class="sub">Marked paid today</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Outstanding</div>
+      <div class="number money" id="statOutstanding" style="color:var(--lc-red)">GHS 0.00</div>
+      <div class="sub">Unpaid + partial</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Open bills</div>
+      <div class="number" id="statOpen">0</div>
+      <div class="sub">Encounters with balance</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h2>Encounter bills</h2>
+      <div class="toolbar">
+        <input class="search" id="searchInput" placeholder="Search patient, ID, visit..." oninput="renderTable()">
+        <input class="filter" id="dateFrom" type="date" aria-label="Bills from date" onchange="renderTable()">
+        <input class="filter" id="dateTo" type="date" aria-label="Bills to date" onchange="renderTable()">
+        <select class="filter" id="statusFilter" onchange="renderTable()">
+          <option value="all">All statuses</option>
+          <option value="unpaid">Unpaid</option>
+          <option value="partial">Partial</option>
+          <option value="paid">Paid</option>
+          <option value="nobill">No charges recorded</option>
+        </select>
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>Patient</th>
+            <th>Visit</th>
+            <th>Service / Date</th>
+            <th>Items</th>
+            <th style="text-align:right">Total</th>
+            <th style="text-align:right">Paid</th>
+            <th style="text-align:right">Balance</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="billBody">
+          <tr><td colspan="9" class="empty">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+<div class="card" style="margin:18px 0 0">
+  <div class="card-head">
+    <h2>Today's collections by channel</h2>
+    <span style="font-size:11px;color:#5F5B75">Only confirmed payments count as collected</span>
+  </div>
+  <div class="method-summary" id="methodSummary"><span class="status-note">Loading collections…</span></div>
+</div>
+
+<div class="billing-panels">
+  <div class="card billing-panel">
+    <div class="card-head"><h2>Pending payments / transfer reconciliation</h2><button class="btn btn-sm" onclick="loadBilling()">Refresh</button></div>
+    <div style="overflow-x:auto"><table><thead><tr><th>Patient / Visit</th><th>Amount</th><th>Bank reference</th><th>Actions</th></tr></thead>
+      <tbody id="pendingPayments"><tr><td colspan="4" class="empty">Loading…</td></tr></tbody></table></div>
+  </div>
+  <div class="card billing-panel">
+    <div class="card-head"><h2>Insurance claims</h2><span style="font-size:11px;color:#5F5B75">Claims stay outstanding until insurer funds are confirmed</span></div>
+    <div style="overflow-x:auto"><table><thead><tr><th>Patient / Visit</th><th>Payer / Claim</th><th>Amount</th><th>Status / Actions</th></tr></thead>
+      <tbody id="insuranceClaims"><tr><td colspan="4" class="empty">Loading…</td></tr></tbody></table></div>
+  </div>
+</div>
+</div>
+
+<div class="modal-overlay" id="billModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <strong id="modalTitle">Bill detail</strong>
+        <div style="font-size:12px;color:#5F5B75" id="modalSub"></div>
+      </div>
+      <button class="btn btn-sm" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-footer" id="billModalFooter">
+      <button class="btn" onclick="closeModal()">Close</button>
+      <button class="btn btn-primary" id="btnRecordPay" onclick="recordPartialPayment()" style="display:none">Record payment</button>
+      <button class="btn" id="btnPaystack" onclick="startOnlinePayment()" style="display:none">Pay online (MoMo / bank / card)</button>
+      <button class="btn btn-success" id="btnInsuranceClaim" onclick="submitInsuranceClaim()" style="display:none">Submit insurance claim</button>
+      <button class="btn btn-success" id="btnMarkPaid" onclick="markFullyPaid()" style="display:none">Pay full balance</button>
+    </div>
+  </div>
+</div>
+<script src="shared/labcore-api.js"></script>
+<script src="shared/labcore-utils.js"></script>
+<script src="shared/labcore-icons.js"></script>
+<script src="shared/labcore-receipts.js"></script>
+<script src="shared/labcore-ward.js"></script>
+
+<script src="shared/labcore-auth.js"></script>
+<script src="shared/labcore-staff.js"></script>   <!-- NEW -->
+<script src="shared/labcore-audit.js"></script>
+<script src="shared/labcore-nav.js"></script>
+
+<script src="shared/labcore-search.js"></script>
+<script src="shared/labcore-notifications.js"></script>
+<script src="shared/labcore-settings.js"></script>
+<script src="shared/labcore-print.js"></script>
+<script src="shared/labcore-timeline.js"></script>
+<script>
+(function () {
+  const user = window.lcRequireAuth ? window.lcRequireAuth() : null;
+  if (!user) return;
+  if (!window.lcCan('canBill') && !window.lcCan('canConfig')) {
+    if (window.lcToast) window.lcToast('Your role cannot access the billing desk', 'warning');
+    window.location.href = 'dashboard.html';
+  }
+})();
+
+var bills = [];
+var currentBill = null;
+
+function money(n) {
+  n = Number(n) || 0;
+  return 'GHS ' + n.toFixed(2);
+}
+
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function loadPatients() {
+  try {
+    return JSON.parse(localStorage.getItem('hms_patients_v3') || '[]');
+  } catch (e) {
+    return [];
+  }
+}
+
+function savePatients(patients) {
+  localStorage.setItem('hms_patients_v3', JSON.stringify(patients));
+}
+
+function computeBillStatus(total, paid) {
+  paid = Number(paid) || 0;
+  total = Number(total) || 0;
+  if (total <= 0) return 'nobill';
+  if (paid <= 0) return 'unpaid';
+  if (paid + 0.001 >= total) return 'paid';
+  return 'partial';
+}
+
+var billingPatients = [];
+var pendingTransfers = [];
+var insuranceClaims = [];
+
+async function loadBilling() {
+  var body = document.getElementById('billBody');
+  body.innerHTML = '<tr><td colspan="9" class="empty">Loading bills from the server…</td></tr>';
+  try {
+    billingPatients = await window.lcApiGetPatients();
+    if (!billingPatients.length) {
+      var legacyPatients = loadPatients();
+      if (legacyPatients.length) {
+        await window.lcApiSavePatients(legacyPatients);
+        billingPatients = await window.lcApiGetPatients();
+        if (window.lcToast) window.lcToast('Migrated existing local patient records to the backend', 'success');
+      }
+    }
+  } catch (error) {
+    body.innerHTML = '<tr><td colspan="9" class="empty">Could not load billing data: ' + esc(error.message) + '</td></tr>';
+    if (window.lcToast) window.lcToast('Billing data could not be loaded from the server', 'error');
+    return;
+  }
+
+  bills = [];
+  billingPatients.forEach(function (p) {
+    (p.encounters || []).forEach(function (e) {
+      var items = Array.isArray(e.billing) ? e.billing.slice() : [];
+
+      var hasCharges = items.length > 0;
+      var hasOrders = (e.orders || []).length > 0;
+      if (!hasCharges && !hasOrders) return;
+
+      var total = items.reduce(function (s, b) { return s + (Number(b.amount) || 0); }, 0);
+      var paid = Number(e.amountPaid) || 0;
+      var status = hasCharges
+        ? (e.paymentStatus || computeBillStatus(total, paid))
+        : 'nobill';
+
+      bills.push({
+        patientId: p.id,
+        patientName: p.fullName,
+        visitId: e.visitId,
+        service: e.service || '—',
+        date: e.date || (e.createdAt ? e.createdAt.slice(0, 10) : '—'),
+        items: items,
+        total: total,
+        paid: paid,
+        balance: hasCharges ? Math.max(0, total - paid) : 0,
+        status: status,
+        hasCharges: hasCharges,
+        encounter: e,
+        patient: p
+      });
+    });
+  });
+  bills.sort(function (a, b) {
+    return String(b.date).localeCompare(String(a.date));
+  });
+  updateStats();
+  renderTable();
+  await Promise.all([loadPendingTransfers(), loadInsuranceClaims()]);
+}
+
+function isToday(d) {
+  if (!d) return false;
+  var t = new Date();
+  var x = new Date(d);
+  if (isNaN(x.getTime())) {
+    return String(d).slice(0, 10) === t.toISOString().slice(0, 10);
+  }
+  return x.getFullYear() === t.getFullYear() && x.getMonth() === t.getMonth() && x.getDate() === t.getDate();
+}
+
+function updateStats() {
+  var billedToday = 0, collectedToday = 0, outstanding = 0, open = 0;
+  bills.forEach(function (b) {
+    if (isToday(b.date) || isToday(b.encounter && b.encounter.createdAt)) billedToday += b.total;
+    (b.encounter && Array.isArray(b.encounter.payments) ? b.encounter.payments : []).forEach(function (payment) {
+      if (isToday(payment.at)) collectedToday += Number(payment.amount) || 0;
+    });
+    if (!(b.encounter && Array.isArray(b.encounter.payments)) &&
+        b.encounter && isToday(b.encounter.paidAt)) collectedToday += b.paid;
+    if (b.balance > 0.001) {
+      outstanding += b.balance;
+      open++;
+    }
+  });
+  document.getElementById('statBilled').textContent = money(billedToday);
+  document.getElementById('statCollected').textContent = money(collectedToday);
+  document.getElementById('statOutstanding').textContent = money(outstanding);
+  document.getElementById('statOpen').textContent = open;
+  renderMethodSummary();
+}
+
+function renderTable() {
+  var rows = getFilteredBills();
+  var body = document.getElementById('billBody');
+  if (!rows.length) {
+    body.innerHTML = '<tr><td colspan="9" class="empty">No bills match your filters</td></tr>';
+    return;
+  }
+  body.innerHTML = rows.map(function (b) {
+    var idx = bills.indexOf(b);
+    var badgeClass;
+    var badgeText;
+    if (b.status === 'paid') { badgeClass = 'badge-paid'; badgeText = 'paid'; }
+    else if (b.status === 'partial') { badgeClass = 'badge-partial'; badgeText = 'partial'; }
+    else if (b.status === 'nobill') { badgeClass = 'badge-nobill'; badgeText = 'no charges'; }
+    else { badgeClass = 'badge-unpaid'; badgeText = 'unpaid'; }
+
+    return '<tr>' +
+      '<td><strong>' + esc(b.patientName) + '</strong><div style="font-size:11px;color:#5F5B75">' + esc(b.patientId) + '</div></td>' +
+      '<td>' + esc(b.visitId) + '</td>' +
+      '<td>' + esc(b.service) + '<div style="font-size:11px;color:#5F5B75">' + esc(b.date) + '</div></td>' +
+      '<td>' + b.items.length + '</td>' +
+      '<td style="text-align:right" class="money">' + money(b.total) + '</td>' +
+      '<td style="text-align:right" class="money">' + money(b.paid) + '</td>' +
+      '<td style="text-align:right" class="money">' + money(b.balance) + '</td>' +
+      '<td><span class="badge ' + badgeClass + '">' + badgeText + '</span></td>' +
+      '<td><button class="btn btn-sm btn-primary" onclick="openBill(' + idx + ')">Open</button></td>' +
+      '</tr>';
+  }).join('');
+}
+
+function getFilteredBills() {
+  var q = (document.getElementById('searchInput').value || '').toLowerCase().trim();
+  var st = document.getElementById('statusFilter').value;
+  var from = document.getElementById('dateFrom').value;
+  var to = document.getElementById('dateTo').value;
+  return bills.filter(function (b) {
+    if (st !== 'all' && b.status !== st) return false;
+    if (from && String(b.date).slice(0, 10) < from) return false;
+    if (to && String(b.date).slice(0, 10) > to) return false;
+    if (!q) return true;
+    return (b.patientName + ' ' + b.patientId + ' ' + b.visitId + ' ' + b.service).toLowerCase().indexOf(q) >= 0;
+  });
+}
+
+function openBill(idx) {
+  currentBill = bills[idx];
+  if (!currentBill) return;
+
+  document.getElementById('modalTitle').textContent = currentBill.patientName;
+  document.getElementById('modalSub').textContent =
+    currentBill.visitId + ' · ' + currentBill.service + ' · ' + currentBill.date;
+
+  var html = '';
+
+  if (!currentBill.hasCharges) {
+    html += '<div class="readonly-note">' +
+      '<strong>No charges recorded on this encounter.</strong><br>' +
+      'Charges are added automatically when the doctor places lab, pharmacy, or imaging orders. ' +
+      'If this encounter has orders but no charge lines, the encounter may have been created before ' +
+      'pricing was configured. This bill is read-only until charges exist.' +
+      '</div>';
+  }
+
+  if (currentBill.items.length) {
+    currentBill.items.forEach(function (it) {
+      html += '<div class="line"><span>' + esc(it.item) + '</span><span class="money">' + money(it.amount) + '</span></div>';
+    });
+  } else {
+    html += '<div class="line" style="color:#5F5B75"><span><em>No charge lines</em></span><span class="money">GHS 0.00</span></div>';
+  }
+
+  html += '<div class="line total-row"><span>Total</span><span class="money">' + money(currentBill.total) + '</span></div>';
+  html += '<div class="line"><span>Already paid</span><span class="money">' + money(currentBill.paid) + '</span></div>';
+  html += '<div class="line"><span>Balance</span><span class="money">' + money(currentBill.balance) + '</span></div>';
+
+  if (currentBill.hasCharges && currentBill.balance > 0.001) {
+    html += '<div class="form-row" style="margin-top:16px"><label>Record payment amount (GHS)</label>' +
+      '<input type="number" id="payAmount" min="0.01" step="0.01" max="' + currentBill.balance.toFixed(2) + '" value="' + currentBill.balance.toFixed(2) + '">' +
+      '<div style="font-size:11px;color:#5F5B75;margin-top:4px">Cannot exceed the outstanding balance of ' + money(currentBill.balance) + '.</div>' +
+      '</div>';
+    html += '<div class="form-row"><label>Payment or claim type</label>' +
+      '<select id="payMethod" onchange="updatePaymentOptions()"><option>Cash</option><option>Card terminal</option><option>Bank transfer</option><option>Mobile Money</option><option>Insurance claim</option></select></div>' +
+      '<div class="form-row" id="paymentReferenceRow" style="display:none"><label id="paymentReferenceLabel">Transaction reference</label>' +
+      '<input id="paymentReference" maxlength="120" placeholder="Required for bank reconciliation or card verification"></div>' +
+      '<div class="form-row" id="claimFields" style="display:none"><label>Insurer / payer</label><input id="claimPayer" maxlength="120" value="' + esc(currentBill.patient.insName || '') + '" placeholder="Insurance company">' +
+      '<label style="margin-top:8px">Member / policy number</label><input id="claimMember" maxlength="120" value="' + esc(currentBill.patient.insNumber || '') + '" placeholder="Patient policy number">' +
+      '<label style="margin-top:8px">Claim number (if already assigned)</label><input id="claimNumber" maxlength="120" placeholder="Optional"></div>' +
+      '<div class="form-row" id="checkoutEmailRow" style="display:none"><label>Checkout email</label><input type="email" id="checkoutEmail" value="' + esc(currentBill.patient.email || '') + '" placeholder="Email used for the secure Paystack checkout">' +
+      '<div style="font-size:11px;color:#5F5B75;margin-top:4px">The patient chooses Mobile Money, bank, or card on Paystack checkout. No card or PIN details are collected here.</div></div>';
+  }
+
+  document.getElementById('modalBody').innerHTML = html;
+
+  var canPay = currentBill.hasCharges && currentBill.balance > 0.001;
+  document.getElementById('btnMarkPaid').style.display = canPay ? 'inline-block' : 'none';
+  document.getElementById('btnRecordPay').style.display = canPay ? 'inline-block' : 'none';
+  document.getElementById('btnPaystack').style.display = canPay ? 'inline-block' : 'none';
+  document.getElementById('btnInsuranceClaim').style.display = canPay ? 'inline-block' : 'none';
+  updatePaymentOptions();
+
+  document.getElementById('billModal').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('billModal').classList.remove('show');
+  currentBill = null;
+}
+
+function updatePaymentOptions() {
+  var method = document.getElementById('payMethod');
+  if (!method) return;
+  var value = method.value;
+  document.getElementById('paymentReferenceRow').style.display =
+    value === 'Bank transfer' || value === 'Card terminal' ? 'block' : 'none';
+  document.getElementById('paymentReferenceLabel').textContent =
+    value === 'Bank transfer' ? 'Bank transaction reference (required)' : 'Card terminal authorization code (required)';
+  document.getElementById('claimFields').style.display = value === 'Insurance claim' ? 'block' : 'none';
+  document.getElementById('checkoutEmailRow').style.display = value === 'Mobile Money' ? 'block' : 'none';
+}
+
+function recordPartialPayment() {
+  if (!currentBill) return;
+  var amtEl = document.getElementById('payAmount');
+  var methEl = document.getElementById('payMethod');
+  if (!amtEl || !methEl) return;
+  applyPayment(amtEl.value, methEl.value, false);
+}
+
+function markFullyPaid() {
+  if (!currentBill) return;
+  if (!currentBill.hasCharges) {
+    if (window.lcToast) window.lcToast('No charges recorded — nothing to pay', 'warning');
+    return;
+  }
+  if (currentBill.balance <= 0.001) {
+    if (window.lcToast) window.lcToast('This bill is already fully paid', 'info');
+    return;
+  }
+  var methEl = document.getElementById('payMethod');
+  var method = (methEl && methEl.value) || 'Cash';
+  if (method === 'Cash' || method === 'Card terminal') applyPayment(null, method, true);
+  else if (method === 'Bank transfer') recordPartialPayment();
+  else if (method === 'Insurance claim') submitInsuranceClaim();
+  else startOnlinePayment();
+}
+
+async function applyPayment(amount, method, full) {
+  if (!currentBill) return;
+
+  if (!currentBill.hasCharges) {
+    if (window.lcToast) window.lcToast('No charges recorded — cannot record a payment', 'error');
+    return;
+  }
+
+  var pay;
+  if (full) {
+    pay = currentBill.balance;
+  } else {
+    if (amount === '' || amount === null || amount === undefined) {
+      if (window.lcToast) window.lcToast('Enter a payment amount', 'warning');
+      return;
+    }
+    pay = Number(amount);
+    if (isNaN(pay) || pay <= 0) {
+      if (window.lcToast) window.lcToast('Enter an amount greater than 0', 'warning');
+      return;
+    }
+    if (pay > currentBill.balance + 0.001) {
+      if (window.lcToast) window.lcToast('Amount exceeds outstanding balance of ' + money(currentBill.balance), 'warning');
+      return;
+    }
+  }
+
+  if (pay <= 0) {
+    if (window.lcToast) window.lcToast('Nothing to pay — balance is ' + money(currentBill.balance), 'info');
+    return;
+  }
+
+  if (method === 'Insurance claim') { submitInsuranceClaim(); return; }
+  if (method === 'Mobile Money') { startOnlinePayment(); return; }
+  if (method === 'Bank transfer') {
+    var bankRef = document.getElementById('paymentReference').value.trim();
+    if (!bankRef) {
+      if (window.lcToast) window.lcToast('Enter the bank transaction reference; transfers remain pending until reconciled', 'warning');
+      return;
+    }
+    try {
+      await window.lcApiCreateBankTransfer({
+        patientId: currentBill.patientId, visitId: currentBill.visitId, amount: pay, reference: bankRef
+      });
+      if (window.lcToast) window.lcToast('Transfer recorded as pending — reconcile it after confirming funds', 'success');
+      closeModal();
+      await loadBilling();
+    } catch (error) {
+      if (window.lcToast) window.lcToast('Could not record transfer: ' + error.message, 'error');
+    }
+    return;
+  }
+
+  var reference = '';
+  if (method === 'Card terminal') {
+    reference = document.getElementById('paymentReference').value.trim();
+    if (!reference) {
+      if (window.lcToast) window.lcToast('Enter the successful card terminal authorization code', 'warning');
+      return;
+    }
+  }
+  var current = currentBill;
+  var paymentResult;
+  try {
+    paymentResult = await window.lcApiRecordPayment({
+      patientId: current.patientId, visitId: current.visitId, amount: pay,
+      method: method, reference: reference
+    });
+  } catch (error) {
+    if (window.lcToast) window.lcToast('Payment was not recorded: ' + error.message, 'error');
+    return;
+  }
+
+  var receiptRecord = paymentResult.receipt || null;
+  if (receiptRecord && window.lcCacheReceipt) {
+    try { window.lcCacheReceipt(receiptRecord); }
+    catch (error) {
+      console.error('[billing] receipt cache failed:', error);
+      if (window.lcToast) window.lcToast('Payment is recorded; receipt will remain available from the server archive', 'warning');
+    }
+  }
+
+  if (window.lcToast) window.lcToast('Payment recorded: ' + money(pay) + (receiptRecord ? ' · receipt ' + receiptRecord.receiptNumber : ''), 'success');
+  closeModal();
+  await loadBilling();
+
+  // Ask about printing — default Yes
+  if (receiptRecord && window.lcPrintReceipt) {
+    setTimeout(function () {
+      var doPrint = confirm(
+        'Print receipt?\n\n' +
+        receiptRecord.receiptNumber + '\n' +
+        'Patient: ' + current.patientName + '\n' +
+        'Paid: ' + money(pay) + '\n' +
+        'Balance: ' + money(receiptRecord.balanceRemaining) + '\n\n' +
+        'OK = Print (A4)  ·  Cancel = Skip'
+      );
+      if (doPrint) window.lcPrintReceipt(receiptRecord, 'a4');
+    }, 200);
+  }
+}
+
+async function startOnlinePayment() {
+  if (!currentBill) return;
+  document.getElementById('checkoutEmailRow').style.display = 'block';
+  var amount = Number((document.getElementById('payAmount') || {}).value);
+  if (!Number.isFinite(amount) || amount <= 0 || amount > currentBill.balance + 0.001) {
+    if (window.lcToast) window.lcToast('Enter a valid payment amount within the outstanding balance', 'warning');
+    return;
+  }
+  var emailInput = document.getElementById('checkoutEmail');
+  var email = (emailInput && emailInput.value.trim()) || currentBill.patient.email || '';
+  if (!email) {
+    if (window.lcToast) window.lcToast('Enter an email for the secure Paystack checkout', 'warning');
+    if (emailInput) emailInput.focus();
+    return;
+  }
+  try {
+    var result = await window.lcApiStartPaystack({
+      patientId: currentBill.patientId, visitId: currentBill.visitId, amount: amount, email: email
+    });
+    window.location.href = result.authorizationUrl;
+  } catch (error) {
+    if (window.lcToast) window.lcToast('Online checkout could not start: ' + error.message, 'error');
+  }
+}
+
+async function submitInsuranceClaim() {
+  if (!currentBill) return;
+  var payer = (document.getElementById('claimPayer') || {}).value || '';
+  var memberNumber = (document.getElementById('claimMember') || {}).value || '';
+  var claimNumber = (document.getElementById('claimNumber') || {}).value || '';
+  var amount = Number((document.getElementById('payAmount') || {}).value);
+  try {
+    await window.lcApiSubmitInsuranceClaim({
+      patientId: currentBill.patientId, visitId: currentBill.visitId, payer: payer,
+      memberNumber: memberNumber, claimNumber: claimNumber, amount: amount
+    });
+    if (window.lcToast) window.lcToast('Insurance claim submitted for tracking; balance remains open until paid', 'success');
+    closeModal();
+    await loadBilling();
+  } catch (error) {
+    if (window.lcToast) window.lcToast('Claim could not be submitted: ' + error.message, 'error');
+  }
+}
+
+async function loadPendingTransfers() {
+  var body = document.getElementById('pendingPayments');
+  try {
+    pendingTransfers = await window.lcApiGetPendingPayments();
+    body.innerHTML = pendingTransfers.length ? pendingTransfers.map(function (payment) {
+      var patient = billingPatients.find(function (item) { return item.id === payment.patientId; });
+      var actions = payment.method === 'Bank transfer'
+        ? '<button class="btn btn-sm btn-success" onclick="reconcileTransfer(\'' + esc(payment.id) + '\',\'confirm\')">Confirm</button> ' +
+          '<button class="btn btn-sm" onclick="reconcileTransfer(\'' + esc(payment.id) + '\',\'reject\')">Reject</button>'
+        : '<span class="badge badge-partial">Awaiting provider confirmation</span>';
+      return '<tr><td>' + esc((patient && patient.fullName) || payment.patientId) + '<div style="font-size:10px;color:#5F5B75">' + esc(payment.visitId) + '</div></td>' +
+        '<td class="money">' + money(payment.amount) + '<div style="font-size:10px">' + esc(payment.method) + '</div></td><td>' + esc(payment.reference || '—') + '</td>' +
+        '<td>' + actions + '</td></tr>';
+    }).join('') : '<tr><td colspan="4" class="empty">No payments waiting for confirmation or reconciliation</td></tr>';
+  } catch (error) {
+    body.innerHTML = '<tr><td colspan="4" class="empty">Could not load pending transfers: ' + esc(error.message) + '</td></tr>';
+  }
+}
+
+async function reconcileTransfer(id, action) {
+  var note = action === 'reject' ? prompt('Reason this transfer could not be verified?') : '';
+  if (action === 'reject' && note === null) return;
+  if (action === 'confirm' && !confirm('Confirm that this bank transfer has cleared in the bank account?')) return;
+  try {
+    await window.lcApiReconcilePayment(id, action, note);
+    if (window.lcToast) window.lcToast(action === 'confirm' ? 'Transfer reconciled and payment posted' : 'Transfer rejected; balance remains open', 'success');
+    await loadBilling();
+  } catch (error) {
+    if (window.lcToast) window.lcToast('Could not reconcile transfer: ' + error.message, 'error');
+  }
+}
+
+async function loadInsuranceClaims() {
+  var body = document.getElementById('insuranceClaims');
+  try {
+    insuranceClaims = await window.lcApiGetInsuranceClaims();
+    body.innerHTML = insuranceClaims.length ? insuranceClaims.map(function (claim) {
+      var patient = billingPatients.find(function (item) { return item.id === claim.patientId; });
+      var actions = '';
+      if (claim.status === 'submitted') {
+        actions = '<button class="btn btn-sm btn-success" onclick="updateClaim(\'' + esc(claim.id) + '\',\'approved\')">Approve</button> ' +
+          '<button class="btn btn-sm" onclick="updateClaim(\'' + esc(claim.id) + '\',\'rejected\')">Reject</button>';
+      } else if (claim.status === 'approved') {
+        actions = '<button class="btn btn-sm btn-success" onclick="updateClaim(\'' + esc(claim.id) + '\',\'paid\')">Record insurer payment</button>';
+      }
+      return '<tr><td>' + esc((patient && patient.fullName) || claim.patientId) + '<div style="font-size:10px;color:#5F5B75">' + esc(claim.visitId) + '</div></td>' +
+        '<td>' + esc(claim.payer) + '<div style="font-size:10px;color:#5F5B75">' + esc(claim.claimNumber || claim.memberNumber) + '</div></td>' +
+        '<td class="money">' + money(claim.amount) + '</td><td><span class="badge badge-' + (claim.status === 'paid' ? 'paid' : 'partial') + '">' + esc(claim.status) + '</span><div style="margin-top:5px">' + actions + '</div></td></tr>';
+    }).join('') : '<tr><td colspan="4" class="empty">No insurance claims submitted</td></tr>';
+  } catch (error) {
+    body.innerHTML = '<tr><td colspan="4" class="empty">Could not load insurance claims: ' + esc(error.message) + '</td></tr>';
+  }
+}
+
+async function updateClaim(id, status) {
+  if (status === 'paid' && !confirm('Confirm insurer funds have cleared? This will post the claim amount as a payment.')) return;
+  try {
+    await window.lcApiUpdateInsuranceClaim(id, status);
+    if (window.lcToast) window.lcToast('Insurance claim updated: ' + status, 'success');
+    await loadBilling();
+  } catch (error) {
+    if (window.lcToast) window.lcToast('Claim could not be updated: ' + error.message, 'error');
+  }
+}
+
+function renderMethodSummary() {
+  var totals = {};
+  bills.forEach(function (bill) {
+    (bill.encounter && Array.isArray(bill.encounter.payments) ? bill.encounter.payments : []).forEach(function (payment) {
+      if (!isToday(payment.at)) return;
+      var method = payment.method || 'Other';
+      totals[method] = (totals[method] || 0) + (Number(payment.amount) || 0);
+    });
+  });
+  var methods = Object.keys(totals);
+  document.getElementById('methodSummary').innerHTML = methods.length
+    ? methods.map(function (method) {
+      return '<span class="method-chip">' + esc(method) + ' <strong>' + money(totals[method]) + '</strong></span>';
+    }).join('')
+    : '<span class="status-note">No confirmed payments recorded today</span>';
+}
+
+async function handlePaystackReturn() {
+  var params = new URLSearchParams(window.location.search);
+  var reference = params.get('paystack_ref');
+  if (!reference) return;
+  window.history.replaceState({}, document.title, window.location.pathname);
+  try {
+    await window.lcApiVerifyPaystack(reference);
+    if (window.lcToast) window.lcToast('Paystack payment verified and posted', 'success');
+  } catch (error) {
+    if (window.lcToast) window.lcToast('Payment not confirmed: ' + error.message, 'error');
+  }
+  await loadBilling();
+}
+
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape') closeModal();
+});
+
+// Live refresh when the audit log gets a new payment entry from elsewhere
+window.addEventListener('lc-audit-appended', function (ev) {
+  var d = ev && ev.detail;
+  if (!d) return;
+  if (d.action === 'bill.paid' || d.action === 'bill.partial_payment') {
+    loadBilling();
+  }
+});
+
+function exportBilling() {
+  var exportBills = getFilteredBills();
+  if (typeof XLSX === 'undefined') {
+    var lines = ['Patient,Patient ID,Visit,Service,Date,Total,Paid,Balance,Status,Payment Methods,Insurance Claims'];
+    exportBills.forEach(function (b) {
+      var methods = Array.from(new Set((b.encounter.payments || []).map(function (payment) { return payment.method; }))).join('; ');
+      var claims = insuranceClaims.filter(function (claim) { return claim.visitId === b.visitId; })
+        .map(function (claim) { return claim.payer + ' ' + claim.status + ' GHS ' + Number(claim.amount).toFixed(2); }).join('; ');
+      lines.push([b.patientName, b.patientId, b.visitId, b.service, b.date, b.total, b.paid, b.balance, b.status, methods, claims].map(function (x) {
+        return '"' + String(x).replace(/"/g, '""') + '"';
+      }).join(','));
+    });
+    var blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'LabCore_Billing_' + new Date().toISOString().slice(0, 10) + '.csv';
+    a.click();
+    if (window.lcToast) window.lcToast('Exported CSV', 'success');
+    return;
+  }
+  var rows = [['Patient','Patient ID','Visit','Service','Date','Total','Paid','Balance','Status','Payment Methods','Insurance Claims']];
+  exportBills.forEach(function (b) {
+    var methods = Array.from(new Set((b.encounter.payments || []).map(function (payment) { return payment.method; }))).join('; ');
+    var claims = insuranceClaims.filter(function (claim) { return claim.visitId === b.visitId; })
+      .map(function (claim) { return claim.payer + ' ' + claim.status + ' GHS ' + Number(claim.amount).toFixed(2); }).join('; ');
+    rows.push([b.patientName, b.patientId, b.visitId, b.service, b.date, b.total, b.paid, b.balance, b.status, methods, claims]);
+  });
+  var ws = XLSX.utils.aoa_to_sheet(rows);
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Billing');
+  XLSX.writeFile(wb, 'LabCore_Billing_' + new Date().toISOString().slice(0, 10) + '.xlsx');
+  if (window.lcToast) window.lcToast('Exported Excel', 'success');
+}
+
+loadBilling().then(handlePaystackReturn);
+setInterval(loadBilling, 30000);
+</script>
+<script src="shared/labcore-connectivity.js"></script>
+<script src="shared/labcore-scan.js"></script>
+</body>
+
+</html>

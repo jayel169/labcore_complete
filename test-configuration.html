@@ -1,0 +1,2771 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LabCore — Test Panel Configuration</title>
+    <link rel="stylesheet" href="shared/labcore-nav.css">
+
+    <!-- Export Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <!-- Fuzzy Search -->
+    <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.min.js"></script>
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        
+
+        body {
+            font-family: var(--lc-font);
+            background: var(--lc-bg); color: var(--lc-text); line-height: 1.5;
+        }
+        button, input, select, textarea { font-family: inherit; }
+
+        .app { display: flex; min-height: 100vh; }
+
+        /* MAIN */
+        .main {
+            margin-left: 245px; width: calc(100% - 245px);
+            min-height: 100vh; transition: margin var(--lc-transition);
+        }
+
+        .top-header {
+            height: 70px; background: #ffffff;
+            border-bottom: 1px solid var(--lc-border);
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0 30px; position: sticky; top: 0; z-index: 50;
+        }
+        .breadcrumb { font-size: 12px; color: #888; }
+        .breadcrumb strong { color: #333; }
+        .header-right { display: flex; align-items: center; gap: 20px; }
+        .header-actions { display: flex; gap: 8px; align-items: center; }
+        .header-date { font-size: 12px; color: #777; }
+
+        .content { padding: 28px 30px; }
+
+        .page-title {
+            display: flex; justify-content: space-between;
+            align-items: center; margin-bottom: 25px;
+            flex-wrap: wrap; gap: 12px;
+        }
+        .page-title h1 { font-size: 24px; font-weight: 600; color: #2A2656; }
+        .page-title p { margin-top: 7px; font-size: 13px; color: var(--lc-muted); }
+
+        /* TABS */
+        .tabs {
+            display: flex; border-bottom: 2px solid var(--lc-border);
+            margin-bottom: 25px; gap: 0; overflow-x: auto;
+            -webkit-overflow-scrolling: touch; scrollbar-width: none;
+        }
+        .tabs::-webkit-scrollbar { display: none; }
+        .tab {
+            padding: 12px 24px; cursor: pointer; font-size: 13px;
+            font-weight: 600; color: var(--lc-muted);
+            border-bottom: 3px solid transparent;
+            transition: var(--lc-transition);
+            background: none; border-top: none; border-left: none; border-right: none;
+            white-space: nowrap;
+        }
+        .tab:hover { color: var(--lc-text); background: var(--lc-bg); }
+        .tab.active { color: var(--lc-text); border-bottom-color: var(--lc-gold); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* CATEGORIES */
+        .category-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px; margin-top: 15px;
+        }
+        .category-card {
+            background: white; border: 1px solid var(--lc-border);
+            border-radius: var(--lc-radius); padding: 18px;
+            transition: var(--lc-transition); cursor: pointer;
+        }
+        .category-card:hover {
+            box-shadow: var(--lc-shadow); border-color: var(--lc-blue);
+            transform: translateY(-2px);
+        }
+        .category-icon { font-size: 28px; margin-bottom: 8px; }
+        .category-name { font-size: 15px; font-weight: 600; }
+        .category-desc { font-size: 12px; color: var(--lc-muted); margin-top: 4px; }
+        .category-meta {
+            margin-top: 12px; display: flex;
+            justify-content: space-between; font-size: 11px; color: #8a8e8a;
+        }
+        .category-badge { padding: 3px 10px; border-radius: 12px; font-size: 10px; font-weight: 600; }
+        .badge-active { background: #E5F1EA; color: #2B7A4B; }
+        .badge-inactive { background: #f0e6e6; color: #B3261E; }
+
+        /* PANELS */
+        .panel-list {
+            display: flex; flex-direction: column;
+            gap: 12px; margin-top: 15px; position: relative;
+        }
+        .panel-item {
+            background: white; border: 1px solid var(--lc-border);
+            border-radius: var(--lc-radius); padding: 16px 20px;
+            display: flex; justify-content: space-between;
+            align-items: center; transition: var(--lc-transition);
+            flex-wrap: wrap; gap: 12px;
+        }
+        .panel-item:hover { box-shadow: var(--lc-shadow); border-color: var(--lc-blue); }
+        .panel-info { flex: 1; min-width: 200px; }
+        .panel-name { font-size: 14px; font-weight: 600; }
+        .panel-code {
+            font-size: 11px; color: var(--lc-muted);
+            margin-left: 10px; font-weight: 400;
+        }
+        .panel-desc { font-size: 12px; color: var(--lc-muted); margin-top: 3px; }
+        .panel-details {
+            display: flex; gap: 20px; font-size: 11px;
+            color: var(--lc-muted); margin-top: 5px; flex-wrap: wrap;
+        }
+        .panel-details span { display: flex; align-items: center; gap: 4px; }
+        .panel-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+        .panel-actions button {
+            padding: 5px 12px; border: 1px solid var(--lc-border);
+            border-radius: 4px; background: white; font-size: 10px;
+            cursor: pointer; transition: var(--lc-transition);
+        }
+        .panel-actions button:hover { background: var(--lc-bg); }
+        .panel-actions .edit-btn:hover { background: #E5F1EA; border-color: #9bc4a8; }
+        .panel-actions .delete-btn:hover { background: #f0e6e6; border-color: #d4a0a0; color: #B3261E; }
+        .panel-status { padding: 4px 10px; border-radius: 12px; font-size: 10px; font-weight: 600; }
+        .tag {
+            background: #EFEDF4; border: 1px solid var(--lc-border);
+            padding: 2px 7px; border-radius: 4px;
+            font-size: 10px; color: #4a5560;
+        }
+        .result-type-badge {
+            display: inline-block; padding: 2px 10px; border-radius: 12px;
+            font-size: 9px; font-weight: 600;
+        }
+        .badge-quantitative { background: #E4EFF7; color: #3A3577; }
+        .badge-qualitative { background: #f3e5f5; color: #7b1fa2; }
+        .badge-categorical { background: #FBF0DA; color: #e65100; }
+
+        /* RANGES */
+        .ranges-controls {
+            display: flex; gap: 15px; margin-bottom: 15px;
+            flex-wrap: wrap; align-items: center;
+        }
+        .ranges-controls select, .ranges-controls input {
+            padding: 8px 12px; border: 1px solid var(--lc-border);
+            border-radius: 6px; font-size: 12px;
+            background: white; min-width: 150px; color: var(--lc-text);
+            transition: var(--lc-transition);
+        }
+        .ranges-controls select:focus, .ranges-controls input:focus {
+            outline: none; border-color: var(--lc-blue);
+            box-shadow: 0 0 0 3px rgba(36, 91, 134, 0.15);
+        }
+
+        .ranges-table {
+            width: 100%; border-collapse: collapse; background: white;
+            border-radius: var(--lc-radius); overflow: hidden;
+            border: 1px solid var(--lc-border);
+        }
+        .ranges-table th {
+            background: #F8F7FB; padding: 12px 15px; text-align: left;
+            font-size: 10px; color: #5F5B75; font-weight: 600;
+             border-bottom: 1px solid var(--lc-border);
+        }
+        .ranges-table td {
+            padding: 10px 15px; font-size: 12px;
+            border-bottom: 1px solid #EFEDF4;
+        }
+        .ranges-table tr:last-child td { border-bottom: none; }
+        .ranges-table tr:nth-child(even) td { background: #fafbfc; }
+
+        .range-input {
+            width: 80px; padding: 4px 8px; border: 1px solid var(--lc-border);
+            border-radius: 4px; font-size: 11px; text-align: center;
+            transition: var(--lc-transition);
+        }
+        .range-input:focus {
+            outline: none; border-color: var(--lc-blue);
+            box-shadow: 0 0 0 3px rgba(36, 91, 134, 0.15);
+        }
+        .range-input-text {
+            width: 150px; padding: 4px 8px; border: 1px solid var(--lc-border);
+            border-radius: 4px; font-size: 11px; transition: var(--lc-transition);
+        }
+        .range-input-text:focus {
+            outline: none; border-color: var(--lc-blue);
+            box-shadow: 0 0 0 3px rgba(36, 91, 134, 0.15);
+        }
+        .flag-indicator {
+            display: inline-block; padding: 2px 8px; border-radius: 4px;
+            font-weight: 600; font-size: 10px;
+        }
+        .flag-normal { background: #E5F1EA; color: #2B7A4B; }
+        .flag-low { background: #fef3e0; color: #9A6200; }
+        .flag-high { background: #FBE9E7; color: #B3261E; }
+        .flag-critical { background: #FBE9E7; color: #B3261E; font-weight: 700; }
+
+        /* FLAGS */
+        .flags-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px; margin: 15px 0;
+        }
+        .flag-card {
+            background: white; border: 1px solid var(--lc-border);
+            border-radius: var(--lc-radius); padding: 15px;
+            text-align: center; transition: var(--lc-transition);
+        }
+        .flag-card:hover { box-shadow: var(--lc-shadow); transform: translateY(-2px); }
+        .flag-symbol { font-size: 32px; font-weight: 700; display: block; }
+        .flag-label { font-size: 12px; font-weight: 600; margin-top: 5px; }
+        .flag-color {
+            width: 40px; height: 40px; border-radius: 50%;
+            margin: 8px auto; border: 2px solid var(--lc-border);
+        }
+
+        /* BUTTONS */
+        .btn {
+            padding: 8px 16px; border-radius: 6px;
+            border: 1px solid var(--lc-border); background: white;
+            cursor: pointer; font-size: 12px; transition: var(--lc-transition);
+            display: inline-flex; align-items: center; gap: 6px; color: var(--lc-text);
+        }
+        .btn:hover {
+            background: var(--lc-bg); transform: translateY(-1px);
+            box-shadow: var(--lc-shadow);
+        }
+        .btn-primary { background: var(--lc-blue); border-color: var(--lc-blue); color: white; }
+        .btn-primary:hover { background: #2A2656; border-color: #2A2656; }
+        .btn-success { background: var(--lc-green); border-color: var(--lc-green); color: white; }
+        .btn-success:hover { background: #206038; border-color: #206038; }
+        .btn-danger { background: var(--lc-red); border-color: var(--lc-red); color: white; }
+        .btn-danger:hover { background: #8C1C16; border-color: #8C1C16; }
+        .btn-warning { background: var(--lc-warning); border-color: var(--lc-warning); color: white; }
+        .btn-sm { padding: 4px 10px; font-size: 10px; }
+
+        .toolbar {
+            display: flex; justify-content: space-between;
+            align-items: center; margin-bottom: 15px;
+            flex-wrap: wrap; gap: 10px;
+        }
+        .toolbar-left { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .toolbar-right { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+        .search-input {
+            padding: 7px 12px; border: 1px solid var(--lc-border);
+            border-radius: 6px; font-size: 12px; background: white;
+            color: var(--lc-text); min-width: 200px; transition: var(--lc-transition);
+        }
+        .search-input:focus {
+            outline: none; border-color: var(--lc-blue);
+            box-shadow: 0 0 0 3px rgba(36, 91, 134, 0.15);
+        }
+
+        /* MODALS */
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(22, 25, 23, 0.52);
+            display: none; align-items: center; justify-content: center;
+            z-index: 1000; padding: 20px; 
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            width: 950px; max-width: 100%; max-height: 90vh;
+            background: white; border-radius: var(--lc-radius);
+            overflow-y: auto; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        }
+        .modal-sm { width: 700px; }
+        .modal-header {
+            padding: 18px 20px; border-bottom: 1px solid var(--lc-border);
+            display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; background: white; z-index: 10;
+        }
+        .modal-header h2 { font-size: 17px; font-weight: 600; }
+        .modal-header p { color: #8A869C; font-size: 11px; margin-top: 4px; }
+        .close-btn {
+            border: none; background: none; font-size: 22px;
+            color: #777; cursor: pointer; transition: var(--lc-transition);
+        }
+        .close-btn:hover { color: var(--lc-red); transform: scale(1.1); }
+        .modal-body { padding: 20px; position: relative; }
+        .modal-footer {
+            border-top: 1px solid var(--lc-border);
+            padding: 14px 20px; display: flex; justify-content: flex-end;
+            gap: 8px; flex-wrap: wrap; position: sticky;
+            bottom: 0; background: white; z-index: 10;
+        }
+
+        /* FORMS */
+        .form-group { margin-bottom: 16px; }
+        .form-group label {
+            display: block; font-size: 11px; font-weight: 600;
+            margin-bottom: 5px; color: #4A4660;
+        }
+        .form-group label .required { color: #B3261E; }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%; padding: 8px 12px; border: 1px solid var(--lc-border);
+            border-radius: 6px; font-size: 12px; background: white;
+            color: var(--lc-text); outline: none; transition: var(--lc-transition);
+        }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            border-color: var(--lc-blue);
+            box-shadow: 0 0 0 3px rgba(36, 91, 134, 0.15);
+        }
+        .form-group textarea { resize: vertical; min-height: 60px; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
+
+        .lc-input-success {
+            border-color: var(--lc-green) !important;
+            box-shadow: 0 0 0 3px rgba(45, 122, 70, 0.2) !important;
+        }
+        .lc-input-error {
+            border-color: var(--lc-red) !important;
+            box-shadow: 0 0 0 3px rgba(183, 75, 67, 0.2) !important;
+        }
+        .lc-input-warning {
+            border-color: var(--lc-warning) !important;
+            box-shadow: 0 0 0 3px rgba(176, 138, 46, 0.2) !important;
+        }
+        .lc-validation-message {
+            font-size: 10px; margin-top: 4px; font-weight: 600;
+        }
+        .lc-validation-message.success { color: var(--lc-green); }
+        .lc-validation-message.error { color: var(--lc-red); }
+        .lc-validation-message.warning { color: var(--lc-warning); }
+
+        /* TEST LIST */
+        .test-list {
+            border: 1px solid var(--lc-border);
+            border-radius: var(--lc-radius); overflow: hidden; margin-top: 10px;
+        }
+        .test-list-item {
+            display: grid; grid-template-columns: 30px 1.5fr 0.8fr 0.9fr 1.4fr 40px;
+            align-items: center; padding: 10px 14px;
+            border-bottom: 1px solid #EFEDF4; font-size: 12px; gap: 8px;
+        }
+        .test-list-item-6 { grid-template-columns: 30px 1.5fr 0.8fr 0.9fr 1.4fr 40px; }
+        .test-list-item:last-child { border-bottom: none; }
+        .test-list-item.header {
+            background: #F8F7FB; font-weight: 600; font-size: 10px;
+            color: #5F5B75; 
+        }
+        .test-list-item input[type="checkbox"] { width: 16px; height: 16px; }
+        .test-list-item .remove-btn {
+            background: none; border: none; color: #B3261E;
+            cursor: pointer; font-size: 16px;
+        }
+        .test-list-item .remove-btn:hover { color: #8a2a22; }
+
+        /* QUAL OPTIONS */
+        .qualitative-options {
+            margin-top: 10px; padding: 10px; background: #f8f5ff;
+            border: 1px dashed #b39ddb; border-radius: 6px;
+        }
+        .qualitative-options .option-row {
+            display: flex; gap: 10px; align-items: center; margin-bottom: 6px;
+        }
+        .qualitative-options .option-row input {
+            padding: 4px 8px; border: 1px solid var(--lc-border);
+            border-radius: 4px; font-size: 11px; flex: 1;
+        }
+        .qualitative-options .option-row select {
+            padding: 4px 8px; border: 1px solid var(--lc-border);
+            border-radius: 4px; font-size: 11px; width: 100px;
+        }
+        .qualitative-options .option-row .remove-option {
+            color: #B3261E; background: none; border: none;
+            cursor: pointer; font-size: 16px;
+        }
+
+        /* LOADING */
+        .lc-loading-overlay {
+            position: absolute; inset: 0;
+            background: rgba(255, 255, 255, 0.85);
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            z-index: 50; border-radius: var(--lc-radius);
+        }
+        .lc-loading-spinner {
+            width: 40px; height: 40px;
+            border: 4px solid var(--lc-border);
+            border-top-color: var(--lc-blue);
+            border-radius: 50%; animation: lcSpin 0.8s linear infinite;
+        }
+        .lc-loading-text { margin-top: 12px; font-size: 13px; color: var(--lc-muted); }
+        @keyframes lcSpin { to { transform: rotate(360deg); } }
+
+        /* TOAST */
+        .toast-container {
+            position: fixed; bottom: 20px; right: 20px;
+            z-index: 2000; display: flex;
+            flex-direction: column; gap: 10px;
+        }
+        .toast {
+            padding: 14px 20px; border-radius: 8px; color: white;
+            font-size: 13px; font-weight: 500;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+            animation: slideIn 0.3s ease-out;
+            min-width: 280px; max-width: 400px;
+        }
+        .toast-success { background: #2B7A4B; }
+        .toast-error { background: #B3261E; }
+        .toast-warning { background: #9A6200; }
+        .toast-info { background: #37688c; }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .empty-state {
+            text-align: center; padding: 40px; color: #8A869C;
+        }
+        .empty-state .icon { font-size: 48px; margin-bottom: 10px; }
+        .empty-state h3 { font-size: 16px; color: #4A4660; margin-bottom: 5px; }
+        .empty-state p { font-size: 12px; }
+
+        /* RESPONSIVE */
+        @media (max-width: 1000px) {
+            .main { margin-left: 0; width: 100%; }
+            .form-row, .form-row-3 { grid-template-columns: 1fr; }
+            .test-list-item { grid-template-columns: 30px 1fr 1fr; gap: 5px; }
+            .test-list-item .hide-mobile { display: none; }
+            .modal { width: 100%; }
+        }
+        @media (max-width: 900px) {
+            .main { padding-top: 60px; }
+            .content { padding: 20px 15px; }
+            .page-title { flex-direction: column; gap: 10px; }
+            .tabs { overflow-x: auto; gap: 0; }
+            .tab { padding: 10px 16px; font-size: 12px; white-space: nowrap; }
+            .category-grid { grid-template-columns: 1fr; }
+            .flags-grid { grid-template-columns: 1fr 1fr; }
+            .panel-item { flex-direction: column; align-items: flex-start; gap: 10px; }
+            .panel-actions { width: 100%; justify-content: flex-start; }
+            .ranges-controls { flex-direction: column; align-items: stretch; }
+            .ranges-controls select { min-width: unset; }
+            .ranges-table .range-input { width: 60px; }
+        }
+        @media (max-width: 700px) {
+            .top-header { height: 56px; padding: 0 16px; }
+            .content { padding: 16px; }
+            .page-title h1 { font-size: 20px; }
+            .flags-grid { grid-template-columns: 1fr; }
+            .ranges-table { font-size: 11px; }
+            .ranges-table td, .ranges-table th { padding: 6px 8px; }
+            .range-input { width: 50px; font-size: 10px; }
+            .modal { max-height: 100vh; border-radius: 0; }
+            .modal-header { padding: 12px 16px; }
+            .modal-body { padding: 14px; }
+            .modal-footer { padding: 10px 16px; flex-wrap: wrap; }
+            .btn { font-size: 11px; padding: 6px 10px; }
+            .toolbar { flex-direction: column; align-items: stretch; }
+            .toolbar-left { width: 100%; }
+            .toolbar-right { width: 100%; }
+            .search-input { width: 100%; min-width: unset; }
+        }
+
+        .modal::-webkit-scrollbar { width: 6px; }
+        .modal::-webkit-scrollbar-track { background: var(--lc-bg); }
+        .modal::-webkit-scrollbar-thumb { background: var(--lc-border); border-radius: 3px; }
+        .modal::-webkit-scrollbar-thumb:hover { background: var(--lc-muted); }
+    </style>
+</head>
+
+<body>
+
+    <div class="app">
+
+        <!-- SIDEBAR (built by shared/labcore-nav.js) -->
+        <aside class="sidebar"></aside>
+
+        <!-- Mobile Toggle -->
+        <button class="lc-mobile-toggle" aria-label="Toggle navigation">☰</button>
+        <div class="lc-sidebar-overlay"></div>
+
+        <!-- MAIN -->
+        <main class="main">
+            <header class="top-header">
+                <div class="breadcrumb">
+                    Configuration <span>/</span> <strong>Test Panel Configuration</strong>
+                </div>
+                <div class="header-right">
+                    <div class="header-actions">
+                        <button class="btn btn-sm" onclick="toggleDarkMode()" title="Toggle Dark Mode">🌓</button>
+                        <button class="btn btn-sm" onclick="exportConfiguration()" title="Export Configuration">📤</button>
+                        <button class="btn btn-sm" onclick="importConfiguration()" title="Import Configuration">📥</button>
+                        <button class="btn btn-sm" onclick="exportRanges()" title="Export Ranges">📊</button>
+                    </div>
+                    <div class="header-date" id="currentDate"></div>
+                </div>
+            </header>
+
+            <section class="content">
+                <div class="page-title">
+                    <div>
+                        <h1>Test Panel Configuration</h1>
+                        <p>Create and manage laboratory test categories, panels, reference ranges, and flag rules.</p>
+                    </div>
+                    <div>
+                        <button class="btn btn-primary" onclick="showCreateCategory()">+ New Category</button>
+                    </div>
+                </div>
+
+                <!-- TABS -->
+                <div class="tabs" id="tabContainer">
+                    <button class="tab active" data-tab="categories">Categories</button>
+                    <button class="tab" data-tab="panels">Panels</button>
+                    <button class="tab" data-tab="ranges">Reference Ranges</button>
+                    <button class="tab" data-tab="flags">Flags</button>
+                    <button class="tab" data-tab="units">Units</button>
+                    <button class="tab" data-tab="pricing">💰 Pricing</button>
+                </div>
+
+                <!-- TAB 1: CATEGORIES -->
+                <div class="tab-content active" id="tab-categories">
+                    <div class="toolbar">
+                        <div class="toolbar-left">
+                            <span style="font-size:12px;color:var(--lc-muted);">Manage test categories</span>
+                        </div>
+                        <button class="btn btn-primary btn-sm" onclick="showCreateCategory()">+ New Category</button>
+                    </div>
+                    <div class="category-grid" id="categoryGrid"></div>
+                </div>
+
+                <!-- TAB 2: PANELS -->
+                <div class="tab-content" id="tab-panels">
+                    <div class="toolbar">
+                        <div class="toolbar-left" style="gap:10px;flex-wrap:wrap;">
+                            <input id="panelSearchInput" type="text" class="search-input"
+                                placeholder="Search test or panel by name, code, department, or parameter…"
+                                oninput="window.lcDebounce(renderPanels, 300)()">
+                            <select id="panelCategoryFilter" onchange="renderPanels()"
+                                style="padding:6px 12px;border:1px solid var(--lc-border);border-radius:6px;font-size:12px;background:white;color:var(--lc-text);">
+                                <option value="all">All Departments</option>
+                            </select>
+                            <select id="panelStatusFilter" onchange="renderPanels()"
+                                style="padding:6px 12px;border:1px solid var(--lc-border);border-radius:6px;font-size:12px;background:white;color:var(--lc-text);">
+                                <option value="all">Active + Inactive</option>
+                                <option value="active">Active only</option>
+                            </select>
+                            <span style="font-size:11px;color:var(--lc-muted);" id="panelCount"></span>
+                        </div>
+                        <button class="btn btn-primary btn-sm" onclick="showCreatePanel()">+ New Panel</button>
+                    </div>
+                    <div style="font-size:11px;color:var(--lc-muted);margin:-6px 0 10px;">
+                        Test Catalogue is organized as <strong>Department → Panel → Parameters</strong>.
+                        Standalone tests appear as single-parameter panels.
+                    </div>
+                    <div class="panel-list" id="panelList"></div>
+                </div>
+
+                <!-- TAB 3: REFERENCE RANGES -->
+                <div class="tab-content" id="tab-ranges">
+                    <div class="ranges-controls">
+                        <select id="rangePanelSelect" onchange="renderRanges()">
+                            <option value="">Select a panel...</option>
+                        </select>
+                        <select id="rangeAgeGroup" onchange="renderRanges()">
+                            <option value="all">All Ages</option>
+                            <option value="0-12 months">0-12 months</option>
+                            <option value="1-18 years">1-18 years</option>
+                            <option value="19-50 years">19-50 years</option>
+                            <option value="51+ years">51+ years</option>
+                        </select>
+                        <select id="rangeSex" onchange="renderRanges()">
+                            <option value="all">All Sexes</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                        </select>
+                        <button class="btn btn-primary btn-sm" onclick="addAgeGroupRange()">+ Add Age Group</button>
+                        <button class="btn btn-sm" onclick="exportRanges()" title="Export Ranges to Excel">📊 Export</button>
+                    </div>
+                    <div id="rangesContainer">
+                        <div class="empty-state">
+                            <h3>Select a Panel</h3>
+                            <p>Choose a panel above to view and edit reference ranges</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 4: UNITS -->
+                <div class="tab-content" id="tab-units">
+                    <div class="toolbar">
+                        <div class="toolbar-left">
+                            <span style="font-size:12px;color:var(--lc-muted);">
+                                Create and manage laboratory measurement units. Units created here become available when configuring tests.
+                            </span>
+                        </div>
+                        <button class="btn btn-primary btn-sm" onclick="openUnitManager()">+ Manage / Create Units</button>
+                    </div>
+                    <div class="unit-list" id="unitList"></div>
+                </div>
+
+                <!-- TAB 5: FLAGS -->
+                <div class="tab-content" id="tab-flags">
+                    <div class="toolbar">
+                        <div class="toolbar-left">
+                            <span style="font-size:12px;color:var(--lc-muted);">Configure flag rules and display settings</span>
+                        </div>
+                        <button class="btn btn-success btn-sm" onclick="saveFlagSettings()">Save Flag Settings</button>
+                    </div>
+
+                    <div style="background:white;border:1px solid var(--lc-border);border-radius:var(--lc-radius);padding:20px;margin-bottom:20px;">
+                        <h3 style="font-size:14px;margin-bottom:10px;">Flag Display Settings</h3>
+                        <div style="display:flex;gap:20px;flex-wrap:wrap;">
+                            <label style="font-size:12px;display:flex;align-items:center;gap:6px;cursor:pointer;">
+                                <input type="checkbox" id="useColorCoding" checked> Use Color Coding
+                            </label>
+                            <label style="font-size:12px;display:flex;align-items:center;gap:6px;cursor:pointer;">
+                                <input type="checkbox" id="showFlags" checked> Show Flags with Results
+                            </label>
+                            <label style="font-size:12px;display:flex;align-items:center;gap:6px;cursor:pointer;">
+                                <input type="checkbox" id="showInterpretation" checked> Show Interpretation
+                            </label>
+                            <label style="font-size:12px;display:flex;align-items:center;gap:6px;cursor:pointer;">
+                                <input type="checkbox" id="useAsterisk" checked> Use Asterisk for Abnormal (*)
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="flags-grid" id="flagsGrid">
+                        <div class="flag-card">
+                            <span class="flag-symbol" style="color:#4CAF50;">N</span>
+                            <div class="flag-color" style="background:#4CAF50;"></div>
+                            <div class="flag-label">Normal</div>
+                            <div style="font-size:11px;color:var(--lc-muted);">Green ✓</div>
+                        </div>
+                        <div class="flag-card">
+                            <span class="flag-symbol" style="color:#FF9800;">L</span>
+                            <div class="flag-color" style="background:#FF9800;"></div>
+                            <div class="flag-label">Low</div>
+                            <div style="font-size:11px;color:var(--lc-muted);">Orange 🔻</div>
+                        </div>
+                        <div class="flag-card">
+                            <span class="flag-symbol" style="color:#F44336;">H*</span>
+                            <div class="flag-color" style="background:#F44336;"></div>
+                            <div class="flag-label">High*</div>
+                            <div style="font-size:11px;color:var(--lc-muted);">Red 🔺*</div>
+                        </div>
+                        <div class="flag-card">
+                            <span class="flag-symbol" style="color:#B3261E;">LL</span>
+                            <div class="flag-color" style="background:#B3261E;"></div>
+                            <div class="flag-label">Critical Low</div>
+                            <div style="font-size:11px;color:var(--lc-muted);">Red 🚨</div>
+                        </div>
+                        <div class="flag-card">
+                            <span class="flag-symbol" style="color:#B3261E;">HH*</span>
+                            <div class="flag-color" style="background:#B3261E;"></div>
+                            <div class="flag-label">Critical High*</div>
+                            <div style="font-size:11px;color:var(--lc-muted);">Red 🚨*</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 6: PRICING -->
+                <div class="tab-content" id="tab-pricing">
+                    <div class="toolbar">
+                        <div class="toolbar-left">
+                            <span style="font-size:12px;color:var(--lc-muted);">
+                                Configure prices for services, laboratory tests, imaging, and pharmacy items.
+                                Prices are automatically used in Consultation and Billing.
+                            </span>
+                        </div>
+                        <div class="toolbar-right">
+                            <button class="btn btn-success btn-sm" onclick="saveAllPrices()">💾 Save All Prices</button>
+                            <button class="btn btn-sm" onclick="exportPrices()">📤 Export</button>
+                            <button class="btn btn-sm" onclick="importPrices()">📥 Import</button>
+                            <button class="btn btn-sm btn-danger" onclick="resetAllPrices()">↺ Reset Defaults</button>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom:15px;padding:10px;background:#fff3df;border:1px solid #f0d78c;border-radius:6px;font-size:12px;">
+                        <strong>💡 How it works:</strong>
+                        Tests created in <strong>Test Panels</strong> automatically appear here when you add a price.
+                        You can also add custom tests/services directly from this page.
+                    </div>
+
+                    <div style="background:white;border:1px solid var(--lc-border);border-radius:var(--lc-radius);padding:15px;margin-bottom:15px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                            <h3 style="font-size:14px;">🏥 Consultation Services</h3>
+                            <button class="btn btn-sm btn-primary" onclick="addPricingItem('services')">+ Add Service</button>
+                        </div>
+                        <div id="pricingServices" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;"></div>
+                    </div>
+
+                    <div style="background:white;border:1px solid var(--lc-border);border-radius:var(--lc-radius);padding:15px;margin-bottom:15px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                            <h3 style="font-size:14px;">🧪 Laboratory Panels <span style="font-size:11px;color:var(--lc-muted);font-weight:400;">— bundle price when ordered as a panel</span></h3>
+                            <button class="btn btn-sm btn-primary" onclick="addPricingItem('labPanels')">+ Add Panel</button>
+                        </div>
+                        <div id="pricingLabPanels" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;"></div>
+                    </div>
+
+                    <div style="background:white;border:1px solid var(--lc-border);border-radius:var(--lc-radius);padding:15px;margin-bottom:15px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                            <h3 style="font-size:14px;">🔬 Laboratory Tests <span style="font-size:11px;color:var(--lc-muted);font-weight:400;">— individual price when ordered alone</span></h3>
+                            <button class="btn btn-sm btn-primary" onclick="addPricingItem('labTests')">+ Add Test</button>
+                        </div>
+                        <div id="pricingLabTests" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;"></div>
+                    </div>
+
+                    <div style="background:white;border:1px solid var(--lc-border);border-radius:var(--lc-radius);padding:15px;margin-bottom:15px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                            <h3 style="font-size:14px;">🩻 Imaging / Radiology</h3>
+                            <button class="btn btn-sm btn-primary" onclick="addPricingItem('imaging')">+ Add Imaging</button>
+                        </div>
+                        <div id="pricingImaging" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;"></div>
+                    </div>
+
+                    <div style="background:white;border:1px solid var(--lc-border);border-radius:var(--lc-radius);padding:15px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                            <h3 style="font-size:14px;">💊 Pharmacy / Medications</h3>
+                            <button class="btn btn-sm btn-primary" onclick="addPricingItem('pharmacy')">+ Add Medication</button>
+                        </div>
+                        <div id="pricingPharmacy" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;"></div>
+                    </div>
+                </div>
+
+            </section>
+        </main>
+    </div>
+
+    <!-- CATEGORY MODAL -->
+    <div class="modal-overlay" id="categoryModal">
+        <div class="modal">
+            <div class="modal-header">
+                <div>
+                    <h2 id="categoryModalTitle">Create Category</h2>
+                    <p>Create a new test category</p>
+                </div>
+                <button class="close-btn" onclick="closeModal('categoryModal')">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Category Name <span class="required">*</span></label>
+                    <input type="text" id="categoryName" placeholder="e.g., Hematology"
+                        oninput="validateField(this, 'categoryName-error')">
+                    <div id="categoryName-error" class="lc-validation-message"></div>
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="categoryDesc" placeholder="e.g., Blood and blood disorders"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Icon (emoji)</label>
+                    <input type="text" id="categoryIcon" placeholder="e.g., 🩸" value="📋">
+                </div>
+                <div class="form-group">
+                    <label>Status</label>
+                    <select id="categoryStatus">
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeModal('categoryModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveCategory()">Save Category</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PANEL MODAL -->
+    <div class="modal-overlay" id="panelModal">
+        <div class="modal">
+            <div class="modal-header">
+                <div>
+                    <h2 id="panelModalTitle">Create Panel</h2>
+                    <p>Create a new test panel with investigations</p>
+                </div>
+                <button class="close-btn" onclick="closeModal('panelModal')">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Panel Name <span class="required">*</span></label>
+                        <input type="text" id="panelName" placeholder="e.g., Full Blood Count"
+                            oninput="generatePanelCode(); validateField(this, 'panelName-error')">
+                        <div id="panelName-error" class="lc-validation-message"></div>
+                    </div>
+                    <div class="form-group">
+                        <label>Panel Code <span class="required">*</span></label>
+                        <input type="text" id="panelCode" readonly placeholder="e.g., FBC" style="background:var(--lc-bg);">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Category <span class="required">*</span></label>
+                        <select id="panelCategory"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Result Type <span class="required">*</span></label>
+                        <select id="panelResultType" onchange="toggleResultTypeFields()">
+                            <option value="quantitative">Quantitative</option>
+                            <option value="qualitative">Qualitative</option>
+                            <option value="categorical">Categorical</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Specimen Type <span class="required">*</span></label>
+                        <select id="panelSpecimen">
+                            <option value="Whole Blood">Whole Blood</option>
+                            <option value="Serum">Serum</option>
+                            <option value="Plasma">Plasma</option>
+                            <option value="Citrated Blood">Citrated Blood</option>
+                            <option value="Urine">Urine</option>
+                            <option value="Stool">Stool</option>
+                            <option value="Sputum">Sputum</option>
+                            <option value="Swab">Swab</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Container</label>
+                        <select id="panelContainer">
+                            <option value="EDTA Tube">EDTA Tube</option>
+                            <option value="Plain Tube">Plain Tube</option>
+                            <option value="Fluoride Oxalate Tube">Fluoride Oxalate Tube</option>
+                            <option value="Citrate Tube">Citrate Tube</option>
+                            <option value="Sterile Universal Container">Sterile Universal Container</option>
+                            <option value="Swab Transport Medium">Swab Transport Medium</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="panelDesc" placeholder="e.g., Complete blood count with differential"></textarea>
+                </div>
+
+                <div class="form-row-3">
+                    <div class="form-group">
+                        <label>LOINC code</label>
+                        <input type="text" id="panelLoinc" placeholder="e.g., 58410-2">
+                    </div>
+                    <div class="form-group">
+                        <label>SNOMED code</label>
+                        <input type="text" id="panelSnomed" placeholder="e.g., 26604007">
+                    </div>
+                    <div class="form-group">
+                        <label>TAT SLA (hours)</label>
+                        <input type="number" id="panelTatHours" min="0" step="1" placeholder="Leave blank for default">
+                    </div>
+                </div>
+
+                <div style="margin-top:20px;">
+                    <label style="font-size:11px;font-weight:600;color:#4A4660;">Tests / Parameters in this Panel</label>
+                    <p style="font-size:11px;color:var(--lc-muted);margin:6px 0 10px;">
+                        Each sub-test has its own result type — e.g. Malaria RDT = Qualitative, Parasite Density = Quantitative, Species = Categorical.
+                        For qualitative/categorical tests you must define the allowed options AND which one is normal.
+                    </p>
+                    <div style="display:flex;gap:10px;margin:10px 0;flex-wrap:wrap;align-items:center;">
+                        <input type="text" id="newTestName" placeholder="Test name e.g. Malaria RDT"
+                            style="flex:1;min-width:140px;padding:8px 12px;border:1px solid var(--lc-border);border-radius:6px;font-size:12px;background:white;color:var(--lc-text);"
+                            oninput="generateTestCode(); validateField(this, 'newTestName-error')">
+                        <div id="newTestName-error" class="lc-validation-message" style="width:100%;"></div>
+                        <input type="text" id="newTestCode" readonly placeholder="Auto code"
+                            style="width:100px;padding:8px 12px;border:1px solid var(--lc-border);border-radius:6px;font-size:12px;background:var(--lc-bg);color:var(--lc-text);">
+                        <select id="newTestResultType" onchange="toggleNewTestOptions()"
+                            style="width:140px;padding:8px 12px;border:1px solid var(--lc-border);border-radius:6px;font-size:12px;background:white;color:var(--lc-text);">
+                            <option value="quantitative">Quantitative</option>
+                            <option value="qualitative">Qualitative</option>
+                            <option value="categorical">Categorical</option>
+                        </select>
+                        <select id="newTestUnit"
+                            style="width:110px;padding:8px 12px;border:1px solid var(--lc-border);border-radius:6px;font-size:12px;background:white;color:var(--lc-text);">
+                            <option value="">No unit</option>
+                        </select>
+                        <button class="btn btn-sm" type="button" onclick="openUnitManager()">⚙ Units</button>
+                        <button class="btn btn-success btn-sm" onclick="addTestToPanel()">Add</button>
+                    </div>
+
+                    <div id="newTestOptionsWrap" style="display:none;margin-bottom:10px;padding:12px;background:#f8f5ff;border:1px dashed #b39ddb;border-radius:6px;">
+                        <div style="font-size:11px;font-weight:700;color:#6b21a8;margin-bottom:8px;">Allowed Result Options &amp; Normal Value</div>
+                        <div id="newTestOptionsList"></div>
+                        <button type="button" class="btn btn-sm" style="margin-top:8px" onclick="addNewTestOptionRow('', false)">+ Add Option</button>
+                        <div style="margin-top:10px;padding:8px 12px;background:#eef7fd;border:1px solid #DAD8E3;border-radius:5px;font-size:11px;color:#1d5a80;line-height:1.5;">
+                            <strong>Note:</strong> Qualitative and categorical results are reported as text
+                            (Positive, Reactive, Detected, etc.). They are never flagged H or L.
+                            The flag column will show a dash for these tests.
+                            The result text itself is coloured to show normal vs abnormal.
+                        </div>
+                        <div style="font-size:10px;color:var(--lc-muted);margin-top:6px;">
+                            Pick exactly one option as <strong>Normal</strong>. Options marked <em>Invalid/Indeterminate</em> are treated separately and never flagged as abnormal.
+                        </div>
+                    </div>
+
+                    <div class="test-list" id="panelTestList">
+                        <div class="test-list-item header test-list-item-6">
+                            <span>#</span>
+                            <span>Test Name</span>
+                            <span>Code</span>
+                            <span>Type</span>
+                            <span class="hide-mobile">Unit / Options</span>
+                            <span></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeModal('panelModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="savePanel()">Save Panel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- UNIT MANAGER MODAL -->
+    <div class="modal-overlay" id="unitManagerModal">
+        <div class="modal modal-sm">
+            <div class="modal-header">
+                <div>
+                    <h2>Unit Database</h2>
+                    <p>Create laboratory units once, then select them when adding tests.</p>
+                </div>
+                <button class="close-btn" onclick="closeModal('unitManagerModal')">×</button>
+            </div>
+            <div class="modal-body">
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+                    <input type="text" id="unitSymbol" placeholder="Unit symbol e.g. mg/dL"
+                        style="flex:1;min-width:150px;padding:9px 12px;border:1px solid var(--lc-border);border-radius:6px;font-size:12px;background:white;color:var(--lc-text);"
+                        oninput="validateField(this, 'unitSymbol-error')">
+                    <div id="unitSymbol-error" class="lc-validation-message" style="width:100%;"></div>
+                    <input type="text" id="unitName" placeholder="Unit name e.g. milligrams per decilitre"
+                        style="flex:1.5;min-width:220px;padding:9px 12px;border:1px solid var(--lc-border);border-radius:6px;font-size:12px;background:white;color:var(--lc-text);">
+                    <select id="unitCategory"
+                        style="width:150px;padding:9px 12px;border:1px solid var(--lc-border);border-radius:6px;font-size:12px;background:white;color:var(--lc-text);">
+                        <option value="Concentration">Concentration</option>
+                        <option value="Cell Count">Cell Count</option>
+                        <option value="Volume">Volume</option>
+                        <option value="Mass">Mass</option>
+                        <option value="Time">Time</option>
+                        <option value="Percentage">Percentage</option>
+                        <option value="Enzyme Activity">Enzyme Activity</option>
+                        <option value="Other">Other</option>
+                    </select>
+                    <button class="btn btn-primary btn-sm" onclick="createUnit()">＋ Create Unit</button>
+                </div>
+                <div id="unitList" style="border:1px solid var(--lc-border);border-radius:var(--lc-radius);overflow:hidden;"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeModal('unitManagerModal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- RANGE EDITOR MODAL -->
+    <div class="modal-overlay" id="rangeEditorModal">
+        <div class="modal">
+            <div class="modal-header">
+                <div>
+                    <h2>Edit Reference Ranges</h2>
+                    <p id="rangeEditorSubtitle">Edit normal ranges, critical values, and flag rules for each test</p>
+                </div>
+                <button class="close-btn" onclick="closeModal('rangeEditorModal')">×</button>
+            </div>
+            <div class="modal-body" id="rangeEditorContent"></div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeModal('rangeEditorModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveRangeEdits()">Save All Ranges</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ADD AGE GROUP MODAL -->
+    <div class="modal-overlay" id="addAgeGroupModal">
+        <div class="modal modal-sm">
+            <div class="modal-header">
+                <div>
+                    <h2>Add Age Group</h2>
+                    <p>Add a new age group for reference ranges</p>
+                </div>
+                <button class="close-btn" onclick="closeModal('addAgeGroupModal')">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Age Group Name <span class="required">*</span></label>
+                    <input type="text" id="newAgeGroupName" placeholder="e.g., 65+ years"
+                        oninput="validateField(this, 'newAgeGroupName-error')">
+                    <div id="newAgeGroupName-error" class="lc-validation-message"></div>
+                </div>
+                <div class="form-group">
+                    <label>Sex</label>
+                    <select id="newAgeGroupSex">
+                        <option value="all">All</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                    </select>
+                </div>
+                <div style="background:var(--lc-bg);padding:12px;border-radius:6px;font-size:12px;color:var(--lc-muted);">
+                    <strong>Note:</strong> This will create a new age group with default ranges.
+                    You can then edit the ranges using the range editor.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeModal('addAgeGroupModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveNewAgeGroup()">Add Age Group</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST -->
+    <div class="toast-container" id="toastContainer"></div>
+<script src="shared/labcore-api.js"></script>
+<script src="shared/labcore-utils.js"></script>
+<script src="shared/labcore-ward.js"></script>
+<script src="shared/labcore-audit.js"></script>
+<script src="shared/labcore-auth.js"></script>
+<script src="shared/labcore-staff.js"></script>
+<script src="shared/labcore-settings.js"></script>
+<script src="shared/labcore-icons.js"></script>
+<script src="shared/labcore-nav.js"></script>
+<script src="shared/labcore-search.js"></script>
+<script src="shared/labcore-notifications.js"></script>
+<script src="shared/labcore-print-preview.js"></script>
+<script src="shared/labcore-timeline.js"></script>
+
+    <script>
+        /* =========================================================
+           DATA STORE
+        ========================================================= */
+
+        let categories = [
+            { "id": "cat-1", "name": "Hematology", "description": "Blood cell counts, morphology and hematologic disorders", "icon": "🩸", "status": "active" },
+            { "id": "cat-2", "name": "Clinical Chemistry", "description": "Routine blood chemistry and metabolic investigations", "icon": "🧬", "status": "active" },
+            { "id": "cat-3", "name": "Microbiology", "description": "Culture, microscopy and antimicrobial investigations", "icon": "🦠", "status": "active" },
+            { "id": "cat-4", "name": "Immunology & Serology", "description": "Antibodies, antigens and immune-related investigations", "icon": "🧪", "status": "active" },
+            { "id": "cat-5", "name": "Endocrinology", "description": "Hormones and endocrine function testing", "icon": "⚗️", "status": "active" },
+            { "id": "cat-6", "name": "Coagulation", "description": "Hemostasis and coagulation studies", "icon": "🩸", "status": "active" },
+            { "id": "cat-7", "name": "Urinalysis", "description": "Physical, chemical and microscopic urine examination", "icon": "💧", "status": "active" },
+            { "id": "cat-8", "name": "Parasitology", "description": "Parasitic infection investigations", "icon": "🔬", "status": "active" },
+            { "id": "cat-9", "name": "Blood Bank", "description": "ABO/Rh, compatibility and transfusion testing", "icon": "🩸", "status": "active" },
+            { "id": "cat-10", "name": "Molecular Diagnostics", "description": "Nucleic-acid based laboratory investigations", "icon": "🧬", "status": "active" }
+        ];
+
+        let panels = [
+            {
+                "id": "pan-1",
+                "name": "Full Blood Count (FBC)",
+                "code": "FBC",
+                "categoryId": "cat-1",
+                "description": "Complete blood count with red cell indices, white cell differential and platelets",
+                "specimenType": "Whole Blood",
+                "container": "EDTA Tube",
+                "resultType": "quantitative",
+                "status": "active",
+                "tests": [
+                    { "name": "Hemoglobin", "code": "HB", "unit": "g/dL", "required": 1 },
+                    { "name": "RBC", "code": "RBC", "unit": "x10^12/L", "required": 1 },
+                    { "name": "Hematocrit / PCV", "code": "HCT", "unit": "%", "required": 1 },
+                    { "name": "MCV", "code": "MCV", "unit": "fL", "required": 1 },
+                    { "name": "MCH", "code": "MCH", "unit": "pg", "required": 1 },
+                    { "name": "MCHC", "code": "MCHC", "unit": "g/dL", "required": 1 },
+                    { "name": "RDW-CV", "code": "RDWCV", "unit": "%", "required": 1 },
+                    { "name": "WBC", "code": "WBC", "unit": "x10^9/L", "required": 1 },
+                    { "name": "Neutrophils", "code": "NEUT", "unit": "%", "required": 1 },
+                    { "name": "Lymphocytes", "code": "LYMPH", "unit": "%", "required": 1 },
+                    { "name": "Monocytes", "code": "MONO", "unit": "%", "required": 1 },
+                    { "name": "Eosinophils", "code": "EOS", "unit": "%", "required": 1 },
+                    { "name": "Basophils", "code": "BASO", "unit": "%", "required": 1 },
+                    { "name": "Platelets", "code": "PLT", "unit": "x10^9/L", "required": 1 },
+                    { "name": "MPV", "code": "MPV", "unit": "fL", "required": 0 }
+                ]
+            },
+            {
+                "id": "pan-40",
+                "name": "Malaria Panel",
+                "code": "MALARIA",
+                "categoryId": "cat-8",
+                "description": "Malaria parasite detection and reporting",
+                "specimenType": "Whole Blood",
+                "container": "EDTA Tube",
+                "resultType": "qualitative",
+                "status": "active",
+                "tests": [
+                    { "name": "Malaria RDT", "code": "MRDT", "unit": "", "resultType": "qualitative", "possibleValues": ["Negative", "Positive", "Invalid"], "normalValues": ["Negative"], "abnormalFlag": "H*", "required": 1 },
+                    { "name": "Malaria Species", "code": "MSPEC", "unit": "", "resultType": "categorical", "possibleValues": ["P. falciparum", "P. vivax", "P. malariae", "P. ovale", "Mixed infection", "Not identified"], "normalValues": ["Not identified"], "abnormalFlag": "H*", "required": 0 },
+                    { "name": "Parasite Density", "code": "PDENS", "unit": "parasites/µL", "required": 0 }
+                ]
+            }
+        ];
+
+        let referenceRanges = {
+            "pan-1": {
+                "0-12 months": {
+                    "all": {
+                        "Hemoglobin": { "type": "quantitative", "min": 11.0, "max": 16.5, "criticalLow": 7.0, "criticalHigh": 20.0 },
+                        "WBC": { "type": "quantitative", "min": 6.0, "max": 18.0, "criticalLow": 2.0, "criticalHigh": 30.0 },
+                        "Platelets": { "type": "quantitative", "min": 150, "max": 450, "criticalLow": 50, "criticalHigh": 700 }
+                    }
+                }
+            },
+            "pan-40": {
+                "all": {
+                    "all": {
+                        "Malaria RDT": { "type": "qualitative", "possibleValues": ["Negative", "Positive", "Invalid"], "normalValues": ["Negative"], "abnormalFlag": "H*" },
+                        "Malaria Species": { "type": "categorical", "possibleValues": ["P. falciparum", "P. vivax", "P. malariae", "P. ovale", "Mixed infection", "Not identified"], "normalValues": ["Not identified"], "abnormalFlag": "H*" },
+                        "Parasite Density": { "type": "quantitative", "min": 0, "max": 100000, "criticalLow": 0, "criticalHigh": 200000 }
+                    }
+                }
+            }
+        };
+
+        let editedRanges = {};
+        let editingPanelId = null;
+        let editingAgeGroup = null;
+        let editingSex = null;
+        let panelTests = [];
+        let tests = [];
+
+        /* =========================================================
+           UNIT DATABASE
+        ========================================================= */
+
+        const DEFAULT_UNITS = [
+            { id: 'unit-gdl', symbol: 'g/dL', name: 'grams per decilitre', category: 'Concentration' },
+            { id: 'unit-gl', symbol: 'g/L', name: 'grams per litre', category: 'Concentration' },
+            { id: 'unit-mgdl', symbol: 'mg/dL', name: 'milligrams per decilitre', category: 'Concentration' },
+            { id: 'unit-mgl', symbol: 'mg/L', name: 'milligrams per litre', category: 'Concentration' },
+            { id: 'unit-ugdl', symbol: 'µg/dL', name: 'micrograms per decilitre', category: 'Concentration' },
+            { id: 'unit-umoll', symbol: 'µmol/L', name: 'micromoles per litre', category: 'Concentration' },
+            { id: 'unit-mmoll', symbol: 'mmol/L', name: 'millimoles per litre', category: 'Concentration' },
+            { id: 'unit-moll', symbol: 'mol/L', name: 'moles per litre', category: 'Concentration' },
+            { id: 'unit-ngml', symbol: 'ng/mL', name: 'nanograms per millilitre', category: 'Concentration' },
+            { id: 'unit-pgml', symbol: 'pg/mL', name: 'picograms per millilitre', category: 'Concentration' },
+            { id: 'unit-iu-l', symbol: 'IU/L', name: 'international units per litre', category: 'Enzyme Activity' },
+            { id: 'unit-u-l', symbol: 'U/L', name: 'units per litre', category: 'Enzyme Activity' },
+            { id: 'unit-ku-l', symbol: 'kU/L', name: 'kilo-units per litre', category: 'Enzyme Activity' },
+            { id: 'unit-cells-ul', symbol: 'cells/µL', name: 'cells per microlitre', category: 'Cell Count' },
+            { id: 'unit-x10-9-l', symbol: '×10^9/L', name: 'times ten to the ninth per litre', category: 'Cell Count' },
+            { id: 'unit-x10-12-l', symbol: '×10^12/L', name: 'times ten to the twelfth per litre', category: 'Cell Count' },
+            { id: 'unit-fl', symbol: 'fL', name: 'femtolitres', category: 'Volume' },
+            { id: 'unit-pl', symbol: 'pL', name: 'picolitres', category: 'Volume' },
+            { id: 'unit-ml', symbol: 'mL', name: 'millilitres', category: 'Volume' },
+            { id: 'unit-ul', symbol: 'µL', name: 'microlitres', category: 'Volume' },
+            { id: 'unit-percent', symbol: '%', name: 'percent', category: 'Percentage' },
+            { id: 'unit-pg', symbol: 'pg', name: 'picograms', category: 'Mass' },
+            { id: 'unit-sec', symbol: 's', name: 'seconds', category: 'Time' },
+            { id: 'unit-min', symbol: 'min', name: 'minutes', category: 'Time' },
+            { id: 'unit-inr', symbol: 'INR', name: 'international normalized ratio', category: 'Other' },
+            { id: 'unit-ph', symbol: 'pH', name: 'pH units', category: 'Other' },
+            { id: 'unit-cfu', symbol: 'CFU/mL', name: 'colony-forming units per millilitre', category: 'Other' },
+            { id: 'unit-copies', symbol: 'copies/mL', name: 'copies per millilitre', category: 'Other' },
+            { id: 'unit-od', symbol: 'OD', name: 'optical density', category: 'Other' },
+            { id: 'unit-uhpf', symbol: '/HPF', name: 'per high power field', category: 'Cell Count' },
+            { id: 'unit-iuml', symbol: 'IU/mL', name: 'international units per millilitre', category: 'Enzyme Activity' },
+            { id: 'unit-miu-l', symbol: 'mIU/L', name: 'milli-international units per litre', category: 'Enzyme Activity' },
+            { id: 'unit-miu-ml', symbol: 'mIU/mL', name: 'milli-international units per millilitre', category: 'Concentration' },
+            { id: 'unit-mgl-feu', symbol: 'mg/L FEU', name: 'milligrams per litre FEU', category: 'Concentration' },
+            { id: 'unit-ngl', symbol: 'ng/L', name: 'nanograms per litre', category: 'Concentration' },
+            { id: 'unit-ngdl', symbol: 'ng/dL', name: 'nanograms per decilitre', category: 'Concentration' },
+            { id: 'unit-ngmlh', symbol: 'ng/mL/h', name: 'nanograms per millilitre per hour', category: 'Concentration' },
+            { id: 'unit-parasites-ul', symbol: 'parasites/µL', name: 'parasites per microlitre', category: 'Cell Count' },
+            { id: 'unit-pmol-l', symbol: 'pmol/L', name: 'picomoles per litre', category: 'Concentration' },
+            { id: 'unit-mlmin173', symbol: 'mL/min/1.73m²', name: 'millilitres per minute per 1.73 square metres', category: 'Other' },
+            { id: 'unit-ratio', symbol: 'ratio', name: 'ratio', category: 'Other' }
+        ];
+
+        let units = (() => {
+            try {
+                const saved = JSON.parse(localStorage.getItem('labcore_units'));
+                if (!Array.isArray(saved)) return DEFAULT_UNITS.map(u => ({ ...u }));
+                const merged = [...saved];
+                DEFAULT_UNITS.forEach(defaultUnit => {
+                    if (!merged.some(u => u.symbol.toLowerCase() === defaultUnit.symbol.toLowerCase())) {
+                        merged.push({ ...defaultUnit });
+                    }
+                });
+                return merged;
+            } catch (e) {
+                return DEFAULT_UNITS.map(u => ({ ...u }));
+            }
+        })();
+
+        /* =========================================================
+           LOAD/SAVE
+        ========================================================= */
+
+        function loadSharedPanelDatabase() {
+            try {
+                const savedPanels = JSON.parse(localStorage.getItem('labcore_panels') || 'null');
+                if (Array.isArray(savedPanels) && savedPanels.length) {
+                    const merged = [...panels];
+                    savedPanels.forEach(saved => {
+                        const i = merged.findIndex(p => p.id === saved.id || String(p.code).toUpperCase() === String(saved.code).toUpperCase());
+                        if (i >= 0) merged[i] = { ...merged[i], ...saved };
+                        else merged.push(saved);
+                    });
+                    panels = merged;
+                }
+                const savedTests = JSON.parse(localStorage.getItem('labcore_tests') || '[]');
+                if (Array.isArray(savedTests)) tests = savedTests;
+                const savedRanges = JSON.parse(localStorage.getItem('labcore_reference_ranges') || 'null');
+                if (savedRanges && typeof savedRanges === 'object') {
+                    Object.keys(savedRanges).forEach(pid => { referenceRanges[pid] = savedRanges[pid]; });
+                }
+            } catch (e) { tests = []; }
+        }
+
+        function saveSharedPanelDatabase() {
+            try { localStorage.setItem('labcore_panels', JSON.stringify(panels)); } catch (e) {}
+            try { localStorage.setItem('labcore_reference_ranges', JSON.stringify(referenceRanges)); } catch (e) {}
+            try { localStorage.setItem('lc_panels', JSON.stringify(panels)); } catch (e) {}
+        }
+
+        function saveUnits() {
+            try { localStorage.setItem('labcore_units', JSON.stringify(units)); } catch (e) {}
+        }
+
+        const today = new Date();
+        document.getElementById("currentDate").textContent =
+            today.toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" });
+
+        /* =========================================================
+           VALIDATION
+        ========================================================= */
+
+        function validateField(input, errorId) {
+            const value = input.value.trim();
+            const errorEl = document.getElementById(errorId);
+            if (!errorEl) return;
+            if (!value) {
+                input.classList.remove('lc-input-success', 'lc-input-error', 'lc-input-warning');
+                errorEl.textContent = '';
+                errorEl.className = 'lc-validation-message';
+                return;
+            }
+            if (value.length >= 2) {
+                input.classList.add('lc-input-success');
+                input.classList.remove('lc-input-error', 'lc-input-warning');
+                errorEl.textContent = '✓ Valid';
+                errorEl.className = 'lc-validation-message success';
+            } else {
+                input.classList.add('lc-input-warning');
+                input.classList.remove('lc-input-success', 'lc-input-error');
+                errorEl.textContent = '⚠ Please enter at least 2 characters';
+                errorEl.className = 'lc-validation-message warning';
+            }
+        }
+
+        function showToast(message, type = "success") {
+            const container = document.getElementById("toastContainer");
+            const toast = document.createElement("div");
+            toast.className = `toast toast-${type}`;
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = "0";
+                toast.style.transform = "translateX(100%)";
+                toast.style.transition = "all 0.3s ease-out";
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        /* =========================================================
+           TABS
+        ========================================================= */
+
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', function () {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+                this.classList.add('active');
+                document.getElementById('tab-' + this.dataset.tab).classList.add('active');
+
+                if (this.dataset.tab === 'panels') renderPanels();
+                if (this.dataset.tab === 'ranges') populateRangeSelect();
+                if (this.dataset.tab === 'units') renderUnitList();
+                if (this.dataset.tab === 'pricing' && typeof renderPricing === 'function') renderPricing();
+            });
+        });
+
+        /* =========================================================
+           CATEGORIES
+        ========================================================= */
+
+        function renderCategories() {
+            const grid = document.getElementById('categoryGrid');
+            grid.innerHTML = '';
+            categories.forEach(cat => {
+                const card = document.createElement('div');
+                card.className = 'category-card';
+                const panelCount = panels.filter(p => p.categoryId === cat.id).length;
+                card.innerHTML = `
+                    <div class="category-icon">${cat.icon || '📋'}</div>
+                    <div class="category-name">${cat.name}</div>
+                    <div class="category-desc">${cat.description || ''}</div>
+                    <div class="category-meta">
+                        <span>${panelCount} panels</span>
+                        <span class="category-badge ${cat.status === 'active' ? 'badge-active' : 'badge-inactive'}">${cat.status}</span>
+                    </div>
+                    <div style="margin-top:10px;display:flex;gap:6px;">
+                        <button class="btn btn-sm" onclick="editCategory('${cat.id}')">✏️ Edit</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteCategory('${cat.id}')">🗑️</button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function showCreateCategory() {
+  document.getElementById('categoryModalTitle').textContent = 'Create Category';
+  delete document.getElementById('categoryModal').dataset.editingId;   // <<< clear
+  document.getElementById('categoryName').value = '';
+  document.getElementById('categoryDesc').value = '';
+  document.getElementById('categoryIcon').value = '📋';
+  document.getElementById('categoryStatus').value = 'active';
+  document.getElementById('categoryName-error').textContent = '';
+  document.getElementById('categoryName-error').className = 'lc-validation-message';
+  document.getElementById('categoryModal').classList.add('active');
+  setTimeout(() => document.getElementById('categoryName').focus(), 100);
+}
+
+        function editCategory(id) {
+  const cat = categories.find(c => c.id === id);
+  if (!cat) return;
+  document.getElementById('categoryModalTitle').textContent = 'Edit Category';
+  document.getElementById('categoryModal').dataset.editingId = id;   // <<< store it
+  document.getElementById('categoryName').value = cat.name;
+  document.getElementById('categoryDesc').value = cat.description || '';
+  document.getElementById('categoryIcon').value = cat.icon || '📋';
+  document.getElementById('categoryStatus').value = cat.status;
+  document.getElementById('categoryName-error').textContent = '';
+  document.getElementById('categoryName-error').className = 'lc-validation-message';
+  document.getElementById('categoryModal').classList.add('active');
+  setTimeout(() => document.getElementById('categoryName').focus(), 100);
+}
+
+function saveCategory() {
+  const name = document.getElementById('categoryName').value.trim();
+  if (!name) {
+    showToast('Category name is required', 'error');
+    document.getElementById('categoryName').focus();
+    return;
+  }
+  const data = {
+    name,
+    description: document.getElementById('categoryDesc').value.trim(),
+    icon: document.getElementById('categoryIcon').value.trim() || '📋',
+    status: document.getElementById('categoryStatus').value
+  };
+
+  const editingId = document.getElementById('categoryModal').dataset.editingId;
+  if (editingId) {
+    const cat = categories.find(c => c.id === editingId);
+    if (cat) {
+      Object.assign(cat, data);
+      showToast('Category updated successfully');
+    } else {
+      showToast('Category not found', 'error');
+      return;
+    }
+    delete document.getElementById('categoryModal').dataset.editingId;
+  } else {
+    data.id = 'cat-' + Date.now();
+    categories.push(data);
+    showToast('Category created successfully');
+  }
+
+  // persist if you want cross-page persistence
+  try { localStorage.setItem('labcore_categories', JSON.stringify(categories)); } catch (e) {}
+
+  closeModal('categoryModal');
+  renderCategories();
+  populateCategorySelects();
+}
+
+        function deleteCategory(id) {
+            if (!confirm('Delete this category? This will not delete associated panels.')) return;
+            categories = categories.filter(c => c.id !== id);
+            renderCategories();
+            populateCategorySelects();
+            showToast('Category deleted');
+        }
+
+        /* =========================================================
+           PANELS
+        ========================================================= */
+
+        function populateCategorySelects() {
+            const selects = ['panelCategory', 'panelCategoryFilter'];
+            selects.forEach(id => {
+                const sel = document.getElementById(id);
+                if (!sel) return;
+                const currentVal = sel.value;
+                sel.innerHTML = categories.filter(c => c.status === 'active').map(c =>
+                    `<option value="${c.id}">${c.name}</option>`
+                ).join('');
+                if (currentVal && [...sel.options].some(o => o.value === currentVal)) sel.value = currentVal;
+            });
+            renderPanels();
+        }
+
+        function renderPanels() {
+            const filter = document.getElementById('panelCategoryFilter').value;
+            const statusFilter = document.getElementById('panelStatusFilter') ? document.getElementById('panelStatusFilter').value : 'all';
+            const q = (document.getElementById('panelSearchInput') && document.getElementById('panelSearchInput').value || '').trim().toLowerCase();
+            const list = document.getElementById('panelList');
+
+            let filtered = filter === 'all' ? panels : panels.filter(p => p.categoryId === filter);
+            if (statusFilter === 'active') filtered = filtered.filter(p => p.status === 'active');
+
+            let matchedTestsByPanel = {};
+            if (q) {
+                if (typeof Fuse !== 'undefined') {
+                    try {
+                        const fuse = new Fuse(filtered, { keys: ['name', 'code', 'tests.name', 'tests.code'], threshold: 0.4 });
+                        filtered = fuse.search(q).map(r => r.item);
+                    } catch (e) {
+                        filtered = filtered.filter(p => {
+                            const inPanel = (p.name || '').toLowerCase().includes(q) || (p.code || '').toLowerCase().includes(q);
+                            const matchedTests = (p.tests || []).filter(t => (t.name || '').toLowerCase().includes(q) || (t.code || '').toLowerCase().includes(q));
+                            if (matchedTests.length) matchedTestsByPanel[p.id] = matchedTests;
+                            return inPanel || matchedTests.length > 0;
+                        });
+                    }
+                } else {
+                    filtered = filtered.filter(p => {
+                        const inPanel = (p.name || '').toLowerCase().includes(q) || (p.code || '').toLowerCase().includes(q);
+                        const matchedTests = (p.tests || []).filter(t => (t.name || '').toLowerCase().includes(q) || (t.code || '').toLowerCase().includes(q));
+                        if (matchedTests.length) matchedTestsByPanel[p.id] = matchedTests;
+                        return inPanel || matchedTests.length > 0;
+                    });
+                }
+            }
+
+            document.getElementById('panelCount').textContent = `${filtered.length} panel(s)${q ? ' matching "' + q + '"' : ''}`;
+
+            if (filtered.length === 0) {
+                list.innerHTML = `<div class="empty-state"><h3>No panels found</h3><p>Try a different search term, or create a new panel</p></div>`;
+                return;
+            }
+
+            const byDept = {};
+            filtered.forEach(p => {
+                const cat = categories.find(c => c.id === p.categoryId);
+                const deptName = cat ? cat.name : 'Uncategorized';
+                (byDept[deptName] = byDept[deptName] || []).push(p);
+            });
+
+            list.innerHTML = Object.keys(byDept).sort().map(deptName => {
+                const deptPanels = byDept[deptName].map(p => {
+                    const resultTypeBadge = p.resultType === 'quantitative' ? 'badge-quantitative' :
+                        p.resultType === 'qualitative' ? 'badge-qualitative' : 'badge-categorical';
+                    const matches = matchedTestsByPanel[p.id];
+                    const testChips = (p.tests || []).map(t => {
+                        const hit = matches && matches.some(m => m.name === t.name);
+                        const qualTag = (t.resultType === 'qualitative' || t.resultType === 'categorical') && t.possibleValues && t.possibleValues.length
+                            ? ' <span style="font-size:9px;color:#6b21a8;">(' + t.possibleValues.length + ' opts)</span>' : '';
+                        return `<span class="tag" style="${hit ? 'background:#fff3df;border-color:#e0b566;font-weight:700;' : ''}">${t.name}${qualTag}</span>`;
+                    }).join(' ');
+                    return `
+                        <div class="panel-item">
+                            <div class="panel-info">
+                                <div>
+                                    <span class="panel-name">${p.name}</span>
+                                    <span class="panel-code">${p.code}</span>
+                                    <span class="panel-status ${p.status === 'active' ? 'badge-active' : 'badge-inactive'}">${p.status}</span>
+                                    <span class="result-type-badge ${resultTypeBadge}">${p.resultType}</span>
+                                </div>
+                                <div class="panel-desc">${p.description || ''}</div>
+                                 <div class="panel-details">
+                                    <span>🧪 ${p.specimenType}</span>
+                                    <span>📦 ${p.container}</span>
+                                    <span>🔬 ${p.tests.length} parameter(s)</span>
+                                    ${p.loincCode ? `<span>LOINC: ${p.loincCode}</span>` : ''}
+                                    ${p.snomedCode ? `<span>SNOMED: ${p.snomedCode}</span>` : ''}
+                                    ${p.tatHours ? `<span>⏱ ${p.tatHours}h SLA</span>` : ''}
+                                </div>
+                                ${testChips ? `<div class="tags" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">${testChips}</div>` : ''}
+                            </div>
+                            <div class="panel-actions">
+                                <button class="edit-btn" onclick="editPanel('${p.id}')">✏️ Edit</button>
+                                <button class="delete-btn" onclick="deletePanel('${p.id}')">🗑️</button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                return `<div class="dept-group" style="margin-bottom:14px;">
+                    <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--lc-muted);font-weight:700;padding:6px 2px;">📂 ${deptName} <span style="font-weight:400">(${byDept[deptName].length})</span></div>
+                    ${deptPanels}
+                </div>`;
+            }).join('');
+        }
+
+        function showCreatePanel() {
+            panelTests = [];
+            document.getElementById('panelModalTitle').textContent = 'Create Panel';
+            document.getElementById('panelName').value = '';
+            document.getElementById('panelCode').value = '';
+            document.getElementById('panelDesc').value = '';
+            document.getElementById('panelResultType').value = 'quantitative';
+            document.getElementById('panelSpecimen').value = 'Whole Blood';
+            document.getElementById('panelContainer').value = 'EDTA Tube';
+            document.getElementById('panelName-error').textContent = '';
+            document.getElementById('panelName-error').className = 'lc-validation-message';
+            delete document.getElementById('panelModal').dataset.editingId;
+            document.getElementById('panelLoinc').value = '';
+            document.getElementById('panelSnomed').value = '';
+            document.getElementById('panelTatHours').value = '';
+            populateUnitSelect();
+            populateCategorySelects();
+            document.getElementById('newTestUnit').value = '';
+            document.getElementById('newTestName').value = '';
+            document.getElementById('newTestCode').value = '';
+            document.getElementById('newTestResultType').value = 'quantitative';
+            const optList = document.getElementById('newTestOptionsList');
+            if (optList) optList.innerHTML = '';
+            document.getElementById('newTestOptionsWrap').style.display = 'none';
+            renderPanelTestList();
+            document.getElementById('panelModal').classList.add('active');
+            setTimeout(() => document.getElementById('panelName').focus(), 100);
+        }
+
+        function editPanel(id) {
+            const p = panels.find(panel => panel.id === id);
+            if (!p) return;
+            document.getElementById('panelModal').dataset.editingId = id;
+            panelTests = p.tests.map(t => ({ ...t }));
+            document.getElementById('panelModalTitle').textContent = 'Edit Panel';
+            document.getElementById('panelName').value = p.name;
+            document.getElementById('panelCode').value = p.code;
+            document.getElementById('panelDesc').value = p.description || '';
+            document.getElementById('panelResultType').value = p.resultType;
+            document.getElementById('panelSpecimen').value = p.specimenType;
+            document.getElementById('panelContainer').value = p.container;
+                        document.getElementById('panelName-error').textContent = '';
+            document.getElementById('panelName-error').className = 'lc-validation-message';
+            document.getElementById('panelLoinc').value = p.loincCode || '';
+            document.getElementById('panelSnomed').value = p.snomedCode || '';
+            document.getElementById('panelTatHours').value = p.tatHours || '';
+            populateUnitSelect();
+            populateCategorySelects();
+            document.getElementById('panelCategory').value = p.categoryId;
+            document.getElementById('newTestUnit').value = '';
+            document.getElementById('newTestName').value = '';
+            document.getElementById('newTestCode').value = '';
+            document.getElementById('newTestResultType').value = 'quantitative';
+            const optList = document.getElementById('newTestOptionsList');
+            if (optList) optList.innerHTML = '';
+            document.getElementById('newTestOptionsWrap').style.display = 'none';
+            renderPanelTestList();
+            document.getElementById('panelModal').classList.add('active');
+            setTimeout(() => document.getElementById('panelName').focus(), 100);
+        }
+
+        function toggleResultTypeFields() {}
+
+        /* CODE GENERATION */
+        function makeCodeBase(name, fallback = 'TEST') {
+            const words = String(name || '').trim().toUpperCase().replace(/[^A-Z0-9]+/g, ' ').split(/\s+/).filter(Boolean);
+            if (!words.length) return fallback;
+            let code = words.length === 1 ? words[0].slice(0, 6) : words.map(w => w[0]).join('').slice(0, 6);
+            if (code.length < 2) code = words[0].slice(0, 6);
+            return code || fallback;
+        }
+
+        function nextUniqueCode(base, existingCodes, prefixLength = 3) {
+            const cleanBase = String(base || 'TEST').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10) || 'TEST';
+            const used = new Set(existingCodes.map(x => String(x || '').toUpperCase()));
+            if (!used.has(cleanBase)) return cleanBase;
+            let n = 2;
+            while (used.has(`${cleanBase}${n}`)) n++;
+            return `${cleanBase}${n}`;
+        }
+
+        function generatePanelCode() {
+            const name = document.getElementById('panelName')?.value || '';
+            if (!name) return;
+            const isEdit = document.getElementById('panelModalTitle')?.textContent.includes('Edit');
+            if (isEdit) return;
+            const used = panels.map(p => p.code);
+            document.getElementById('panelCode').value = nextUniqueCode(makeCodeBase(name, 'PANEL'), used);
+        }
+
+        function generateTestCode() {
+            const name = document.getElementById('newTestName')?.value || '';
+            if (!name) { document.getElementById('newTestCode').value = ''; return; }
+            const used = [
+                ...tests.map(t => t.code),
+                ...panels.flatMap(p => (p.tests || []).map(t => t.code)),
+                ...panelTests.map(t => t.code)
+            ];
+            document.getElementById('newTestCode').value = nextUniqueCode(makeCodeBase(name, 'TEST'), used);
+        }
+
+        /* QUAL OPTION ROWS */
+        function addNewTestOptionRow(value, isNormal) {
+            const wrap = document.getElementById('newTestOptionsList');
+            if (!wrap) return;
+            const row = document.createElement('div');
+            row.className = 'option-row';
+            row.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:6px;';
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.placeholder = 'e.g. Positive';
+            input.value = value || '';
+            input.className = 'new-test-option-value';
+            input.style.cssText = 'flex:1;padding:6px 10px;border:1px solid var(--lc-border);border-radius:5px;font-size:12px;';
+            const normalWrap = document.createElement('label');
+            normalWrap.style.cssText = 'display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:#4A4660;cursor:pointer;white-space:nowrap;';
+            const radio = document.createElement('input');
+            radio.type = 'radio';
+            radio.name = 'newTestNormalOption';
+            radio.className = 'new-test-option-normal';
+            radio.checked = !!isNormal;
+            normalWrap.appendChild(radio);
+            normalWrap.appendChild(document.createTextNode('Normal'));
+            const remove = document.createElement('button');
+            remove.type = 'button';
+            remove.textContent = '✕';
+            remove.style.cssText = 'background:none;border:none;color:#B3261E;cursor:pointer;font-size:16px;padding:0 6px;';
+            remove.onclick = function () { row.remove(); };
+            row.appendChild(input);
+            row.appendChild(normalWrap);
+            row.appendChild(remove);
+            wrap.appendChild(row);
+            if (!value && wrap.children.length === 1) input.focus();
+        }
+
+        function toggleNewTestOptions() {
+            const rt = document.getElementById('newTestResultType').value;
+            const wrap = document.getElementById('newTestOptionsWrap');
+            if (!wrap) return;
+            if (rt === 'qualitative' || rt === 'categorical') {
+                wrap.style.display = 'block';
+                const list = document.getElementById('newTestOptionsList');
+                if (list && list.children.length === 0) {
+                    addNewTestOptionRow('Negative', true);
+                    addNewTestOptionRow('Positive', false);
+                    addNewTestOptionRow('Invalid', false);
+                }
+            } else {
+                wrap.style.display = 'none';
+            }
+        }
+
+        function collectNewTestOptions() {
+            const rows = document.querySelectorAll('#newTestOptionsList .option-row');
+            const options = [];
+            rows.forEach(function (row) {
+                const val = (row.querySelector('.new-test-option-value')?.value || '').trim();
+                const isNormal = !!(row.querySelector('.new-test-option-normal')?.checked);
+                if (val) options.push({ value: val, isNormal: isNormal });
+            });
+                       return { options };
+        }
+
+        function addTestToPanel() {
+            const name = document.getElementById('newTestName').value.trim();
+            const code = document.getElementById('newTestCode').value.trim().toUpperCase() ||
+                nextUniqueCode(makeCodeBase(name, 'TEST'), [...tests.map(t => t.code), ...panels.flatMap(p => (p.tests || []).map(t => t.code)), ...panelTests.map(t => t.code)]);
+            const unit = document.getElementById('newTestUnit').value.trim();
+            const resultType = document.getElementById('newTestResultType').value || 'quantitative';
+
+            if (!name) { showToast('Test name is required', 'error'); document.getElementById('newTestName').focus(); return; }
+            if (!code) { showToast('Test code is required', 'error'); return; }
+
+            const testRecord = { name, code, unit: resultType === 'quantitative' ? unit : (unit || ''), resultType, required: true };
+
+                       if (resultType === 'qualitative' || resultType === 'categorical') {
+                testRecord.flaggingEnabled = true;
+                const { options } = collectNewTestOptions();
+                if (options.length < 2) { showToast('Add at least 2 options for qualitative/categorical tests', 'error'); return; }
+                const normalCount = options.filter(o => o.isNormal).length;
+                if (normalCount !== 1) { showToast('Select exactly one option as Normal', 'error'); return; }
+                testRecord.possibleValues = options.map(o => o.value);
+                testRecord.normalValues = options.filter(o => o.isNormal).map(o => o.value);
+                // No abnormalFlag: qualitative results are never flagged H/L.
+            }
+
+            panelTests.push(testRecord);
+
+            document.getElementById('newTestName').value = '';
+            document.getElementById('newTestCode').value = '';
+            document.getElementById('newTestUnit').value = '';
+            document.getElementById('newTestResultType').value = 'quantitative';
+            const optList = document.getElementById('newTestOptionsList');
+            if (optList) optList.innerHTML = '';
+            document.getElementById('newTestOptionsWrap').style.display = 'none';
+
+            renderPanelTestList();
+            showToast(name + ' added (' + resultType + ')');
+            setTimeout(() => document.getElementById('newTestName').focus(), 100);
+        }
+
+        function removeTestFromPanel(index) { panelTests.splice(index, 1); renderPanelTestList(); }
+        function toggleTestRequired(index) { panelTests[index].required = !panelTests[index].required; renderPanelTestList(); }
+
+        function changePanelTestType(index, newType) {
+            const t = panelTests[index];
+            if (!t) return;
+            if (newType === 'quantitative') {
+                delete t.possibleValues;
+                delete t.normalValues;
+                delete t.abnormalFlag;
+            } else {
+                if (!t.possibleValues || !t.possibleValues.length) {
+                    t.possibleValues = ['Negative', 'Positive', 'Invalid'];
+                    t.normalValues = ['Negative'];
+                }
+                if (!t.normalValues || !t.normalValues.length) {
+                    const nonInvalid = (t.possibleValues || []).find(v => !/invalid|indeterminate/i.test(v));
+                    t.normalValues = nonInvalid ? [nonInvalid] : [t.possibleValues[0]];
+                }
+                // Qualitative/categorical tests are never flagged H/L.
+                delete t.abnormalFlag;
+            }
+            t.resultType = newType;
+            renderPanelTestList();
+        }
+
+        function editPanelTestOptions(index) {
+            const t = panelTests[index];
+            if (!t) return;
+            const current = t.possibleValues || [];
+            const next = prompt('Allowed options for "' + t.name + '" (comma-separated):\nMark the normal one with a leading * (e.g. *Negative, Positive, Invalid)',
+                current.map(v => (t.normalValues || []).includes(v) ? '*' + v : v).join(', '));
+            if (next === null) return;
+            const parts = next.split(',').map(s => s.trim()).filter(Boolean);
+            const options = []; let normalValues = [];
+            parts.forEach(p => {
+                if (p.startsWith('*')) { const v = p.slice(1).trim(); options.push(v); normalValues.push(v); }
+                else options.push(p);
+            });
+            if (!options.length) { showToast('At least one option is required', 'error'); return; }
+            if (normalValues.length === 0) {
+                const nonInvalid = options.find(v => !/invalid|indeterminate/i.test(v));
+                normalValues = [nonInvalid || options[0]];
+            }
+            t.possibleValues = options;
+            t.normalValues = normalValues;
+            // Qualitative/categorical tests are never flagged H/L.
+            delete t.abnormalFlag;
+            renderPanelTestList();
+        }
+
+        function togglePanelTestFlagging(index, enabled) {
+            const test = panelTests[index];
+            if (!test) return;
+            test.flaggingEnabled = enabled;
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' } [char]));
+        }
+
+        function renderPanelTestList() {
+            const list = document.getElementById('panelTestList');
+            if (panelTests.length === 0) {
+                list.innerHTML = `<div class="test-list-item header test-list-item-6"><span>#</span><span>Test Name</span><span>Code</span><span>Type</span><span class="hide-mobile">Unit / Options</span><span></span></div>
+                    <div style="padding:20px;text-align:center;color:#858985;font-size:12px;">No tests added yet. Example: Malaria RDT (Qualitative), Parasite Density (Quantitative), Species (Categorical).</div>`;
+                return;
+            }
+            list.innerHTML = `<div class="test-list-item header test-list-item-6"><span>#</span><span>Test Name</span><span>Code</span><span>Type</span><span class="hide-mobile">Unit / Options</span><span></span></div>` +
+                panelTests.map((t, i) => {
+                    const rt = t.resultType || 'quantitative';
+                    const badge = rt === 'quantitative' ? 'badge-quantitative' : rt === 'qualitative' ? 'badge-qualitative' : 'badge-categorical';
+                    let detail;
+                    if (rt === 'quantitative') detail = t.unit || '—';
+                    else {
+                        const opts = (t.possibleValues || []).map(v => {
+                            const isNormal = (t.normalValues || []).includes(v);
+                            return `<span style="display:inline-block;padding:1px 6px;margin:1px 2px;border-radius:8px;font-size:9px;${isNormal ? 'background:#e6f0e8;color:#2B7A4B;font-weight:700;' : 'background:#FBE9E7;color:#842029;'}">${escapeHtml(v)}${isNormal ? ' ✓' : ''}</span>`;
+                        }).join('');
+                        detail = (opts || 'No options') + ` <button type="button" class="btn btn-sm" style="padding:1px 6px;margin-left:4px;font-size:9px" onclick="editPanelTestOptions(${i})">Edit</button>`;
+                    }
+                    return `<div class="test-list-item test-list-item-6">
+                        <span>${i + 1}</span>
+                        <span><strong>${escapeHtml(t.name)}</strong></span>
+                        <span>${escapeHtml(t.code)}</span>
+                        <span>
+                            <select style="font-size:10px;padding:3px 4px;border:1px solid var(--lc-border);border-radius:4px;max-width:110px" onchange="changePanelTestType(${i}, this.value)">
+                                <option value="quantitative" ${rt==='quantitative'?'selected':''}>Quantitative</option>
+                                <option value="qualitative" ${rt==='qualitative'?'selected':''}>Qualitative</option>
+                                <option value="categorical" ${rt==='categorical'?'selected':''}>Categorical</option>
+                            </select>
+                            <span class="result-type-badge ${badge}" style="margin-left:4px">${rt}</span>
+                            ${rt === 'qualitative' || rt === 'categorical' ? `<label style="display:block;margin-top:4px;font-size:10px;white-space:nowrap"><input type="checkbox" ${t.flaggingEnabled !== false ? 'checked' : ''} aria-label="Enable qualitative result flags for ${escapeHtml(t.name)}" onchange="togglePanelTestFlagging(${i}, this.checked)"> Flag results</label>` : ''}
+                        </span>
+                        <span class="hide-mobile" style="font-size:11px">${detail}</span>
+                        <span><button class="remove-btn" onclick="removeTestFromPanel(${i})">✕</button></span>
+                    </div>`;
+                }).join('');
+        }
+
+            async function savePanel() {
+            const name = document.getElementById('panelName').value.trim();
+            const code = document.getElementById('panelCode').value.trim().toUpperCase();
+            const categoryId = document.getElementById('panelCategory').value;
+            const description = document.getElementById('panelDesc').value.trim();
+            const resultType = document.getElementById('panelResultType').value;
+            const specimenType = document.getElementById('panelSpecimen').value;
+            const container = document.getElementById('panelContainer').value;
+
+            if (!name) { showToast('Panel name is required', 'error'); document.getElementById('panelName').focus(); return; }
+            if (!code) { showToast('Panel code is required', 'error'); return; }
+            if (!categoryId) { showToast('Please select a category', 'error'); return; }
+            if (panelTests.length === 0) { showToast('Add at least one test to the panel', 'error'); return; }
+
+            const loincCode = (document.getElementById('panelLoinc').value || '').trim();
+            const snomedCode = (document.getElementById('panelSnomed').value || '').trim();
+            const tatRaw = document.getElementById('panelTatHours').value;
+            const tatHours = tatRaw === '' ? null : Number(tatRaw) || null;
+
+            const cleanTests = panelTests.map(function (t) {
+                const isQual = t.resultType === 'qualitative' || t.resultType === 'categorical';
+                if (isQual && t.abnormalFlag) {
+                    const copy = Object.assign({}, t);
+                    delete copy.abnormalFlag;
+                    return copy;
+                }
+                return t;
+            });
+
+            const data = {
+                name, code, categoryId, description, resultType,
+                specimenType, container, tests: cleanTests, status: 'active',
+                loincCode, snomedCode, tatHours
+            };
+
+            panelTests.forEach(t => {
+                const existing = tests.find(x => String(x.code).toUpperCase() === String(t.code).toUpperCase());
+                const isQual = t.resultType === 'qualitative' || t.resultType === 'categorical';
+                const record = {
+                    id: existing?.id || 'test-' + t.code,
+                    name: t.name, code: t.code, unit: t.unit || '',
+                    resultType: t.resultType || resultType || 'quantitative',
+                    possibleValues: t.possibleValues || undefined,
+                    normalValues: t.normalValues || undefined,
+                    flaggingEnabled: t.flaggingEnabled,
+                    abnormalFlag: isQual ? undefined : (t.abnormalFlag || undefined),
+                    department: t.department || '', status: 'active'
+                };
+                if (existing) {
+                    if (isQual) delete existing.abnormalFlag;
+                    Object.assign(existing, record);
+                } else {
+                    tests.push(record);
+                }
+            });
+            try { localStorage.setItem('labcore_tests', JSON.stringify(tests)); } catch (e) {}
+
+            const isEdit = document.getElementById('panelModalTitle').textContent.includes('Edit');
+            let savedPanel = null;
+
+            if (isEdit) {
+                const editingId = document.getElementById('panelModal').dataset.editingId;
+                let target = editingId ? panels.find(p => p.id === editingId) : null;
+                if (!target) target = panels.find(p => p.name === name);
+                if (target) {
+                    Object.assign(target, data);
+                    savedPanel = target;
+                }
+            }
+            if (!savedPanel) {
+                data.id = 'pan-' + Date.now();
+                panels.push(data);
+                savedPanel = data;
+            }
+
+            // ---- SERVER SYNC ----
+            if (window.lcApiSavePanel && window.lcGetToken && window.lcGetToken()) {
+                try {
+                    await window.lcApiSavePanel(savedPanel);
+                    console.log('[config] panel pushed to server:', savedPanel.id);
+                } catch (e) {
+                    console.warn('[config] panel server save failed:', e.message);
+                    showToast('Saved locally, but server sync failed: ' + e.message, 'warning');
+                }
+            }
+
+            saveSharedPanelDatabase();
+            closeModal('panelModal');
+            renderPanels();
+            populateRangeSelect();
+            if (typeof window.lcSettings !== 'undefined') {
+                window.lcSettings.setPanelTatSla(code, tatHours);
+            }
+            showToast(isEdit ? 'Panel updated successfully' : 'Panel created successfully');
+        }
+
+        async function deletePanel(id) {
+            if (!confirm('Delete this panel? This will not delete reference ranges.')) return;
+            panels = panels.filter(p => p.id !== id);
+            saveSharedPanelDatabase();
+            renderPanels();
+            populateRangeSelect();
+
+            if (window.lcApiDeletePanel && window.lcGetToken && window.lcGetToken()) {
+                try {
+                    await window.lcApiDeletePanel(id);
+                    console.log('[config] panel deleted on server:', id);
+                } catch (e) {
+                    console.warn('[config] panel server delete failed:', e.message);
+                }
+            }
+            showToast('Panel deleted');
+        }
+
+        /* =========================================================
+           UNITS
+        ========================================================= */
+
+        function populateUnitSelect(selectedValue = '') {
+            const select = document.getElementById('newTestUnit');
+            if (!select) return;
+            const previous = selectedValue || select.value || '';
+            const sorted = [...units].sort((a, b) => a.symbol.localeCompare(b.symbol));
+            select.innerHTML = '<option value="">No unit</option>' + sorted.map(u =>
+                `<option value="${escapeHtml(u.symbol)}">${escapeHtml(u.symbol)} — ${escapeHtml(u.name)}</option>`
+            ).join('');
+            if ([...select.options].some(o => o.value === previous)) select.value = previous;
+        }
+
+        function openUnitManager() {
+            renderUnitList();
+            document.getElementById('unitSymbol').value = '';
+            document.getElementById('unitName').value = '';
+            document.getElementById('unitSymbol-error').textContent = '';
+            document.getElementById('unitSymbol-error').className = 'lc-validation-message';
+            document.getElementById('unitManagerModal').classList.add('active');
+            setTimeout(() => document.getElementById('unitSymbol').focus(), 100);
+        }
+
+        function createUnit() {
+            const symbol = document.getElementById('unitSymbol').value.trim();
+            const name = document.getElementById('unitName').value.trim();
+            const category = document.getElementById('unitCategory').value;
+            if (!symbol) { showToast('Unit symbol is required', 'error'); document.getElementById('unitSymbol').focus(); return; }
+            if (!name) { showToast('Unit name is required', 'error'); document.getElementById('unitName').focus(); return; }
+            if (units.some(u => u.symbol.toLowerCase() === symbol.toLowerCase())) { showToast('This unit already exists', 'error'); document.getElementById('unitSymbol').focus(); return; }
+            units.push({ id: 'unit-' + Date.now(), symbol, name, category });
+            saveUnits();
+            document.getElementById('unitSymbol').value = '';
+            document.getElementById('unitName').value = '';
+            document.getElementById('unitSymbol-error').textContent = '';
+            document.getElementById('unitSymbol-error').className = 'lc-validation-message';
+            populateUnitSelect(symbol);
+            renderUnitList();
+            showToast(`${symbol} created successfully`);
+            setTimeout(() => document.getElementById('unitSymbol').focus(), 100);
+        }
+
+        function deleteUnit(id) {
+            const unit = units.find(u => u.id === id);
+            if (!unit) return;
+            if (units.length <= 1) { showToast('At least one unit must remain', 'error'); return; }
+            const usedBy = panels.reduce((count, panel) => count + (panel.tests || []).filter(test => test.unit === unit.symbol).length, 0);
+            if (usedBy > 0) { showToast(`Cannot delete ${unit.symbol}: it is used by ${usedBy} test(s).`, 'error'); return; }
+            if (!confirm(`Delete unit "${unit.symbol}"?`)) return;
+            units = units.filter(u => u.id !== id);
+            saveUnits();
+            populateUnitSelect();
+            renderUnitList();
+            showToast(`${unit.symbol} deleted`);
+        }
+
+        function renderUnitList() {
+            const list = document.getElementById('unitList');
+            if (!list) return;
+            const sorted = [...units].sort((a, b) => a.category.localeCompare(b.category) || a.symbol.localeCompare(b.symbol));
+            list.innerHTML = `
+                <div style="display:grid;grid-template-columns:120px 1fr 140px 70px;background:#f6f7f5;padding:10px 12px;font-size:11px;font-weight:600;color:#4A4660;gap:10px;">
+                    <span>Symbol</span><span>Name</span><span>Category</span><span></span>
+                </div>
+                ${sorted.map(u => `
+                    <div style="display:grid;grid-template-columns:120px 1fr 140px 70px;padding:10px 12px;border-top:1px solid #eceeeb;font-size:12px;align-items:center;gap:10px;">
+                        <strong>${escapeHtml(u.symbol)}</strong>
+                        <span>${escapeHtml(u.name)}</span>
+                        <span style="color:#5F5B75;">${escapeHtml(u.category)}</span>
+                        <button class="btn btn-danger btn-sm" onclick="deleteUnit('${u.id}')">🗑️</button>
+                    </div>
+                `).join('')}
+            `;
+        }
+
+        /* =========================================================
+           REFERENCE RANGES
+        ========================================================= */
+
+        function getTestConfigByName(name) {
+            const n = String(name || '').toLowerCase().trim();
+            for (const panel of panels) {
+                const t = (panel.tests || []).find(x => (x.name || '').toLowerCase() === n || (x.code || '').toLowerCase() === n);
+                if (t) return t;
+            }
+            const standalone = (() => { try { return JSON.parse(localStorage.getItem('labcore_tests') || '[]'); } catch (e) { return []; } })();
+            return standalone.find(x => (x.name || '').toLowerCase() === n || (x.code || '').toLowerCase() === n) || null;
+        }
+
+        function populateRangeSelect() {
+            const sel = document.getElementById('rangePanelSelect');
+            const currentVal = sel.value;
+            sel.innerHTML = '<option value="">Select a panel...</option>' +
+                panels.filter(p => p.status === 'active').map(p => `<option value="${p.id}">${p.name} (${p.code})</option>`).join('');
+            if (currentVal && [...sel.options].some(o => o.value === currentVal)) sel.value = currentVal;
+            if (sel.value) renderRanges();
+        }
+
+        function renderRanges() {
+            const panelId = document.getElementById('rangePanelSelect').value;
+            const container = document.getElementById('rangesContainer');
+            if (!panelId) {
+                container.innerHTML = `<div class="empty-state"><h3>Select a Panel</h3><p>Choose a panel above to view and edit reference ranges</p></div>`;
+                return;
+            }
+            const panel = panels.find(p => p.id === panelId);
+            if (!panel) { container.innerHTML = `<div class="empty-state"><h3>Panel not found</h3></div>`; return; }
+
+            const ageGroup = document.getElementById('rangeAgeGroup').value;
+            const sex = document.getElementById('rangeSex').value;
+            const ranges = referenceRanges[panelId] || {};
+            const ageRanges = ranges[ageGroup] || ranges['all'] || {};
+            const sexRanges = ageRanges[sex] || ageRanges['all'] || {};
+
+            let html = `
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;flex-wrap:wrap;gap:10px;">
+                    <div>
+                        <h3 style="font-size:14px;">${panel.name}</h3>
+                        <p style="font-size:12px;color:var(--lc-muted);">
+                            Age: ${ageGroup === 'all' ? 'All Ages' : ageGroup} | Sex: ${sex === 'all' ? 'All Sexes' : sex}
+                            <span class="result-type-badge ${panel.resultType === 'quantitative' ? 'badge-quantitative' : 'badge-qualitative'}" style="margin-left:10px;">${panel.resultType}</span>
+                        </p>
+                    </div>
+                    <div style="display:flex;gap:8px;">
+                        <button class="btn btn-primary btn-sm" onclick="openRangeEditor('${panelId}','${ageGroup}','${sex}')">✏️ Edit Ranges</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteAgeGroup('${panelId}','${ageGroup}','${sex}')">🗑️ Delete Group</button>
+                    </div>
+                </div>
+                <table class="ranges-table">
+                    <thead><tr><th>Test</th><th>Normal Range / Possible Values</th><th>Critical Low</th><th>Critical High</th><th>Flags</th></tr></thead>
+                    <tbody>
+            `;
+
+            let hasAny = false;
+            panel.tests.forEach(test => {
+                let range = sexRanges[test.name];
+                if (!range) {
+                    const cfg = getTestConfigByName(test.name);
+                    if (cfg && cfg.possibleValues && cfg.possibleValues.length) {
+                        range = { type: 'qualitative', possibleValues: cfg.possibleValues, normalValues: cfg.normalValues || [], flag: cfg.abnormalFlag || 'H*' };
+                    }
+                }
+                if (range) {
+                    hasAny = true;
+                    let rangeDisplay = '';
+                    let flag = { symbol: 'N ✓', class: 'flag-normal' };
+                    if (range.type === 'qualitative' || range.type === 'categorical') {
+                        const opts = range.possibleValues || [];
+                        const normals = (range.normalValues || []).map(v => String(v).toLowerCase());
+                        rangeDisplay = opts.map(v => {
+                            const isNormal = normals.includes(String(v).toLowerCase());
+                            return `<span style="display:inline-block;padding:2px 8px;margin:2px;border-radius:10px;font-size:10px;${isNormal ? 'background:#e6f0e8;color:#2B7A4B;font-weight:700;' : 'background:#FBE9E7;color:#842029;'}">${escapeHtml(v)}${isNormal ? ' ✓' : ''}</span>`;
+                        }).join('');
+                        // Qualitative tests are not flagged H/L.
+                        flag = { symbol: '—', class: 'flag-normal' };
+                    } else {
+                        rangeDisplay = `${range.min} - ${range.max} ${test.unit}`;
+                        flag = getFlag(range, test);
+                    }
+                    html += `<tr>
+                        <td><strong>${test.name}</strong> <span style="color:#8a8e8a;font-size:10px;">${test.code}</span></td>
+                        <td>${rangeDisplay}</td>
+                        <td style="color:#B3261E;">${range.type === 'qualitative' || range.type === 'categorical' ? 'N/A' : `< ${range.criticalLow} ${test.unit}`}</td>
+                        <td style="color:#B3261E;">${range.type === 'qualitative' || range.type === 'categorical' ? 'N/A' : `> ${range.criticalHigh} ${test.unit}`}</td>
+                        <td><span class="flag-indicator ${flag.class}">${flag.symbol}</span></td>
+                    </tr>`;
+                } else {
+                    html += `<tr><td><strong>${test.name}</strong></td><td colspan="4" style="color:#858985;">No range defined - add using range editor</td></tr>`;
+                }
+            });
+
+            if (!hasAny && panel.tests.length === 0) {
+                html += `<tr><td colspan="5" style="text-align:center;color:#858985;padding:30px;">No tests in this panel.</td></tr>`;
+            }
+            html += `</tbody></table>`;
+            container.innerHTML = html;
+        }
+
+        function getFlag(range, test) {
+            if (range.type === 'qualitative' || range.type === 'categorical') {
+                // Qualitative tests are never flagged H/L.
+                return { symbol: '—', class: 'flag-normal' };
+            }
+            if (range.criticalLow > 0 && range.criticalLow < 50) return { symbol: 'LL 🚨', class: 'flag-critical' };
+            if (range.criticalHigh > 150 && range.criticalHigh < 250) return { symbol: 'HH* 🚨*', class: 'flag-critical' };
+            return { symbol: 'N ✓', class: 'flag-normal' };
+        }
+
+        function openRangeEditor(panelId, ageGroup, sex) {
+            editingPanelId = panelId;
+            editingAgeGroup = ageGroup;
+            editingSex = sex;
+            editedRanges = {};
+
+            const panel = panels.find(p => p.id === panelId);
+            if (!panel) { showToast('Panel not found', 'error'); return; }
+
+            const ranges = referenceRanges[panelId] || {};
+            const ageRanges = ranges[ageGroup] || ranges['all'] || {};
+            const sexRanges = ageRanges[sex] || ageRanges['all'] || {};
+
+            document.getElementById('rangeEditorSubtitle').textContent =
+                `Editing: ${panel.name} | Age: ${ageGroup === 'all' ? 'All Ages' : ageGroup} | Sex: ${sex === 'all' ? 'All Sexes' : sex} | Type: ${panel.resultType}`;
+
+            const isQualitative = panel.resultType === 'qualitative' || panel.resultType === 'categorical';
+
+            let content = `
+                <div style="margin-bottom:15px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+                    <div>
+                        <h4 style="font-size:13px;">Edit Reference Ranges</h4>
+                        <p style="font-size:11px;color:var(--lc-muted);">${isQualitative ? 'Enter possible text values for qualitative results' : 'Enter normal ranges and critical values for each test'}</p>
+                    </div>
+                </div>
+                <table class="ranges-table">
+                    <thead><tr>
+                        <th style="width:22%;">Test</th>
+                        ${isQualitative ? `
+                            <th style="width:48%;">Possible Values (comma separated)</th>
+                            <th style="width:30%;">Interpretation</th>
+                        ` : `
+                            <th style="width:15%;">Normal Min</th>
+                            <th style="width:15%;">Normal Max</th>
+                            <th style="width:15%;">Critical Low</th>
+                            <th style="width:15%;">Critical High</th>
+                            <th style="width:10%;">Unit</th>
+                            <th style="width:12%;">Flag</th>
+                        `}
+                    </tr></thead><tbody>
+            `;
+
+            if (isQualitative) {
+                panel.tests.forEach(test => {
+                    const cfg = getTestConfigByName(test.name) || {};
+                    const range = sexRanges[test.name] || {
+                        type: 'qualitative',
+                        possibleValues: cfg.possibleValues || ['Negative', 'Positive'],
+                        normalValues: cfg.normalValues || ['Negative'],
+                        flag: cfg.abnormalFlag || 'H*'
+                    };
+                    const possibleValues = range.possibleValues ? range.possibleValues.join(', ') : 'Negative, Positive';
+                    content += `<tr data-test="${test.name}" data-type="qualitative">
+                        <td><strong>${test.name}</strong></td>
+                        <td>
+                            <input type="text" class="range-input-text range-possible-values" value="${possibleValues}" data-test="${test.name}" data-field="possibleValues" placeholder="e.g., Positive, Negative, Invalid" style="width:100%;" onchange="markRangeChanged(this)">
+                            <div style="font-size:9px;color:#5F5B75;margin-top:3px;">Enter values separated by commas</div>
+                        </td>
+                        <td>
+                            <input type="text" class="range-input-text range-interpretation" value="${range.interpretation || ''}" data-test="${test.name}" data-field="interpretation" placeholder="e.g., Abnormal - Requires treatment" style="width:100%;" onchange="markRangeChanged(this)">
+                        </td>
+                    </tr>`;
+                });
+            } else {
+                panel.tests.forEach(test => {
+                    const range = sexRanges[test.name] || { type: 'quantitative', min: '', max: '', criticalLow: '', criticalHigh: '' };
+                    const flag = getFlag(range, test);
+                    content += `<tr data-test="${test.name}" data-type="quantitative">
+                        <td><strong>${test.name}</strong></td>
+                        <td><input type="number" step="any" class="range-input range-min" value="${range.min !== undefined ? range.min : ''}" data-test="${test.name}" data-field="min" onchange="markRangeChanged(this)"></td>
+                        <td><input type="number" step="any" class="range-input range-max" value="${range.max !== undefined ? range.max : ''}" data-test="${test.name}" data-field="max" onchange="markRangeChanged(this)"></td>
+                        <td><input type="number" step="any" class="range-input range-critical-low" value="${range.criticalLow !== undefined ? range.criticalLow : ''}" data-test="${test.name}" data-field="criticalLow" onchange="markRangeChanged(this)"></td>
+                        <td><input type="number" step="any" class="range-input range-critical-high" value="${range.criticalHigh !== undefined ? range.criticalHigh : ''}" data-test="${test.name}" data-field="criticalHigh" onchange="markRangeChanged(this)"></td>
+                        <td style="font-size:11px;color:#5F5B75;">${test.unit || '-'}</td>
+                        <td><span class="flag-indicator ${flag.class}">${flag.symbol}</span></td>
+                    </tr>`;
+                });
+            }
+
+            content += `</tbody></table>
+                <div style="margin-top:15px;display:flex;gap:10px;flex-wrap:wrap;">
+                    ${isQualitative ? `<button class="btn btn-sm btn-primary" onclick="autoFillQualitativeValues()">📝 Auto-fill common values</button>` : `<button class="btn btn-sm btn-success" onclick="autoFillRanges()">📊 Auto-fill from template</button><button class="btn btn-sm btn-warning" onclick="resetRanges()">↺ Reset to defaults</button>`}
+                    <span style="font-size:11px;color:#5F5B75;display:flex;align-items:center;">Changes are saved when you click "Save All Ranges"</span>
+                </div>`;
+
+            document.getElementById('rangeEditorContent').innerHTML = content;
+            document.getElementById('rangeEditorModal').classList.add('active');
+        }
+
+        function markRangeChanged(input) {
+            const row = input.closest('tr');
+            const inputs = row.querySelectorAll('input, select');
+            let hasChange = false;
+            inputs.forEach(inp => {
+                if (inp.dataset.initial === undefined) inp.dataset.initial = inp.value;
+                if (inp.value !== inp.dataset.initial) hasChange = true;
+            });
+            if (hasChange) { row.style.background = '#fffde7'; row.dataset.changed = 'true'; }
+            else { row.style.background = ''; row.dataset.changed = 'false'; }
+        }
+
+        function autoFillQualitativeValues() {
+            const templates = {
+                'Malaria RDT': 'Negative, Positive, Invalid',
+                'Malaria Species': 'P. falciparum, P. vivax, P. malariae, P. ovale, Mixed infection, Not identified',
+                'HIV': 'Non-Reactive, Reactive, Indeterminate',
+                'HBsAg': 'Non-Reactive, Reactive, Indeterminate',
+                'HCV': 'Non-Reactive, Reactive, Indeterminate',
+                'Syphilis': 'Non-Reactive, Reactive, Indeterminate'
+            };
+            document.querySelectorAll('#rangeEditorContent tbody tr[data-type="qualitative"]').forEach(row => {
+                const testName = row.dataset.test;
+                const template = templates[testName];
+                if (template) {
+                    const input = row.querySelector('.range-possible-values');
+                    if (input) {
+                        input.value = template; input.dataset.initial = template;
+                        row.style.background = '#fffde7'; row.dataset.changed = 'true';
+                    }
+                }
+            });
+            showToast('Auto-filled qualitative values from templates', 'success');
+        }
+
+        function autoFillRanges() {
+            const templates = {
+                'Hemoglobin': { min: 12.0, max: 16.0, criticalLow: 7.0, criticalHigh: 20.0 },
+                'WBC': { min: 4.0, max: 11.0, criticalLow: 2.0, criticalHigh: 30.0 },
+                'Platelets': { min: 150, max: 400, criticalLow: 50, criticalHigh: 700 },
+                'Neutrophils': { min: 40, max: 60, criticalLow: 20, criticalHigh: 70 },
+                'Lymphocytes': { min: 20, max: 40, criticalLow: 10, criticalHigh: 50 }
+            };
+            document.querySelectorAll('#rangeEditorContent tbody tr[data-type="quantitative"]').forEach(row => {
+                const testName = row.dataset.test;
+                const template = templates[testName];
+                if (template) {
+                    row.querySelector('.range-min').value = template.min;
+                    row.querySelector('.range-max').value = template.max;
+                    row.querySelector('.range-critical-low').value = template.criticalLow;
+                    row.querySelector('.range-critical-high').value = template.criticalHigh;
+                    row.style.background = '#fffde7'; row.dataset.changed = 'true';
+                }
+            });
+            showToast('Auto-filled ranges from template', 'success');
+        }
+
+        function resetRanges() {
+            if (!confirm('Reset all ranges to default values?')) return;
+            const defaults = {
+                'Hemoglobin': { min: 12.0, max: 16.0, criticalLow: 7.0, criticalHigh: 20.0 },
+                'WBC': { min: 4.0, max: 11.0, criticalLow: 2.0, criticalHigh: 30.0 },
+                'Platelets': { min: 150, max: 400, criticalLow: 50, criticalHigh: 700 },
+                'Neutrophils': { min: 40, max: 60, criticalLow: 20, criticalHigh: 70 },
+                'Lymphocytes': { min: 20, max: 40, criticalLow: 10, criticalHigh: 50 }
+            };
+            document.querySelectorAll('#rangeEditorContent tbody tr[data-type="quantitative"]').forEach(row => {
+                const testName = row.dataset.test;
+                const defaultRange = defaults[testName];
+                if (defaultRange) {
+                    row.querySelector('.range-min').value = defaultRange.min;
+                    row.querySelector('.range-max').value = defaultRange.max;
+                    row.querySelector('.range-critical-low').value = defaultRange.criticalLow;
+                    row.querySelector('.range-critical-high').value = defaultRange.criticalHigh;
+                    row.style.background = '#fffde7'; row.dataset.changed = 'true';
+                }
+            });
+            showToast('Ranges reset to defaults', 'info');
+        }
+
+        function saveRangeEdits() {
+            if (!editingPanelId) { showToast('No panel selected', 'error'); return; }
+            const panel = panels.find(p => p.id === editingPanelId);
+            if (!panel) { showToast('Panel not found', 'error'); return; }
+
+            const isQualitative = panel.resultType === 'qualitative' || panel.resultType === 'categorical';
+            const ranges = {};
+            let hasChanges = false;
+
+            document.querySelectorAll('#rangeEditorContent tbody tr').forEach(row => {
+                if (row.dataset.changed === 'true' || row.style.background === 'rgb(255, 253, 231)' || row.style.background === '#fffde7') {
+                    const testName = row.dataset.test;
+                                       if (isQualitative) {
+                        const possibleValuesInput = row.querySelector('.range-possible-values');
+                        const interpretationInput = row.querySelector('.range-interpretation');
+                        if (possibleValuesInput) {
+                            const values = possibleValuesInput.value.split(',').map(v => v.trim()).filter(v => v);
+                            ranges[testName] = {
+                                type: 'qualitative',
+                                possibleValues: values.length > 0 ? values : ['Negative', 'Positive'],
+                                normalValues: [values.find(v => !/invalid|indeterminate|equivocal/i.test(v)) || values[0] || 'Negative'],
+                                // Qualitative results are never flagged H/L — no flag field.
+                                interpretation: interpretationInput ? interpretationInput.value : ''
+                            };
+                            hasChanges = true;
+                        }
+                    } else {
+                        const min = parseFloat(row.querySelector('.range-min').value);
+                        const max = parseFloat(row.querySelector('.range-max').value);
+                        const criticalLow = parseFloat(row.querySelector('.range-critical-low').value);
+                        const criticalHigh = parseFloat(row.querySelector('.range-critical-high').value);
+                        if (!isNaN(min) || !isNaN(max) || !isNaN(criticalLow) || !isNaN(criticalHigh)) {
+                            ranges[testName] = {
+                                type: 'quantitative',
+                                min: isNaN(min) ? null : min,
+                                max: isNaN(max) ? null : max,
+                                criticalLow: isNaN(criticalLow) ? null : criticalLow,
+                                criticalHigh: isNaN(criticalHigh) ? null : criticalHigh
+                            };
+                            hasChanges = true;
+                        }
+                    }
+                    row.style.background = '#e8f5e9';
+                }
+            });
+
+            if (!hasChanges) { showToast('No changes to save', 'info'); return; }
+
+            if (!referenceRanges[editingPanelId]) referenceRanges[editingPanelId] = {};
+            if (!referenceRanges[editingPanelId][editingAgeGroup]) referenceRanges[editingPanelId][editingAgeGroup] = {};
+            if (!referenceRanges[editingPanelId][editingAgeGroup][editingSex]) referenceRanges[editingPanelId][editingAgeGroup][editingSex] = {};
+
+            Object.entries(ranges).forEach(([testName, range]) => {
+                referenceRanges[editingPanelId][editingAgeGroup][editingSex][testName] = range;
+            });
+
+            saveSharedPanelDatabase();
+            showToast(`Ranges saved successfully (${Object.keys(ranges).length} tests updated)`, 'success');
+            closeModal('rangeEditorModal');
+            renderRanges();
+        }
+
+        /* =========================================================
+           AGE GROUP
+        ========================================================= */
+
+        function addAgeGroupRange() {
+            const panelId = document.getElementById('rangePanelSelect').value;
+            if (!panelId) { showToast('Please select a panel first', 'warning'); return; }
+            document.getElementById('newAgeGroupName').value = '';
+            document.getElementById('newAgeGroupSex').value = 'all';
+            document.getElementById('newAgeGroupName-error').textContent = '';
+            document.getElementById('newAgeGroupName-error').className = 'lc-validation-message';
+            document.getElementById('addAgeGroupModal').classList.add('active');
+            setTimeout(() => document.getElementById('newAgeGroupName').focus(), 100);
+        }
+
+        function saveNewAgeGroup() {
+            const name = document.getElementById('newAgeGroupName').value.trim();
+            const sex = document.getElementById('newAgeGroupSex').value;
+            const panelId = document.getElementById('rangePanelSelect').value;
+            if (!name) { showToast('Age group name is required', 'error'); document.getElementById('newAgeGroupName').focus(); return; }
+            if (!panelId) { showToast('No panel selected', 'error'); return; }
+
+            const panel = panels.find(p => p.id === panelId);
+            if (!panel) { showToast('Panel not found', 'error'); return; }
+
+            if (!referenceRanges[panelId]) referenceRanges[panelId] = {};
+            if (!referenceRanges[panelId][name]) referenceRanges[panelId][name] = {};
+            if (!referenceRanges[panelId][name][sex]) referenceRanges[panelId][name][sex] = {};
+
+            const ageSelect = document.getElementById('rangeAgeGroup');
+            if (![...ageSelect.options].some(o => o.value === name)) {
+                const opt = document.createElement('option');
+                opt.value = name; opt.textContent = name;
+                ageSelect.appendChild(opt);
+            }
+            ageSelect.value = name;
+            document.getElementById('rangeSex').value = sex;
+
+            saveSharedPanelDatabase();
+            showToast(`Age group "${name}" added`, 'success');
+            closeModal('addAgeGroupModal');
+            renderRanges();
+        }
+
+        function deleteAgeGroup(panelId, ageGroup, sex) {
+            if (!confirm('Delete this age/sex group? This action cannot be undone.')) return;
+            if (referenceRanges[panelId] && referenceRanges[panelId][ageGroup]) {
+                if (sex === 'all') delete referenceRanges[panelId][ageGroup];
+                else {
+                    delete referenceRanges[panelId][ageGroup][sex];
+                    if (Object.keys(referenceRanges[panelId][ageGroup]).length === 0) delete referenceRanges[panelId][ageGroup];
+                }
+                saveSharedPanelDatabase();
+                showToast('Age group deleted successfully', 'success');
+                renderRanges();
+            } else {
+                showToast('Age group not found', 'error');
+            }
+        }
+
+        /* =========================================================
+           FLAGS
+        ========================================================= */
+
+        function saveFlagSettings() {
+            const settings = {
+                useColorCoding: document.getElementById('useColorCoding').checked,
+                showFlags: document.getElementById('showFlags').checked,
+                showInterpretation: document.getElementById('showInterpretation').checked,
+                useAsterisk: document.getElementById('useAsterisk').checked
+            };
+            localStorage.setItem('labcore_flag_settings', JSON.stringify(settings));
+            showToast('Flag settings saved successfully');
+        }
+
+        function loadFlagSettings() {
+            try {
+                const settings = JSON.parse(localStorage.getItem('labcore_flag_settings'));
+                if (settings) {
+                    document.getElementById('useColorCoding').checked = settings.useColorCoding !== false;
+                    document.getElementById('showFlags').checked = settings.showFlags !== false;
+                    document.getElementById('showInterpretation').checked = settings.showInterpretation !== false;
+                    document.getElementById('useAsterisk').checked = settings.useAsterisk !== false;
+                }
+            } catch (e) {}
+        }
+
+        /* =========================================================
+           EXPORT / IMPORT
+        ========================================================= */
+
+        function exportConfiguration() {
+            const data = { categories, panels, referenceRanges, units, exportedAt: new Date().toISOString(), version: '1.1' };
+            try {
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `LabCore_Config_${new Date().toISOString().slice(0, 10)}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+                showToast('Configuration exported successfully', 'success');
+            } catch (e) { showToast('Error exporting configuration', 'error'); }
+        }
+
+        function importConfiguration() {
+            const input = document.createElement('input');
+            input.type = 'file'; input.accept = '.json';
+            input.onchange = function (e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = function (ev) {
+                    try {
+                        const data = JSON.parse(ev.target.result);
+                        if (data.categories) categories = data.categories;
+                        if (data.panels) panels = data.panels;
+                        if (data.referenceRanges) referenceRanges = data.referenceRanges;
+                        if (data.units) units = data.units;
+                        saveSharedPanelDatabase();
+                        saveUnits();
+                        renderCategories();
+                        populateCategorySelects();
+                        populateRangeSelect();
+                        renderUnitList();
+                        showToast('Configuration imported successfully', 'success');
+                    } catch (err) { showToast('Error importing configuration: ' + err.message, 'error'); }
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        }
+
+        function exportRanges() {
+            const panelId = document.getElementById('rangePanelSelect').value;
+            if (!panelId) { showToast('Please select a panel first', 'warning'); return; }
+            const panel = panels.find(p => p.id === panelId);
+            if (!panel) { showToast('Panel not found', 'error'); return; }
+
+            const ranges = referenceRanges[panelId] || {};
+            const data = [];
+            Object.entries(ranges).forEach(([ageGroup, ageData]) => {
+                Object.entries(ageData).forEach(([sex, sexData]) => {
+                    Object.entries(sexData).forEach(([testName, range]) => {
+                        data.push({
+                            'Panel': panel.name, 'Panel Code': panel.code, 'Age Group': ageGroup, 'Sex': sex,
+                            'Test': testName, 'Type': range.type || 'quantitative',
+                            'Min': range.min !== undefined ? range.min : '',
+                            'Max': range.max !== undefined ? range.max : '',
+                            'Critical Low': range.criticalLow !== undefined ? range.criticalLow : '',
+                            'Critical High': range.criticalHigh !== undefined ? range.criticalHigh : '',
+                            'Possible Values': range.possibleValues ? range.possibleValues.join(', ') : '',
+                            'Normal Values': range.normalValues ? range.normalValues.join(', ') : '',
+                            'Flag': range.flag || '', 'Interpretation': range.interpretation || ''
+                        });
+                    });
+                });
+            });
+
+            if (!data.length) { showToast('No ranges defined for this panel', 'warning'); return; }
+            try {
+                const ws = XLSX.utils.json_to_sheet(data);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, 'Ranges');
+                XLSX.writeFile(wb, `Ranges_${panel.code}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+                showToast('Ranges exported successfully', 'success');
+            } catch (e) { showToast('Error exporting ranges', 'error'); }
+        }
+
+        /* =========================================================
+           DARK MODE
+        ========================================================= */
+
+        function toggleDarkMode() {
+            const html = document.documentElement;
+            const isDark = html.getAttribute('data-theme') === 'dark';
+            if (isDark) { html.removeAttribute('data-theme'); localStorage.setItem('labcore_theme', 'light'); showToast('Light mode enabled', 'info'); }
+            else { html.setAttribute('data-theme', 'dark'); localStorage.setItem('labcore_theme', 'dark'); showToast('Dark mode enabled', 'info'); }
+        }
+
+        function loadTheme() {
+            const theme = localStorage.getItem('labcore_theme');
+            if (theme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+        }
+
+        /* =========================================================
+           MODAL HELPERS
+        ========================================================= */
+
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+        document.querySelectorAll('.modal-overlay').forEach(modal => {
+            modal.addEventListener('click', function (e) {
+                if (e.target === this) this.classList.remove('active');
+            });
+        });
+
+        /* =========================================================
+           KEYBOARD
+        ========================================================= */
+
+        document.addEventListener('keydown', function (e) {
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                const modal = document.querySelector('.modal-overlay.active');
+                if (modal) { e.preventDefault(); const btn = modal.querySelector('.btn-primary, .btn-success'); if (btn) btn.click(); }
+            }
+            if (e.key === 'Escape') {
+                const modal = document.querySelector('.modal-overlay.active');
+                if (modal) { const btn = modal.querySelector('.close-btn'); if (btn) btn.click(); }
+            }
+        });
+
+        /* =========================================================
+           PRICING
+        ========================================================= */
+
+        function renderPricing() {
+            const services = window.lcGetAllServices ? window.lcGetAllServices() : {};
+            const servicesContainer = document.getElementById('pricingServices');
+            if (servicesContainer) {
+                servicesContainer.innerHTML = Object.entries(services).map(([key, value]) => `
+                    <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--lc-bg);border-radius:4px;">
+                        <span style="flex:1;font-size:12px;font-weight:600;">${value.name}</span>
+                        <span style="font-size:11px;color:var(--lc-muted);">${value.code || ''}</span>
+                        <input type="number" step="0.01" min="0" value="${value.price}" data-category="services" data-key="${key}" onchange="updatePriceInput(this)" style="width:80px;padding:4px 6px;border:1px solid var(--lc-border);border-radius:4px;font-size:12px;text-align:right;">
+                        <button class="btn btn-sm btn-danger" onclick="removePricingItem('services','${key}')" style="padding:2px 6px;font-size:10px;">✕</button>
+                    </div>
+                `).join('');
+            }
+
+            const labTests = window.lcGetAllLabTests ? window.lcGetAllLabTests() : {};
+            const labContainer = document.getElementById('pricingLabTests');
+            if (labContainer) {
+                labContainer.innerHTML = Object.entries(labTests).map(([key, value]) => `
+                    <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--lc-bg);border-radius:4px;">
+                        <span style="flex:1;font-size:11px;font-weight:600;">${key}</span>
+                        <span style="font-size:10px;color:var(--lc-muted);">${value.category || ''}</span>
+                        <input type="number" step="0.01" min="0" value="${value.price}" data-category="labTests" data-key="${key}" onchange="updatePriceInput(this)" style="width:80px;padding:4px 6px;border:1px solid var(--lc-border);border-radius:4px;font-size:12px;text-align:right;">
+                        <button class="btn btn-sm btn-danger" onclick="removePricingItem('labTests','${key}')" style="padding:2px 6px;font-size:10px;">✕</button>
+                    </div>
+                `).join('');
+            }
+
+            const imaging = window.lcGetAllImaging ? window.lcGetAllImaging() : {};
+            const imagingContainer = document.getElementById('pricingImaging');
+            if (imagingContainer) {
+                imagingContainer.innerHTML = Object.entries(imaging).map(([key, value]) => `
+                    <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--lc-bg);border-radius:4px;">
+                        <span style="flex:1;font-size:11px;font-weight:600;">${key}</span>
+                        <span style="font-size:10px;color:var(--lc-muted);">${value.category || ''}</span>
+                        <input type="number" step="0.01" min="0" value="${value.price}" data-category="imaging" data-key="${key}" onchange="updatePriceInput(this)" style="width:80px;padding:4px 6px;border:1px solid var(--lc-border);border-radius:4px;font-size:12px;text-align:right;">
+                        <button class="btn btn-sm btn-danger" onclick="removePricingItem('imaging','${key}')" style="padding:2px 6px;font-size:10px;">✕</button>
+                    </div>
+                `).join('');
+            }
+
+            const pharmacy = window.lcGetAllPharmacy ? window.lcGetAllPharmacy() : {};
+            const pharmacyContainer = document.getElementById('pricingPharmacy');
+            if (pharmacyContainer) {
+                pharmacyContainer.innerHTML = Object.entries(pharmacy).map(([key, value]) => `
+                    <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--lc-bg);border-radius:4px;">
+                        <span style="flex:1;font-size:11px;font-weight:600;">${key}</span>
+                        <input type="number" step="0.01" min="0" value="${value.price}" data-category="pharmacy" data-key="${key}" onchange="updatePriceInput(this)" style="width:80px;padding:4px 6px;border:1px solid var(--lc-border);border-radius:4px;font-size:12px;text-align:right;">
+                        <button class="btn btn-sm btn-danger" onclick="removePricingItem('pharmacy','${key}')" style="padding:2px 6px;font-size:10px;">✕</button>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function updatePriceInput(input) {
+            const category = input.dataset.category;
+            const key = input.dataset.key;
+            const price = parseFloat(input.value);
+            if (isNaN(price) || price < 0) { input.style.borderColor = '#B3261E'; showToast('Please enter a valid price', 'error'); return; }
+            input.style.borderColor = 'var(--lc-border)';
+            if (window.lcUpdatePrice) {
+                window.lcUpdatePrice(category, key, price);
+                input.style.borderColor = '#2B7A4B';
+                setTimeout(() => input.style.borderColor = 'var(--lc-border)', 1500);
+            }
+        }
+
+        function saveAllPrices() { showToast('All prices saved successfully', 'success'); }
+
+        function resetAllPrices() {
+            if (!confirm('Reset all prices to default values?')) return;
+            if (window.lcResetPrices) { window.lcResetPrices(); renderPricing(); showToast('Prices reset to defaults', 'info'); }
+        }
+
+        function exportPrices() {
+            if (window.lcExportPrices) {
+                const data = window.lcExportPrices();
+                const blob = new Blob([data], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = `LabCore_Prices_${new Date().toISOString().slice(0,10)}.json`;
+                a.click(); URL.revokeObjectURL(url);
+                showToast('Prices exported', 'success');
+            }
+        }
+
+        function importPrices() {
+            const input = document.createElement('input');
+            input.type = 'file'; input.accept = '.json';
+            input.onchange = function (e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = function (ev) {
+                    try {
+                        if (window.lcImportPrices) { window.lcImportPrices(ev.target.result); renderPricing(); showToast('Prices imported successfully', 'success'); }
+                    } catch (err) { showToast('Error importing prices: ' + err.message, 'error'); }
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        }
+
+                function addPricingItem(category) {
+            const names = {
+                'services': 'Service Name (e.g., Dental Checkup)',
+                'labPanels': 'Panel Name (e.g., Full Blood Count)',
+                'labTests': 'Test Name (e.g., Vitamin D)',
+                'imaging': 'Imaging Name (e.g., Bone Density Scan)',
+                'pharmacy': 'Medication Name (e.g., Vitamin C 1000mg)'
+            };
+            const name = prompt('Enter the ' + names[category] + ':');
+            if (!name || !name.trim()) return;
+            const price = prompt('Enter the price (GHS):', '0.00');
+            if (price === null) return;
+            const priceNum = parseFloat(price);
+            if (isNaN(priceNum) || priceNum < 0) { showToast('Please enter a valid price', 'error'); return; }
+            if (window.lcAddPriceEntry) {
+                window.lcAddPriceEntry(category, name.trim(), {
+                    price: priceNum,
+                    code: name.trim().toUpperCase().replace(/\s+/g, '-'),
+                    category: 'Custom'
+                });
+                renderPricing();
+                showToast('Added ' + name.trim() + ' with price GHS ' + priceNum.toFixed(2), 'success');
+            }
+        }
+
+        function removePricingItem(category, key) {
+            if (!confirm('Remove "' + key + '" from pricing?')) return;
+            if (window.lcRemovePriceEntry) {
+                window.lcRemovePriceEntry(category, key);
+                renderPricing();
+                showToast('Removed ' + key, 'info');
+            }
+        }
+
+        /* =========================================================
+           INIT
+        ========================================================= */
+
+        loadSharedPanelDatabase();
+        populateUnitSelect();
+        renderUnitList();
+        renderCategories();
+        populateCategorySelects();
+        populateRangeSelect();
+        const requestedTab = new URLSearchParams(window.location.search).get('tab');
+        if (requestedTab) {
+            const tabButton = document.querySelector('.tab[data-tab="' + requestedTab + '"]');
+            if (tabButton) tabButton.click();
+        }
+
+        console.log('🏥 LabCore Test Panel Configuration System Ready (v1.2 — barcodes moved to Label Designer)');
+        console.log(`📂 ${categories.length} categories`);
+        console.log(`📋 ${panels.length} panels`);
+        console.log(`📊 ${Object.keys(referenceRanges).length} panels with ranges`);
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const pn = document.getElementById('panelName');
+            const tn = document.getElementById('newTestName');
+            if (pn) pn.addEventListener('input', generatePanelCode);
+            if (tn) tn.addEventListener('input', generateTestCode);
+            loadTheme();
+            loadFlagSettings();
+        });
+            /* =========================================================
+       SERVER SYNC — pull panels, ranges, units from backend
+    ========================================================= */
+    (async function syncFromServer() {
+      if (!window.lcApiGetPanels || !window.lcGetToken || !window.lcGetToken()) {
+        console.log('[config] adapter not ready, using localStorage');
+        return;
+      }
+      try {
+        const [serverPanels, serverRanges, serverUnits] = await Promise.all([
+          window.lcApiGetPanels(),
+          window.lcApiGetReferenceRanges(),
+          window.lcApiGetUnits()
+        ]);
+
+        // Merge panels: server wins, but keep local-only ones (unsaved drafts)
+        const byId = {};
+        (serverPanels || []).forEach(p => { if (p && p.id) byId[p.id] = p; });
+        panels.forEach(p => { if (p && p.id && !byId[p.id]) byId[p.id] = p; });
+        panels = Object.values(byId);
+
+        // Merge units: server wins
+        if (Array.isArray(serverUnits) && serverUnits.length) {
+          units = serverUnits;
+        }
+
+        // Merge reference ranges: server wins per panel
+        if (serverRanges && typeof serverRanges === 'object') {
+          Object.keys(serverRanges).forEach(pid => {
+            referenceRanges[pid] = serverRanges[pid];
+          });
+        }
+
+        // Persist to localStorage so offline fallback still works
+        try { localStorage.setItem('labcore_panels', JSON.stringify(panels)); } catch (e) {}
+        try { localStorage.setItem('labcore_units', JSON.stringify(units)); } catch (e) {}
+        try { localStorage.setItem('labcore_reference_ranges', JSON.stringify(referenceRanges)); } catch (e) {}
+
+        // Re-render everything
+        renderCategories();
+        populateCategorySelects();
+        populateRangeSelect();
+        populateUnitSelect();
+        renderUnitList();
+        renderPanels();
+
+        console.log('[config] loaded from server: ' +
+          (serverPanels || []).length + ' panels, ' +
+          Object.keys(serverRanges || {}).length + ' range groups, ' +
+          (serverUnits || []).length + ' units');
+      } catch (e) {
+        console.warn('[config] server sync failed, using localStorage:', e.message);
+      }
+    })();
+    </script>
+<script src="shared/labcore-connectivity.js"></script>
+</body>
+
+</html>

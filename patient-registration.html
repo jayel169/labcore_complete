@@ -1,0 +1,2977 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Patients | LabCore</title>
+<link rel="stylesheet" href="shared/labcore-nav.css">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+<!-- Export Libraries -->
+
+
+<style>
+/* =====================================================
+   LabCore – Patient Management
+===================================================== */
+
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--lc-font);
+  background: var(--lc-bg);
+  color: var(--lc-text);
+  line-height: 1.5;
+}
+
+/* ---------- SIDEBAR ---------- */
+.sidebar {
+  width: 245px;
+  background: var(--lc-sidebar);
+  color: #fff;
+  min-height: 100vh;
+  position: fixed;
+  left: 0; top: 0; bottom: 0;
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+  transition: transform var(--lc-transition);
+}
+.brand {
+  height: 75px;
+  display: flex;
+  align-items: center;
+  padding: 0 22px;
+  border-bottom: 1px solid #343936;
+  flex-shrink: 0;
+}
+.brand-icon {
+  width: 38px; height: 38px;
+  background: var(--lc-gold);
+  color: var(--lc-brand-primary);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: bold; margin-right: 11px;
+}
+.brand-text h2 { font-size: 16px; font-weight: 600; }
+.brand-text span { font-size: 10px; color: #aeb4af; }
+
+.nav { padding: 20px 12px; flex: 1; overflow-y: auto; }
+.nav-section {
+  font-size: 10px; color: #7f8782;
+   letter-spacing: 1px;
+  padding: 10px 12px; margin-top: 5px;
+}
+.nav-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 13px; margin: 3px 0;
+  border-radius: 6px; color: #c9ceca;
+  font-size: 13px; text-decoration: none;
+  transition: 0.2s;
+}
+.nav-item:hover { background: #2d332f; color: white; }
+.nav-item.active {
+  background: var(--lc-gold);
+  color: var(--lc-brand-primary); font-weight: 600;
+}
+.nav-icon { width: 20px; text-align: center; font-size: 14px; }
+
+.sidebar-user {
+  padding: 15px; border-top: 1px solid #343936;
+  display: flex; align-items: center; gap: 10px;
+  flex-shrink: 0;
+}
+.user-avatar {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: #59615c; display: flex;
+  align-items: center; justify-content: center; font-size: 12px;
+}
+.user-info strong { display: block; font-size: 12px; }
+.user-info span { font-size: 10px; color: #9da39e; }
+
+/* Mobile Toggle */
+.lc-mobile-toggle {
+  display: none;
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 200;
+  background: var(--lc-sidebar);
+  color: #fff;
+  border: none;
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 20px;
+  cursor: pointer;
+  box-shadow: var(--lc-shadow);
+  transition: all var(--lc-transition);
+}
+.lc-mobile-toggle:hover { background: #3a3f3c; }
+.lc-sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 99;
+  opacity: 0;
+  transition: opacity var(--lc-transition);
+}
+.lc-sidebar-overlay.active { display: block; opacity: 1; }
+
+/* ---------- MAIN ---------- */
+.main {
+  margin-left: 245px;
+  min-height: 100vh;
+  transition: margin var(--lc-transition);
+}
+.top-header {
+  height: 70px; background: #fff;
+  border-bottom: 1px solid var(--lc-border);
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 0 30px;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+.top-header h1 { font-size: 20px; font-weight: 600; }
+.top-header small { color: var(--lc-muted); font-size: 12px; }
+.content { padding: 28px 30px; }
+
+/* Dashboard Stats */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.dashboard-card {
+  background: #fff;
+  border: 1px solid var(--lc-border);
+  border-radius: 8px;
+  padding: 14px;
+  text-align: center;
+  transition: var(--lc-transition);
+}
+.dashboard-card:hover { box-shadow: var(--lc-shadow); transform: translateY(-2px); }
+.dashboard-card .number { font-size: 22px; font-weight: 700; }
+.dashboard-card .label { font-size: 10px; color: var(--lc-muted);  }
+.dashboard-card .icon { font-size: 18px; margin-bottom: 4px; }
+.dashboard-card.total .number { color: var(--lc-blue); }
+.dashboard-card.active .number { color: var(--lc-green); }
+.dashboard-card.lab .number { color: var(--lc-warning); }
+.dashboard-card.male .number { color: #4a90d9; }
+.dashboard-card.female .number { color: #e91e63; }
+.dashboard-card.encounters .number { color: var(--lc-muted); }
+
+.toolbar {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.toolbar h2 { font-size: 20px; }
+.toolbar p { font-size: 13px; color: var(--lc-muted); margin-top: 4px; }
+.toolbar-right {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.card {
+  background: #fff; border: 1px solid var(--lc-border);
+  border-radius: 9px; margin-bottom: 18px; overflow: hidden;
+}
+.card-header {
+  padding: 16px 20px; border-bottom: 1px solid #e4e5e3;
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 15px; font-weight: 600;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.card-body { padding: 18px 20px; }
+
+.search-bar {
+  display: grid; grid-template-columns: 1fr 160px 90px; gap: 10px;
+}
+.search-bar .search-input {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid #BDBACB;
+  border-radius: 6px;
+  font-size: 13px;
+  background: #fff;
+  color: var(--lc-text);
+  transition: var(--lc-transition);
+}
+.search-bar .search-input:focus {
+  outline: none;
+  border-color: var(--lc-blue);
+  box-shadow: 0 0 0 3px rgba(36, 91, 134, 0.15);
+}
+
+input, select, textarea {
+  width: 100%; padding: 9px 12px;
+  border: 1px solid #BDBACB; border-radius: 6px;
+  font-size: 13px; background: #fff;
+  color: var(--lc-text);
+  transition: var(--lc-transition);
+  font-family: inherit;
+}
+input:focus, select:focus, textarea:focus {
+  outline: none; border-color: var(--lc-blue);
+  box-shadow: 0 0 0 3px rgba(36, 91, 134, 0.15);
+}
+textarea { resize: vertical; min-height: 60px; }
+
+.btn {
+  border: 1px solid #BDBACB; background: #fff;
+  border-radius: 6px; padding: 8px 14px;
+  font-size: 12px; font-weight: 600; cursor: pointer;
+  transition: var(--lc-transition);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.btn:hover { background: var(--lc-bg); transform: translateY(-1px); box-shadow: var(--lc-shadow); }
+.btn-primary { background: #2A2656; color: #fff; border-color: #2A2656; }
+.btn-primary:hover { background: #3A3577; }
+.btn-success { background: #2B7A4B; color: #fff; border-color: #2B7A4B; }
+.btn-success:hover { background: #206038; }
+.btn-danger { background: #B3261E; color: #fff; border-color: #B3261E; }
+.btn-danger:hover { background: #8C1C16; }
+.btn-warning { background: #9A6200; color: #fff; border-color: #9A6200; }
+.btn-outline { background: #fff; }
+.btn-sm { padding: 6px 10px; font-size: 11px; }
+.btn-xs { padding: 3px 8px; font-size: 10px; }
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th {
+  background: #F8F7FB; text-align: left; padding: 12px;
+  font-size: 11px; color: #5F5B75; 
+  border-bottom: 1px solid var(--lc-border);
+}
+td { padding: 12px; border-bottom: 1px solid #EFEDF4; vertical-align: middle; }
+tr:hover { background: #F8F7FB; }
+.actions-cell .btn { margin-right: 4px; margin-bottom: 3px; }
+
+.badge {
+  display: inline-block; padding: 3px 8px; border-radius: 12px;
+  font-size: 10px; font-weight: 700;
+}
+.badge-success { background: #E5F1EA; color: #2B7A4B; }
+.badge-warning { background: #f1e3c2; color: #775d18; }
+.badge-info { background: #E4EFF7; color: #1F5F8B; }
+.badge-danger { background: #f8d7da; color: #8C1C16; }
+.badge-secondary { background: #e2e8f0; color: #475569; }
+.badge-primary { background: #dbeafe; color: #1e40af; }
+
+.empty { text-align: center; padding: 40px; color: var(--lc-muted); }
+
+/* Modals */
+.modal-bg {
+  display: none; position: fixed; inset: 0;
+  background: rgba(22,25,23,0.52); z-index: 1000;
+  align-items: center; justify-content: center; padding: 20px;
+  
+}
+.modal-bg.show { display: flex; }
+.modal {
+  background: #fff; width: min(960px, 100%);
+  max-height: 92vh; overflow: auto; border-radius: 9px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+}
+.modal-lg { width: min(1100px, 100%); }
+.modal-head, .modal-foot {
+  padding: 16px 20px; border-bottom: 1px solid var(--lc-border);
+  display: flex; justify-content: space-between; align-items: center;
+  position: sticky;
+  background: #fff;
+  z-index: 10;
+}
+.modal-head { top: 0; border-radius: 9px 9px 0 0; }
+.modal-foot {
+  border-top: 1px solid var(--lc-border); border-bottom: 0;
+  justify-content: flex-end; gap: 8px;
+  bottom: 0;
+  border-radius: 0 0 9px 9px;
+}
+.close { border: 0; background: none; font-size: 22px; color: #777; cursor: pointer; transition: var(--lc-transition); }
+.close:hover { color: var(--lc-red); transform: scale(1.1); }
+.modal-body { padding: 20px; }
+
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.full { grid-column: 1 / -1; }
+.section-title {
+  font-size: 12px; font-weight: 700; color: var(--lc-blue);
+  border-bottom: 1px solid var(--lc-border); padding-bottom: 6px;
+  margin: 10px 0 14px; 
+}
+label { display: block; font-size: 11px; font-weight: 600; margin-bottom: 4px; color: #4A4660; }
+.req { color: #B3261E; }
+
+.service-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.service-card {
+  border: 1.5px solid var(--lc-border); border-radius: 8px;
+  padding: 14px 10px; text-align: center; cursor: pointer; background: #fff;
+  transition: var(--lc-transition);
+}
+.service-card:hover { border-color: #bbb; transform: translateY(-2px); box-shadow: var(--lc-shadow); }
+.service-card.selected { border-color: var(--lc-blue); background: #E4EFF7; }
+.service-card .icon { font-size: 22px; margin-bottom: 4px; }
+.service-card .name { font-weight: 700; font-size: 13px; }
+.service-card .desc { font-size: 11px; color: var(--lc-muted); }
+
+.consult-fields { display: none; margin-top: 10px; }
+.consult-fields.show { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.lab-fields { display: none; margin-top: 10px; }
+.lab-fields.show { display: block; }
+
+.autocomplete-wrap { position: relative; }
+.autocomplete-list {
+  position: absolute; top: 100%; left: 0; right: 0;
+  background: #fff; border: 1px solid #BDBACB; border-top: none;
+  border-radius: 0 0 6px 6px; max-height: 220px; overflow-y: auto;
+  z-index: 50; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+.autocomplete-list.show { display: block; }
+.autocomplete-item {
+  padding: 9px 12px; font-size: 13px; cursor: pointer;
+  border-bottom: 1px solid #EFEDF4;
+  display: flex; justify-content: space-between; align-items: center; gap: 8px;
+}
+.autocomplete-item:hover, .autocomplete-item.active { background: #E4EFF7; }
+.autocomplete-item .code {
+  font-size: 10px; color: #8A869C; margin-left: 6px;
+  padding: 2px 6px; border-radius: 4px; font-weight: 700; white-space: nowrap;
+  background: #EFEDF4;
+}
+.lab-chip-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.lab-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #E4EFF7; border: 1px solid #DAD8E3; color: #1d5a80;
+  padding: 5px 10px; border-radius: 14px; font-size: 12px;
+}
+.lab-chip button {
+  border: none; background: none; color: #1d5a80; cursor: pointer;
+  font-size: 13px; line-height: 1; padding: 0;
+}
+.lab-chip button:hover { color: var(--lc-red); }
+
+.alert { padding: 11px 14px; border-radius: 6px; margin-bottom: 14px; font-size: 13px; }
+.alert-success { background: #E5F1EA; color: #2B7A4B; }
+.alert-danger { background: #f8d7da; color: #8C1C16; }
+.alert-info { background: #E4EFF7; color: #1F5F8B; }
+.alert-warning { background: #FBF0DA; color: #9a5b00; }
+
+.profile-header {
+  display: flex; gap: 18px; margin-bottom: 18px;
+  padding-bottom: 14px; border-bottom: 1px solid var(--lc-border);
+}
+.avatar {
+  width: 64px; height: 64px; border-radius: 50%;
+  background: var(--lc-blue); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px; font-weight: 700;
+}
+.info-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px; }
+.info-item {
+  background: #f6f7f5; border: 1px solid var(--lc-border);
+  border-radius: 6px; padding: 10px 12px;
+}
+.info-item .label { font-size: 10px; color: var(--lc-muted);  }
+.info-item .value { font-size: 13px; font-weight: 600; margin-top: 2px; }
+
+.tabs { display: flex; border-bottom: 1px solid var(--lc-border); margin-bottom: 14px; gap: 4px; overflow-x: auto; }
+.tab {
+  padding: 10px 16px; cursor: pointer; font-size: 13px; font-weight: 600;
+  color: var(--lc-muted); border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  transition: var(--lc-transition);
+}
+.tab:hover { color: var(--lc-text); }
+.tab.active { color: var(--lc-blue); border-bottom-color: var(--lc-blue); }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+.encounter-card {
+  border: 1px solid var(--lc-border); border-radius: 8px;
+  padding: 14px; margin-bottom: 10px; cursor: pointer;
+  transition: var(--lc-transition);
+  position: relative;
+  padding-right: 130px;
+}
+.encounter-card:hover { border-color: var(--lc-blue); background: #F8F7FB; }
+.total-row { font-weight: 700; background: #f0f7ff; }
+
+/* Toast */
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.toast {
+  padding: 12px 20px;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  animation: slideIn 0.3s ease-out;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+}
+.toast-success { background: #2B7A4B; }
+.toast-error { background: #B3261E; }
+.toast-warning { background: #9A6200; }
+.toast-info { background: #37688c; }
+@keyframes slideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* Loading */
+.lc-loading-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(255,255,255,0.85);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  border-radius: var(--lc-radius);
+}
+.lc-loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid var(--lc-border);
+  border-top-color: var(--lc-blue);
+  border-radius: 50%;
+  animation: lcSpin 0.8s linear infinite;
+}
+.lc-loading-text { margin-top: 12px; font-size: 13px; color: var(--lc-muted); }
+@keyframes lcSpin { to { transform: rotate(360deg); } }
+
+/* Print */
+@media print {
+  .sidebar, .top-header, .lc-mobile-toggle, .lc-sidebar-overlay,
+  .toast-container, .lc-loading-overlay, .toolbar, .search-bar,
+  .actions-cell, .btn, .tabs, .dashboard-grid {
+    display: none !important;
+  }
+  .main { margin-left: 0 !important; padding: 0 !important; }
+  .content { padding: 20px !important; }
+  .modal-bg { position: static !important; background: none !important; padding: 0 !important; }
+  .modal-bg.show { display: block !important; }
+  .modal { box-shadow: none !important; max-height: none !important; width: 100% !important; border-radius: 0 !important; }
+  .modal-head { display: none !important; }
+  .modal-foot { display: none !important; }
+  .modal-body { padding: 0 !important; }
+}
+
+/* Responsive */
+@media (max-width: 1000px) {
+  .sidebar { width: 210px; }
+  .main { margin-left: 210px; }
+  .dashboard-grid { grid-template-columns: repeat(3, 1fr); }
+  .info-grid { grid-template-columns: repeat(2, 1fr); }
+  .service-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 900px) {
+  .sidebar {
+    transform: translateX(-100%);
+    width: 240px;
+  }
+  .sidebar.open { transform: translateX(0); }
+  .main { margin-left: 0; padding-top: 60px; }
+  .lc-mobile-toggle { display: block; }
+  .lc-sidebar-overlay.active { display: block; }
+  .brand-text .sub { display: none; }
+  .nav-item span:last-child { display: inline; }
+  .dashboard-grid { grid-template-columns: repeat(2, 1fr); }
+  .search-bar { grid-template-columns: 1fr; }
+  .grid { grid-template-columns: 1fr; }
+  .info-grid { grid-template-columns: 1fr; }
+  .consult-fields.show { grid-template-columns: 1fr; }
+  .service-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 600px) {
+  .top-header { height: 56px; padding: 0 16px; }
+  .top-header h1 { font-size: 16px; }
+  .content { padding: 16px; }
+  .toolbar { flex-direction: column; align-items: stretch; }
+  .toolbar-right { flex-wrap: wrap; }
+  .card-header { flex-direction: column; align-items: stretch; }
+  .modal { max-height: 100vh; border-radius: 0; }
+  .modal-head { padding: 12px 16px; }
+  .modal-body { padding: 14px; }
+  .modal-foot { padding: 10px 16px; flex-wrap: wrap; }
+  .dashboard-grid { grid-template-columns: 1fr; }
+  .info-grid { grid-template-columns: 1fr; }
+  .service-grid { grid-template-columns: 1fr 1fr; }
+  .actions-cell .btn { font-size: 10px; padding: 4px 8px; }
+  table { font-size: 11px; }
+  td, th { padding: 8px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ===================== SIDEBAR ===================== -->
+<!-- SIDEBAR (built by shared/labcore-nav.js) -->
+<aside class="sidebar"></aside>
+
+<!-- Mobile Toggle -->
+<button class="lc-mobile-toggle" aria-label="Toggle navigation">☰</button>
+<div class="lc-sidebar-overlay"></div>
+
+<!-- ===================== MAIN CONTENT ===================== -->
+<main class="main">
+  <header class="top-header">
+    <div>
+      <h1>Patient Management</h1>
+      <small>Register patients · Open encounters · View history & billing</small>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <button class="btn btn-sm btn-outline" onclick="exportPatientList()" title="Export Patients">📊</button>
+      <button class="btn btn-sm btn-outline" onclick="showPatientStatistics()" title="Statistics">📈</button>
+      <small id="clock"></small>
+    </div>
+  </header>
+
+  <section class="content">
+        <!-- DELETION REQUESTS BANNER -->
+    <div id="deletionRequestsBanner" style="display:none;margin-bottom:16px;">
+      <div class="alert alert-warning" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <span style="font-size:20px;">🗑️</span>
+        <div style="flex:1;">
+          <strong id="deletionRequestsText">Pending encounter deletion requests</strong>
+        </div>
+        <button class="btn btn-sm btn-primary" onclick="openDeletionRequestsModal()">Review</button>
+      </div>
+    </div>
+    <!-- Dashboard Stats -->
+    <div class="dashboard-grid" id="dashboardStats">
+      <div class="dashboard-card total">
+        <div class="number" id="statTotal">0</div>
+        <div class="label">Total Patients</div>
+      </div>
+      <div class="dashboard-card active">
+        <div class="number" id="statActive">0</div>
+        <div class="label">Active Patients</div>
+      </div>
+      <div class="dashboard-card lab">
+        <div class="number" id="statLabOrders">0</div>
+        <div class="label">Lab Orders</div>
+      </div>
+      <div class="dashboard-card male">
+        <div class="number" id="statMale">0</div>
+        <div class="label">Male</div>
+      </div>
+      <div class="dashboard-card female">
+        <div class="number" id="statFemale">0</div>
+        <div class="label">Female</div>
+      </div>
+      <div class="dashboard-card encounters">
+        <div class="number" id="statEncounters">0</div>
+        <div class="label">Encounters</div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <div>
+        <h2>Registered Patients</h2>
+        <p>Every patient has direct actions: Open Encounter · View Patient · Billing</p>
+      </div>
+      <div class="toolbar-right">
+        <button class="btn btn-sm btn-outline" onclick="showPatientStatistics()">📈 Stats</button>
+        <button class="btn btn-sm btn-outline" onclick="exportPatientList()">📊 Export</button>
+        <button class="btn btn-primary" onclick="openNewPatientModal()">+ Register New Patient</button>
+      </div>
+    </div>
+
+    <div id="pageAlert"></div>
+
+    <div class="card">
+      <div class="card-header">
+        <span>Find Patient</span>
+        <span id="patientCount" style="font-size:12px;color:#5F5B75"></span>
+      </div>
+      <div class="card-body">
+        <div class="search-bar">
+          <input id="searchInput" class="search-input" placeholder="Search name, Patient ID, mobile or National ID…" oninput="filterPatients()">
+          <select id="searchField" onchange="filterPatients()" style="padding:9px 12px;border:1px solid #BDBACB;border-radius:6px;font-size:13px;background:#fff;color:var(--lc-text);">
+            <option value="all">All fields</option>
+            <option value="name">Name</option>
+            <option value="id">Patient ID</option>
+            <option value="mobile">Mobile</option>
+            <option value="nationalId">National ID</option>
+          </select>
+          <button class="btn btn-outline" onclick="clearSearch()">Clear</button>
+        </div>
+        <!-- Quick Filters -->
+        <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;">
+          <span style="font-size:11px;color:var(--lc-muted);margin-right:6px;">Quick filters:</span>
+          <button class="btn btn-xs btn-outline" onclick="quickFilter('all')">All</button>
+          <button class="btn btn-xs btn-outline" onclick="quickFilter('active')">Active</button>
+          <button class="btn btn-xs btn-outline" onclick="quickFilter('lab')">Has Lab Orders</button>
+          <button class="btn btn-xs btn-outline" onclick="quickFilter('male')">Male</button>
+          <button class="btn btn-xs btn-outline" onclick="quickFilter('female')">Female</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span>Patient List</span>
+        <span style="font-size:11px;color:#5F5B75">Actions available on every row</span>
+      </div>
+      <div style="overflow:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>Patient ID</th>
+              <th>Name</th>
+              <th>DOB / Age</th>
+              <th>Sex</th>
+              <th>Mobile</th>
+              <th>Last Encounter</th>
+              <th>Encounters</th>
+              <th style="min-width:270px">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="patientTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- ===================== MODALS ===================== -->
+
+<!-- NEW PATIENT MODAL -->
+<div class="modal-bg" id="newPatientModal">
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <strong>Register New Patient</strong>
+        <div style="font-size:12px;color:#5F5B75;margin-top:2px">Creates permanent Patient ID and opens today's encounter</div>
+      </div>
+      <button class="close" onclick="closeModal('newPatientModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="newPatientAlert"></div>
+      <div class="section-title">Patient Information</div>
+      <div class="grid">
+        <div><label>Full Legal Name <span class="req">*</span></label><input id="np_fullName"></div>
+        <div><label>Preferred Name</label><input id="np_preferredName"></div>
+        <div><label>Date of Birth <span class="req">*</span></label><input type="date" id="np_dob" onchange="calcAge('np')"></div>
+        <div><label>Age</label><input id="np_age" readonly placeholder="Auto"></div>
+        <div><label>Sex <span class="req">*</span></label>
+          <select id="np_sex"><option value="">Select…</option><option>Male</option><option>Female</option><option>Other</option></select>
+        </div>
+        <div><label>National ID / Passport</label><input id="np_nationalId"></div>
+        <div><label>Mobile Number <span class="req">*</span></label><input id="np_mobile" type="tel"></div>
+        <div><label>Email</label><input type="email" id="np_email"></div>
+        <div class="full"><label>Address</label><textarea id="np_address" rows="2"></textarea></div>
+      </div>
+      <div class="section-title">Emergency Contact</div>
+      <div class="grid">
+        <div><label>Contact Name <span class="req">*</span></label><input id="np_emgName"></div>
+        <div><label>Relationship <span class="req">*</span></label>
+          <select id="np_emgRelation"><option value="">Select…</option><option>Spouse</option><option>Parent</option><option>Child</option><option>Sibling</option><option>Friend</option><option>Other</option></select>
+        </div>
+        <div><label>Emergency Mobile <span class="req">*</span></label><input id="np_emgMobile" type="tel"></div>
+        <div><label>Alternative Phone</label><input id="np_altPhone" type="tel"></div>
+      </div>
+      <div class="section-title">Clinical & Payer Details</div>
+      <div class="grid">
+        <div class="full"><label>Known Allergies <span class="req">*</span></label><textarea id="np_allergies" placeholder="List allergies or type NKA"></textarea></div>
+        <div class="full"><label>Chronic Conditions / Current Medications</label><textarea id="np_chronic" rows="2"></textarea></div>
+        <div><label>Blood Group</label>
+          <select id="np_bloodGroup"><option value="">Unknown</option><option>A+</option><option>A-</option><option>B+</option><option>B-</option><option>AB+</option><option>AB-</option><option>O+</option><option>O-</option></select>
+        </div>
+        <div><label>Payment Type</label>
+          <select id="np_paymentType"><option>Self-Pay</option><option>Insurance</option><option>Corporate / Package</option></select>
+        </div>
+        <div><label>Insurance / Scheme Name</label><input id="np_insName"></div>
+        <div><label>Policy / Membership No.</label><input id="np_insNumber"></div>
+      </div>
+      <div class="section-title">Today's Encounter</div>
+      <div id="np_serviceContainer"></div>
+      <div id="np_locationWrap" style="margin-top:14px;">
+  <div class="section-title">Patient Location</div>
+  <div class="grid">
+    <div>
+      <label>Where is the patient now? <span class="req">*</span></label>
+      <select id="np_locationType" onchange="onLocationChange('np')">
+        <option value="">Select location…</option>
+        <option value="OPD">OPD (Outpatient)</option>
+        <option value="Emergency">Emergency</option>
+        <option value="Review">Review / Follow-up</option>
+        <option value="Ward">Ward (Inpatient)</option>
+        <option value="ICU">ICU</option>
+        <option value="HDU">HDU</option>
+        <option value="Theatre">Theatre</option>
+        <option value="DayCase">Day Case</option>
+      </select>
+    </div>
+    <div id="np_triageWrap" style="display:none;">
+      <label>Triage Level <span class="req">*</span></label>
+      <select id="np_triageLevel">
+        <option value="">Select triage…</option>
+        <option value="1">1 — Resuscitation (immediate)</option>
+        <option value="2">2 — Emergent (10 min)</option>
+        <option value="3">3 — Urgent (30 min)</option>
+        <option value="4">4 — Less urgent (60 min)</option>
+        <option value="5">5 — Non-urgent (120 min)</option>
+      </select>
+    </div>
+  </div>
+  <div class="grid" id="np_wardRow" style="display:none; margin-top:10px;">
+    <div>
+      <label>Ward / Unit <span class="req">*</span></label>
+      <select id="np_wardId">
+        <option value="">Select ward…</option>
+      </select>
+    </div>
+    <div>
+      <label>Bed Number <span class="req">*</span></label>
+      <input id="np_bedNumber" placeholder="e.g. B-12">
+    </div>
+  </div>
+  <div class="grid" id="np_admissionRow" style="display:none; margin-top:10px;">
+    <div>
+      <label>Attending Doctor</label>
+      <select id="np_attendingDoctor"><option value="">Select saved doctor…</option></select>
+    </div>
+    <div>
+      <label>Primary Nurse</label>
+      <select id="np_primaryNurse"><option value="">Select saved nurse…</option></select>
+    </div>
+    <div class="full">
+      <label>Provisional Admission Diagnosis</label>
+      <input id="np_admissionDx" placeholder="e.g. ?Acute MI">
+    </div>
+    <div>
+      <label>Expected Stay</label>
+      <select id="np_expectedStay">
+        <option value="">Not specified</option>
+        <option value="< 24h">Less than 24 hours</option>
+        <option value="2-3 days">2–3 days</option>
+        <option value="3-5 days">3–5 days</option>
+        <option value="1 week">About 1 week</option>
+        <option value="> 1 week">More than 1 week</option>
+      </select>
+    </div>
+  </div>
+  <div id="np_triageNoteWrap" style="display:none; margin-top:10px;">
+    <label>Triage Note / Chief Complaint</label>
+    <input id="np_triageNote" placeholder="e.g. Chest pain, onset 2h ago">
+  </div>
+</div>
+      <div class="consult-fields" id="np_consultFields">
+        <div><label>Department <span class="req">*</span></label><select id="np_department" onchange="populateConsultants('np')"><option value="">Select department…</option></select></div>
+        <div><label>Consultant <span class="req">*</span></label><select id="np_consultant"><option value="">Select consultant…</option></select></div>
+      </div>
+      <div class="lab-fields" id="np_labFields">
+        <label>Tests Requested <span class="req">*</span></label>
+        <div class="autocomplete-wrap">
+          <input id="np_labTestInput" placeholder="Type panel (e.g. FBC) or test (e.g. Malaria RDT)…" autocomplete="off">
+          <div class="autocomplete-list" id="np_labSuggestions"></div>
+        </div>
+        <button type="button" class="btn btn-outline btn-sm" style="margin-top:8px" onclick="addLabTestChip('np')">+ Add Test</button>
+        <div class="lab-chip-list" id="np_labChipList"></div>
+      </div>
+      <div style="margin-top:12px"><label>Reason for Visit / Chief Complaint</label><input id="np_complaint"></div>
+      <div style="margin-top:10px"><label>Priority</label>
+        <select id="np_priority"><option value="Routine">Routine</option><option value="Urgent">Urgent</option></select>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="closeModal('newPatientModal')">Cancel</button>
+      <button class="btn btn-success" onclick="saveNewPatient()">Create Patient & Open Encounter</button>
+    </div>
+  </div>
+</div>
+
+<!-- OPEN ENCOUNTER MODAL -->
+<div class="modal-bg" id="encounterModal">
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <strong>Open Today's Encounter</strong>
+        <div style="font-size:12px;color:#5F5B75;margin-top:2px" id="encSubTitle">—</div>
+      </div>
+      <button class="close" onclick="closeModal('encounterModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="encAlert"></div>
+      <div class="section-title">What is the patient here for today?</div>
+      <div id="enc_serviceContainer"></div>
+      <div class="consult-fields" id="enc_consultFields">
+        <div><label>Department <span class="req">*</span></label><select id="enc_department" onchange="populateConsultants('enc')"><option value="">Select department…</option></select></div>
+        <div><label>Consultant <span class="req">*</span></label><select id="enc_consultant"><option value="">Select consultant…</option></select></div>
+      </div>
+      <div class="lab-fields" id="enc_labFields">
+        <label>Tests Requested <span class="req">*</span></label>
+        <div class="autocomplete-wrap">
+          <input id="enc_labTestInput" placeholder="Type panel (e.g. FBC) or test (e.g. Malaria RDT)…" autocomplete="off">
+          <div class="autocomplete-list" id="enc_labSuggestions"></div>
+        </div>
+        <button type="button" class="btn btn-outline btn-sm" style="margin-top:8px" onclick="addLabTestChip('enc')">+ Add Test</button>
+        <div class="lab-chip-list" id="enc_labChipList"></div>
+      </div>
+      <div style="margin-top:14px"><label>Reason for Visit / Chief Complaint</label><input id="enc_complaint"></div>
+      <div style="margin-top:10px"><label>Priority</label>
+        <select id="enc_priority"><option value="Routine">Routine</option><option value="Urgent">Urgent</option></select>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="closeModal('encounterModal')">Cancel</button>
+      <button class="btn btn-success" onclick="createEncounter()">Create Encounter</button>
+    </div>
+  </div>
+</div>
+
+<!-- PATIENT PROFILE MODAL -->
+<div class="modal-bg" id="profileModal">
+  <div class="modal modal-lg">
+    <div class="modal-head">
+      <div>
+        <strong>Patient Profile</strong>
+        <div style="font-size:12px;color:#5F5B75;margin-top:2px" id="profileSubTitle">—</div>
+      </div>
+      <button class="close" onclick="closeModal('profileModal')">×</button>
+    </div>
+    <div class="modal-body" id="profileBody"></div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="closeModal('profileModal')">Close</button>
+      <button class="btn btn-outline" id="profileEditBtn">✏️ Edit Patient</button>
+      <button class="btn btn-primary" id="profileOpenEncBtn">Open New Encounter</button>
+      <button class="btn btn-success" id="profilePrintBtn" onclick="printPatientReport()">🖨️ Print Report</button>
+    </div>
+  </div>
+</div>
+
+<!-- ENCOUNTER DETAIL MODAL -->
+<div class="modal-bg" id="encounterDetailModal">
+  <div class="modal modal-lg">
+    <div class="modal-head">
+      <div>
+        <strong>Encounter Detail</strong>
+        <div style="font-size:12px;color:#5F5B75;margin-top:2px" id="encDetailSubTitle">—</div>
+      </div>
+      <button class="close" onclick="closeModal('encounterDetailModal')">×</button>
+    </div>
+    <div class="modal-body" id="encounterDetailBody"></div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="closeModal('encounterDetailModal')">Close</button>
+      <button class="btn btn-danger" id="encDetailDeleteBtn" style="margin-right:auto">🗑️ Delete Encounter</button>
+      <button class="btn btn-primary" onclick="printEncounterReport()">🖨️ Print Encounter</button>
+    </div>
+  </div>
+</div>
+
+<!-- BILLING MODAL -->
+<div class="modal-bg" id="billingModal">
+  <div class="modal modal-lg">
+    <div class="modal-head">
+      <div>
+        <strong>Patient Billing</strong>
+        <div style="font-size:12px;color:#5F5B75;margin-top:2px" id="billingSubTitle">—</div>
+      </div>
+      <button class="close" onclick="closeModal('billingModal')">×</button>
+    </div>
+    <div class="modal-body" id="billingBody"></div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="closeModal('billingModal')">Close</button>
+      <button class="btn btn-primary" onclick="exportBillingData()">📊 Export Billing</button>
+    </div>
+  </div>
+</div>
+<!-- EDIT PATIENT MODAL -->
+<div class="modal-bg" id="editPatientModal">
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <strong>Edit Patient</strong>
+        <div style="font-size:12px;color:#5F5B75;margin-top:2px" id="editPatientSubTitle">—</div>
+      </div>
+      <button class="close" onclick="closeModal('editPatientModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="editPatientAlert"></div>
+      <div class="section-title">Patient Information</div>
+      <div class="grid">
+        <div><label>Full Legal Name <span class="req">*</span></label><input id="ep_fullName"></div>
+        <div><label>Preferred Name</label><input id="ep_preferredName"></div>
+        <div><label>Date of Birth <span class="req">*</span></label><input type="date" id="ep_dob" onchange="calcAge('ep')"></div>
+        <div><label>Age</label><input id="ep_age" readonly placeholder="Auto"></div>
+        <div><label>Sex <span class="req">*</span></label>
+          <select id="ep_sex"><option value="">Select…</option><option>Male</option><option>Female</option><option>Other</option></select>
+        </div>
+        <div><label>National ID / Passport</label><input id="ep_nationalId"></div>
+        <div><label>Mobile Number <span class="req">*</span></label><input id="ep_mobile" type="tel"></div>
+        <div><label>Email</label><input type="email" id="ep_email"></div>
+        <div class="full"><label>Address</label><textarea id="ep_address" rows="2"></textarea></div>
+      </div>
+
+      <div class="section-title">Emergency Contact</div>
+      <div class="grid">
+        <div><label>Contact Name</label><input id="ep_emgName"></div>
+        <div><label>Relationship</label>
+          <select id="ep_emgRelation">
+            <option value="">Select…</option><option>Spouse</option><option>Parent</option>
+            <option>Child</option><option>Sibling</option><option>Friend</option><option>Other</option>
+          </select>
+        </div>
+        <div><label>Emergency Mobile</label><input id="ep_emgMobile" type="tel"></div>
+        <div><label>Alternative Phone</label><input id="ep_altPhone" type="tel"></div>
+      </div>
+
+      <div class="section-title">Clinical & Payer Details</div>
+      <div class="grid">
+        <div class="full"><label>Known Allergies</label><textarea id="ep_allergies" placeholder="List allergies or type NKA"></textarea></div>
+        <div class="full"><label>Chronic Conditions / Current Medications</label><textarea id="ep_chronic" rows="2"></textarea></div>
+        <div><label>Blood Group</label>
+          <select id="ep_bloodGroup">
+            <option value="">Unknown</option>
+            <option>A+</option><option>A-</option><option>B+</option><option>B-</option>
+            <option>AB+</option><option>AB-</option><option>O+</option><option>O-</option>
+          </select>
+        </div>
+        <div><label>Payment Type</label>
+          <select id="ep_paymentType">
+            <option>Self-Pay</option><option>Insurance</option><option>Corporate / Package</option>
+          </select>
+        </div>
+        <div><label>Insurance / Scheme Name</label><input id="ep_insName"></div>
+        <div><label>Policy / Membership No.</label><input id="ep_insNumber"></div>
+      </div>
+
+      <div class="alert alert-info" style="margin-top:14px">
+        Patient ID, encounters, orders, and billing history cannot be changed here.
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="closeModal('editPatientModal')">Cancel</button>
+      <button class="btn btn-success" onclick="savePatientEdits()">💾 Save Changes</button>
+    </div>
+  </div>
+</div>
+<!-- DELETION REQUESTS MODAL -->
+<div class="modal-bg" id="deletionRequestsModal">
+  <div class="modal modal-lg">
+    <div class="modal-head">
+      <div>
+        <strong>Encounter Deletion Requests</strong>
+        <div style="font-size:12px;color:#5F5B75;margin-top:2px">Receptionist requests awaiting admin review</div>
+      </div>
+      <button class="close" onclick="closeModal('deletionRequestsModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="deletionRequestsBody"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="closeModal('deletionRequestsModal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- REQUEST DELETION MODAL (receptionist path) -->
+<div class="modal-bg" id="requestDeletionModal">
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <strong>Request Encounter Deletion</strong>
+        <div style="font-size:12px;color:#5F5B75;margin-top:2px" id="requestDeletionSubTitle">—</div>
+      </div>
+      <button class="close" onclick="closeModal('requestDeletionModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="requestDeletionAlert"></div>
+      <div class="alert alert-info">
+        Encounter deletion requires admin approval. Your request will be logged and reviewed. The encounter will not be removed until an administrator approves it.
+      </div>
+      <div class="form-group" style="margin-top:14px">
+        <label>Reason for deletion <span class="req">*</span></label>
+        <textarea id="requestDeletionReason" rows="3" placeholder="e.g. Duplicate encounter created in error, patient registered twice"></textarea>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="closeModal('requestDeletionModal')">Cancel</button>
+      <button class="btn btn-warning" onclick="submitDeletionRequest()">📩 Submit Request</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN DELETE ENCOUNTER MODAL -->
+<div class="modal-bg" id="adminDeleteEncounterModal">
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <strong>Delete Encounter</strong>
+        <div style="font-size:12px;color:#5F5B75;margin-top:2px" id="adminDeleteSubTitle">—</div>
+      </div>
+      <button class="close" onclick="closeModal('adminDeleteEncounterModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="adminDeleteAlert"></div>
+      <div class="alert alert-danger">
+        This is a soft-delete. The encounter is hidden from normal views but remains in the patient record and audit trail, as required by ISO 15189. It cannot be permanently erased.
+      </div>
+      <div class="form-group" style="margin-top:14px">
+        <label>Reason for deletion <span class="req">*</span></label>
+        <textarea id="adminDeleteReason" rows="3" placeholder="e.g. Duplicate encounter, created in error"></textarea>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="closeModal('adminDeleteEncounterModal')">Cancel</button>
+      <button class="btn btn-danger" onclick="confirmAdminDelete()">🗑️ Soft-Delete Encounter</button>
+    </div>
+  </div>
+</div>
+
+<!-- STATISTICS MODAL -->
+<div class="modal-bg" id="statsModal">
+  <div class="modal modal-lg">
+    <div class="modal-head">
+      <div>
+        <strong>Patient Statistics</strong>
+        <div style="font-size:12px;color:#5F5B75;margin-top:2px" id="statsSubTitle">Demographic and activity overview</div>
+      </div>
+      <button class="close" onclick="closeModal('statsModal')">×</button>
+    </div>
+    <div class="modal-body" id="statsBody"></div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="closeModal('statsModal')">Close</button>
+      <button class="btn btn-primary" onclick="exportStatistics()">📊 Export Stats</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script src="shared/labcore-api.js"></script>
+<script src="shared/labcore-utils.js"></script>
+<script src="shared/labcore-ward.js"></script>
+<script src="shared/labcore-auth.js"></script>
+<script src="shared/labcore-staff.js"></script>
+<script src="shared/labcore-audit.js"></script>
+<script src="shared/labcore-settings.js"></script>
+<script src="shared/labcore-pricing.js"></script>
+<script src="shared/labcore-icons.js"></script>
+<script src="shared/labcore-nav.js"></script>
+<script src="shared/labcore-search.js"></script>
+<script src="shared/labcore-notifications.js"></script>
+<script src="shared/labcore-print-preview.js"></script>
+<script src="shared/labcore-timeline.js"></script>
+<script>
+/* =========================================================
+   DATA & CONFIGURATION
+========================================================= */
+
+
+var departments = {};
+var clinicianDirectory = [];
+var clinicianDirectoryPromise = null;
+
+function loadClinicianDirectory() {
+  if (clinicianDirectoryPromise) return clinicianDirectoryPromise;
+  clinicianDirectoryPromise = window.lcApiGetStaffDirectory().then(function (staff) {
+    if (!Array.isArray(staff)) throw new Error('The staff directory response was invalid.');
+    clinicianDirectory = staff;
+    departments = {};
+    staff.filter(function (member) { return member.role === 'doctor' && member.department; })
+      .forEach(function (doctor) {
+        if (!departments[doctor.department]) departments[doctor.department] = [];
+        departments[doctor.department].push(doctor);
+      });
+    populateDepartmentOptions('np');
+    populateDepartmentOptions('enc');
+    populateAdmissionStaffOptions();
+    return staff;
+  }).catch(function (error) {
+    clinicianDirectoryPromise = null;
+    console.error('Unable to load saved clinician accounts:', error);
+    showToast('Could not load saved clinician accounts. Please retry before assigning staff.', 'error');
+    throw error;
+  });
+  return clinicianDirectoryPromise;
+}
+
+function populateDepartmentOptions(prefix) {
+  var select = document.getElementById(prefix + '_department');
+  if (!select) return;
+  var current = select.value;
+  select.innerHTML = '<option value="">Select department…</option>';
+  Object.keys(departments).sort().forEach(function (name) {
+    var option = document.createElement('option');
+    option.value = name;
+    option.textContent = name;
+    select.appendChild(option);
+  });
+  if (current && departments[current]) select.value = current;
+}
+
+function populateAdmissionStaffOptions() {
+  ['doctor', 'nurse'].forEach(function (role) {
+    var select = document.getElementById('np_attendingDoctor');
+    if (role === 'nurse') select = document.getElementById('np_primaryNurse');
+    if (!select) return;
+    select.innerHTML = '<option value="">Select saved ' + role + '…</option>';
+    clinicianDirectory.filter(function (staff) { return staff.role === role; })
+      .forEach(function (staff) {
+        var option = document.createElement('option');
+        option.value = staff.id;
+        option.textContent = staff.name + (staff.department ? ' · ' + staff.department : '');
+        select.appendChild(option);
+      });
+  });
+}
+
+var serviceOptions = [
+  { id: "OPD", icon: "🏥", name: "OPD", desc: "General Outpatient" },
+  { id: "ER", icon: "🚨", name: "Emergency", desc: "Triage / Acute" },
+  { id: "Consultation", icon: "👨‍⚕️", name: "Consultation", desc: "Specialist visit" },
+  { id: "Review", icon: "🩺", name: "Review / Follow-up", desc: "Return visit" },
+  { id: "Laboratory", icon: "🧪", name: "Laboratory", desc: "Sample / Tests" },
+  { id: "Pharmacy", icon: "💊", name: "Pharmacy", desc: "Medication only" },
+  { id: "Radiology", icon: "🩻", name: "Imaging / Radiology", desc: "X-ray / Scan" },
+  { id: "Nursing", icon: "👩‍⚕️", name: "Nursing", desc: "Procedures / Care" },
+  { id: "Other", icon: "📋", name: "Other", desc: "Specify in reason" }
+];
+
+/* =========================================================
+   LAB TEST CATALOGUE
+========================================================= */
+var configuredPanels = [];
+try { configuredPanels = JSON.parse(localStorage.getItem("labcore_panels") || "null") || []; } catch (e) { configuredPanels = []; }
+if (!configuredPanels.length) {
+  try { configuredPanels = JSON.parse(localStorage.getItem("lc_panels") || "[]"); } catch (e) { configuredPanels = []; }
+}
+
+var labCatalogue = [];
+configuredPanels.forEach(function(p) {
+  var panelName = p.name || p.code || "Panel";
+  var panelCode = p.code || "";
+  labCatalogue.push({
+    name: panelName, code: panelCode, panel: panelName, kind: "panel",
+    label: panelName + (panelCode ? " (" + panelCode + ")" : "") + " · Panel"
+  });
+  (p.tests || []).forEach(function(t) {
+    if (!t || !t.name) return;
+    labCatalogue.push({
+      name: t.name, code: t.code || "", panel: panelName, kind: "test",
+      label: t.name + " — " + panelName
+    });
+  });
+});
+
+if (labCatalogue.length === 0) {
+  var fallback = [
+    { name: "Full Blood Count", code: "FBC", kind: "panel" },
+    { name: "Liver Function Test", code: "LFT", kind: "panel" },
+    { name: "Renal Function Test", code: "RFT", kind: "panel" },
+    { name: "Lipid Profile", code: "LIP", kind: "panel" },
+    { name: "Malaria RDT", code: "MRDT", kind: "test" },
+    { name: "Blood Glucose (RBS)", code: "RBS", kind: "test" },
+    { name: "HbA1c", code: "HBA1C", kind: "test" },
+    { name: "Urinalysis", code: "URINE", kind: "panel" },
+    { name: "HIV Screening", code: "HIV", kind: "test" },
+    { name: "HBsAg", code: "HBSAG", kind: "test" },
+    { name: "HCV", code: "HCV", kind: "test" }
+  ];
+  labCatalogue = fallback.map(function(f) {
+    return {
+      name: f.name,
+      code: f.code,
+      panel: f.name,
+      kind: f.kind,
+      label: f.name + (f.kind === "panel" ? " · Panel" : ""),
+      source: "fallback"
+    };
+  });
+}
+
+var selectedLabTests = { np: [], enc: [] };
+
+/* =========================================================
+   PATIENTS DATA
+========================================================= */
+var patients = JSON.parse(localStorage.getItem("hms_patients_v3") || "null") || [];
+
+// Pull the freshest copy from the server in the background.
+(async function refreshPatientsFromServer() {
+  if (!window.lcApiGetPatients || !window.lcApiReady || !window.lcApiReady()) return;
+  try {
+    var serverPatients = await window.lcApiGetPatients();
+    if (!Array.isArray(serverPatients)) return;
+
+    // Merge strategy:
+    //  - Server version wins for any patient that exists on both sides.
+    //  - Local-only patients (created offline) stay local until pushed.
+    var byId = {};
+    serverPatients.forEach(function (p) { byId[p.id] = p; });
+    patients.forEach(function (p) { if (!byId[p.id]) byId[p.id] = p; });
+
+    patients = Object.values(byId);
+    localStorage.setItem('hms_patients_v3', JSON.stringify(patients));
+
+    if (typeof renderPatients === 'function') {
+      try { renderPatients(); } catch (e) {}
+    }
+    if (typeof updateDashboardStats === 'function') {
+      try { updateDashboardStats(); } catch (e) {}
+    }
+    console.log('[patients] refreshed from server:', serverPatients.length, 'records');
+  } catch (e) {
+    console.warn('[patients] could not load from server:', e.message);
+  }
+})();
+
+var selectedService = null;
+/* =========================================================
+   WARD / LOCATION / ADMISSION HANDLING
+========================================================= */
+function populateWardSelect() {
+  var sel = document.getElementById('np_wardId');
+  if (!sel) return;
+  var wards = (window.lcWardCatalogue && window.lcWardCatalogue.wards) || [];
+  sel.innerHTML = '<option value="">Select ward…</option>' +
+    wards.map(function (w) {
+      return '<option value="' + w.id + '">' + w.name + ' (' + w.beds + ' beds)</option>';
+    }).join('');
+}
+
+function onLocationChange(prefix) {
+  var loc = document.getElementById(prefix + '_locationType').value;
+  var triageWrap = document.getElementById(prefix + '_triageWrap');
+  var wardRow = document.getElementById(prefix + '_wardRow');
+  var admissionRow = document.getElementById(prefix + '_admissionRow');
+  var triageNoteWrap = document.getElementById(prefix + '_triageNoteWrap');
+
+  var needsTriage = (loc === 'Emergency');
+  var needsWard = (loc === 'Ward' || loc === 'ICU' || loc === 'HDU' || loc === 'Theatre' || loc === 'DayCase');
+
+  if (triageWrap) triageWrap.style.display = needsTriage ? 'block' : 'none';
+  if (triageNoteWrap) triageNoteWrap.style.display = needsTriage ? 'block' : 'none';
+  if (wardRow) wardRow.style.display = needsWard ? 'grid' : 'none';
+  if (admissionRow) admissionRow.style.display = needsWard ? 'grid' : 'none';
+
+  if (needsWard && !document.getElementById(prefix + '_wardId').dataset.wired) {
+    populateWardSelect();
+    document.getElementById(prefix + '_wardId').dataset.wired = '1';
+  }
+}
+
+// wire location on modal open
+var _origOpenNewPatient = openNewPatientModal;
+openNewPatientModal = function () {
+  _origOpenNewPatient();
+  var loc = document.getElementById('np_locationType');
+  if (loc) loc.value = '';
+  onLocationChange('np');
+};
+var currentPatientForEncounter = null;
+var currentProfilePatient = null;
+
+/* =========================================================
+   TOAST FUNCTION
+========================================================= */
+function showToast(message, type) {
+  type = type || 'info';
+  var container = document.getElementById('toastContainer');
+  var toast = document.createElement('div');
+  toast.className = 'toast toast-' + type;
+  toast.textContent = message;
+  container.appendChild(toast);
+  setTimeout(function() {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateX(100%)';
+    toast.style.transition = 'all 0.3s ease-out';
+    setTimeout(function() { toast.remove(); }, 400);
+  }, 4000);
+}
+
+/* =========================================================
+   UTILITY FUNCTIONS
+========================================================= */
+function $(id) {
+  return document.getElementById(id);
+}
+
+function calcAge(prefix) {
+  var dob = $(prefix + "_dob").value;
+  if (!dob) { $(prefix + "_age").value = ""; return; }
+  var birth = new Date(dob);
+  var today = new Date();
+  var age = today.getFullYear() - birth.getFullYear();
+  var m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+  $(prefix + "_age").value = age + " years";
+}
+
+function ageFromDob(dob) {
+  if (!dob) return "—";
+  var birth = new Date(dob);
+  var today = new Date();
+  var age = today.getFullYear() - birth.getFullYear();
+  var m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+  return age + " yrs";
+}
+
+function generatePatientId() {
+  // Facility short code from Settings, fallback to LC
+  var shortCode = "LC";
+  try {
+    if (window.lcSettings && typeof window.lcSettings.facilityShort === "function") {
+      var s = window.lcSettings.facilityShort();
+      if (s && s.trim()) shortCode = s.trim().toUpperCase();
+    }
+  } catch (e) {}
+  // Sanitise: uppercase letters/digits only, max 8 chars
+  shortCode = shortCode.replace(/[^A-Z0-9]/g, "").slice(0, 8) || "LC";
+
+  // Date stamp: YYMMDD
+  var d = new Date();
+  var yy = String(d.getFullYear()).slice(-2);
+  var mm = String(d.getMonth() + 1).padStart(2, "0");
+  var dd = String(d.getDate()).padStart(2, "0");
+  var datePart = yy + mm + dd;
+
+  // Sequence resets each day: count how many patients were registered today
+  var prefix = shortCode + "-" + datePart;
+  var todayCount = 0;
+  patients.forEach(function (p) {
+    if (p.id && p.id.indexOf(prefix) === 0) {
+      var seqStr = p.id.slice(prefix.length);
+      var n = parseInt(seqStr, 10);
+      if (!isNaN(n) && n > todayCount) todayCount = n;
+    }
+  });
+  var next = todayCount + 1;
+  var seqPadded = next < 1000 ? String(next).padStart(3, "0") : String(next);
+  return prefix + seqPadded;
+}
+
+function generateEncounterId() {
+  var d = new Date();
+  var datePart = d.toISOString().slice(0,10).replace(/-/g, "");
+  var seq = String(Math.floor(Math.random() * 9000) + 1000);
+  return "ENC-" + datePart + "-" + seq;
+}
+
+function saveToStorage() {
+  // 1. Always save locally first — instant, offline-safe
+  localStorage.setItem("hms_patients_v3", JSON.stringify(patients));
+
+  // 2. Then push to the server in the background
+  if (window.lcApiSavePatients) {
+    window.lcApiSavePatients(patients)
+      .then(function (res) {
+        console.log('[patients] synced to server:', res);
+      })
+      .catch(function (err) {
+        console.warn('[patients] server sync failed:', err.message);
+        if (window.lcToast) {
+          window.lcToast('Saved locally. Server sync failed: ' + err.message, 'warning');
+        }
+      });
+  }
+}
+
+function showPageAlert(msg, type) {
+  type = type || 'success';
+  var el = document.getElementById("pageAlert");
+  el.innerHTML = '<div class="alert alert-' + type + '">' + msg + '</div>';
+  setTimeout(function() { el.innerHTML = ""; }, 8000);
+}
+
+function showModalAlert(prefix, msg) {
+  var el = $(prefix + "Alert");
+  if (el) el.innerHTML = '<div class="alert alert-danger">' + msg + '</div>';
+}
+
+function esc(str) {
+  return String(str || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function formatMoney(n) {
+  return "GHS " + Number(n).toFixed(2);
+}
+
+function statusBadge(status) {
+  var map = {
+    "Waiting": "badge-warning",
+    "In Progress": "badge-info",
+    "Completed": "badge-success",
+    "Cancelled": "badge-danger"
+  };
+  return '<span class="badge ' + (map[status] || "badge-secondary") + '">' + status + '</span>';
+}
+
+/* =========================================================
+   DASHBOARD STATS
+========================================================= */
+function updateDashboardStats() {
+  var total = patients.length;
+  var active = 0, male = 0, female = 0, labOrders = 0, encounters = 0;
+
+  patients.forEach(function (p) {
+    var visibleEncounters = (p.encounters || []).filter(function (e) {
+      return e.status !== "Deleted";
+    });
+
+    if (visibleEncounters.length > 0) {
+      active++;
+      encounters += visibleEncounters.length;
+      visibleEncounters.forEach(function (e) {
+        (e.orders || []).forEach(function (o) {
+          if (o.type === "Laboratory") labOrders++;
+        });
+      });
+    }
+
+    if (p.sex === "Male") male++;
+    else if (p.sex === "Female") female++;
+  });
+
+  document.getElementById('statTotal').textContent = total;
+  document.getElementById('statActive').textContent = active;
+  document.getElementById('statLabOrders').textContent = labOrders;
+  document.getElementById('statMale').textContent = male;
+  document.getElementById('statFemale').textContent = female;
+  document.getElementById('statEncounters').textContent = encounters;
+}
+
+/* =========================================================
+   RENDER PATIENTS
+========================================================= */
+var currentFilter = 'all';
+
+function renderPatients(list) {
+  list = list || patients.filter(function(p) { return p.status !== 'merged'; });
+  document.getElementById("patientCount").textContent = list.length + " patient" + (list.length !== 1 ? "s" : "");
+  var tbody = document.getElementById("patientTable");
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="8" class="empty">No patients match the current filter.</td></tr>';
+    return;
+  }
+  var html = '';
+  list.forEach(function(p) {
+    var last = p.encounters && p.encounters.length ? p.encounters[p.encounters.length - 1] : null;
+    var lastText = last ? last.date + ' · ' + last.service : "No encounters";
+    var hasOrders = p.encounters && p.encounters.some(function(e) { return (e.orders || []).length > 0; });
+    html += '<tr>' +
+      '<td><strong>' + p.id + '</strong></td>' +
+      '<td><strong>' + esc(p.fullName) + '</strong>' + (hasOrders ? ' 🧪' : '') + '</td>' +
+      '<td>' + (p.dob || "—") + ' <span style="color:#5F5B75">(' + ageFromDob(p.dob) + ')</span></td>' +
+      '<td>' + (p.sex || "—") + '</td>' +
+      '<td>' + (p.mobile || "—") + '</td>' +
+      '<td>' + lastText + '</td>' +
+      '<td>' + (p.encounters ? p.encounters.length : 0) + '</td>' +
+      '<td class="actions-cell">' +
+      '<button class="btn btn-primary btn-sm" onclick="openEncounterModal(\'' + p.id + '\')">Open Encounter</button> ' +
+      '<button class="btn btn-outline btn-sm" onclick="openProfile(\'' + p.id + '\')">View Patient</button> ' +
+      '<button class="btn btn-outline btn-sm" onclick="openEditPatient(\'' + p.id + '\')">✏️ Edit</button> ' +
+      '<button class="btn btn-warning btn-sm" onclick="openBilling(\'' + p.id + '\')">Billing</button>' +
+      '</td>' +
+      '</tr>';
+  });
+  tbody.innerHTML = html;
+  updateDashboardStats();
+}
+
+/* =========================================================
+   FILTER PATIENTS
+========================================================= */
+function filterPatients() {
+  var q = document.getElementById("searchInput").value.toLowerCase().trim();
+  var field = document.getElementById("searchField").value;
+  var filtered = patients.filter(function(p) { return p.status !== 'merged'; });
+  
+  if (currentFilter !== 'all') {
+    if (currentFilter === 'active') {
+      filtered = filtered.filter(function(p) { return p.encounters && p.encounters.length > 0; });
+    } else if (currentFilter === 'lab') {
+      filtered = filtered.filter(function(p) { return p.encounters && p.encounters.some(function(e) { return (e.orders || []).some(function(o) { return o.type === "Laboratory"; }); }); });
+    } else if (currentFilter === 'male') {
+      filtered = filtered.filter(function(p) { return p.sex === "Male"; });
+    } else if (currentFilter === 'female') {
+      filtered = filtered.filter(function(p) { return p.sex === "Female"; });
+    }
+  }
+  
+  if (q) {
+    filtered = filtered.filter(function(p) {
+      var searchText = (p.fullName || "") + " " + (p.id || "") + " " + (p.mobile || "") + " " + (p.nationalId || "");
+      return searchText.toLowerCase().includes(q);
+    });
+  }
+  renderPatients(filtered);
+}
+
+function clearSearch() {
+  document.getElementById("searchInput").value = "";
+  document.getElementById("searchField").value = "all";
+  currentFilter = 'all';
+  renderPatients();
+}
+
+function quickFilter(type) {
+  currentFilter = type;
+  filterPatients();
+}
+
+/* =========================================================
+   SERVICE CARDS
+========================================================= */
+function buildServiceCards(containerId, prefix) {
+  var container = $(containerId);
+  var html = '<div class="service-grid">';
+  serviceOptions.forEach(function(s) {
+    html += '<div class="service-card" data-service="' + s.id + '" onclick="selectService(\'' + prefix + '\', \'' + s.id + '\', this)">' +
+      '<div class="icon">' + s.icon + '</div>' +
+      '<div class="name">' + s.name + '</div>' +
+      '<div class="desc">' + s.desc + '</div>' +
+      '</div>';
+  });
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function selectService(prefix, serviceId, el) {
+  var container = el.closest(".service-grid");
+  container.querySelectorAll(".service-card").forEach(function(c) { c.classList.remove("selected"); });
+  el.classList.add("selected");
+  selectedService = serviceId;
+
+  var consultBox = $(prefix + "_consultFields");
+  var labBox = $(prefix + "_labFields");
+
+  if (serviceId === "Consultation") {
+    consultBox.classList.add("show");
+    var deptSelect = $(prefix + "_department");
+    if (deptSelect.options.length <= 1) {
+      loadClinicianDirectory().catch(function () {});
+    }
+  } else {
+    consultBox.classList.remove("show");
+  }
+
+  if (serviceId === "Laboratory") {
+    labBox.classList.add("show");
+    if (!labBox.dataset.wired) {
+      setupLabAutocomplete(prefix);
+      labBox.dataset.wired = "1";
+    }
+  } else {
+    labBox.classList.remove("show");
+  }
+}
+
+function populateConsultants(prefix) {
+  var dept = $(prefix + "_department").value;
+  var consSelect = $(prefix + "_consultant");
+  consSelect.innerHTML = '<option value="">Select consultant…</option>';
+  if (dept && departments[dept]) {
+    departments[dept].forEach(function(c) {
+      var opt = document.createElement("option");
+      opt.value = c.id; opt.textContent = c.name;
+      consSelect.appendChild(opt);
+    });
+  }
+}
+
+/* =========================================================
+   LAB AUTOCOMPLETE
+========================================================= */
+function setupLabAutocomplete(prefix) {
+  var input = document.getElementById(prefix + "_labTestInput");
+  var list = document.getElementById(prefix + "_labSuggestions");
+  if (!input || !list) return;
+
+  input.addEventListener("input", function() {
+    var q = input.value.trim().toLowerCase();
+    if (q.length < 1) { list.classList.remove("show"); return; }
+    var matches = labCatalogue.filter(function(item) {
+      var name = (item.name || "").toLowerCase();
+      var code = (item.code || "").toLowerCase();
+      var label = (item.label || "").toLowerCase();
+      return name.includes(q) || code.includes(q) || label.includes(q);
+    }).slice(0, 14);
+
+    if (matches.length) {
+      var html = '';
+      matches.forEach(function(item) {
+        var kindBadge = item.kind === "panel"
+          ? '<span class="code" style="background:#E5F1EA;color:#23714c">PANEL</span>'
+          : '<span class="code">TEST</span>';
+        html += '<div class="autocomplete-item" data-value="' + esc(item.name) + '">' + esc(item.label) + ' ' + kindBadge + '</div>';
+      });
+      list.innerHTML = html;
+    } else {
+      list.innerHTML = '<div class="autocomplete-item" style="color:#5F5B75;font-style:italic">No match – you can still add "' + esc(input.value) + '"</div>';
+    }
+    list.classList.add("show");
+  });
+
+  list.addEventListener("click", function(e) {
+    var item = e.target.closest(".autocomplete-item");
+    if (!item || !item.dataset.value) return;
+    input.value = item.dataset.value;
+    list.classList.remove("show");
+    addLabTestChip(prefix);
+  });
+
+  document.addEventListener("click", function(e) {
+    if (!input.contains(e.target) && !list.contains(e.target)) list.classList.remove("show");
+  });
+}
+
+function addLabTestChip(prefix) {
+  var input = document.getElementById(prefix + "_labTestInput");
+  var name = input.value.trim();
+  if (!name) return;
+  if (!selectedLabTests[prefix]) selectedLabTests[prefix] = [];
+  if (!selectedLabTests[prefix].some(function(t) { return t.toLowerCase() === name.toLowerCase(); })) {
+    selectedLabTests[prefix].push(name);
+  }
+  input.value = "";
+  document.getElementById(prefix + "_labSuggestions").classList.remove("show");
+  renderLabChips(prefix);
+}
+
+function removeLabTestChip(prefix, index) {
+  selectedLabTests[prefix].splice(index, 1);
+  renderLabChips(prefix);
+}
+
+function renderLabChips(prefix) {
+  var wrap = document.getElementById(prefix + "_labChipList");
+  if (!wrap) return;
+  var list = selectedLabTests[prefix] || [];
+  var html = '';
+  list.forEach(function(name, i) {
+    html += '<span class="lab-chip">' + esc(name) + ' <button type="button" onclick="removeLabTestChip(\'' + prefix + '\', ' + i + ')">✕</button></span>';
+  });
+  wrap.innerHTML = html;
+}
+
+function applyLabOrdersToEncounter(encounter, prefix) {
+  var priority = $(prefix + "_priority") ? $(prefix + "_priority").value : "Routine";
+  var now = new Date().toISOString();
+  (selectedLabTests[prefix] || []).forEach(function (testName) {
+    var cfg = labCatalogue.find(function (x) { return x.name === testName; });
+    var isPanel = cfg && cfg.kind === 'panel';
+
+    encounter.orders.push({
+      type: "Laboratory",
+      item: testName,
+      kind: isPanel ? 'panel' : 'test',
+      priority: priority,
+      note: "",
+      status: "Pending",
+      orderedAt: now
+    });
+
+    var price = 0;
+    if (window.lcGetPanelPrice && window.lcGetTestPrice) {
+      price = isPanel
+        ? window.lcGetPanelPrice(testName, 0)
+        : window.lcGetTestPrice(testName, 0);
+    } else if (window.lcGetLabTestPrice) {
+      price = window.lcGetLabTestPrice(testName, 0);
+    }
+    var billingLine = { item: testName, amount: price };
+    if (price <= 0) billingLine.needsPricing = true;
+    encounter.billing.push(billingLine);
+  });
+}
+
+/* =========================================================
+   NEW PATIENT - FIXED & WORKING
+========================================================= */
+function openNewPatientModal() {
+  selectedService = null;
+  loadClinicianDirectory().catch(function () {});
+  
+  // Reset all text inputs
+  var textFields = ["fullName","preferredName","nationalId","mobile","email","address",
+    "emgName","emgMobile","altPhone","allergies","chronic","insName","insNumber","complaint"];
+  textFields.forEach(function(f) { 
+    var el = document.getElementById("np_" + f);
+    if (el) { 
+      if (el.tagName === "INPUT" || el.tagName === "TEXTAREA") {
+        el.value = ""; 
+      }
+    }
+  });
+  
+  // Reset date
+  var dob = document.getElementById("np_dob");
+  if (dob) dob.value = "";
+  
+  // Reset age
+  var age = document.getElementById("np_age");
+  if (age) age.value = "";
+  
+  // Reset selects
+  var selectFields = ["sex","emgRelation","bloodGroup","paymentType","priority"];
+  selectFields.forEach(function(s) {
+    var el = document.getElementById("np_" + s);
+    if (el) { 
+      el.value = ""; 
+      if (s === "paymentType") el.value = "Self-Pay";
+      if (s === "priority") el.value = "Routine";
+    }
+  });
+  
+  // Hide consult fields
+  var consultBox = document.getElementById("np_consultFields");
+  if (consultBox) consultBox.classList.remove("show");
+  
+  // Reset department dropdown
+  var deptSelect = document.getElementById("np_department");
+  if (deptSelect) {
+    deptSelect.innerHTML = '<option value="">Select department…</option>';
+    populateDepartmentOptions("np");
+  }
+  
+  // Reset consultant dropdown
+  var consSelect = document.getElementById("np_consultant");
+  if (consSelect) {
+    consSelect.innerHTML = '<option value="">Select consultant…</option>';
+  }
+  populateAdmissionStaffOptions();
+  
+  // Hide lab fields
+  var labFields = document.getElementById("np_labFields");
+  if (labFields) labFields.classList.remove("show");
+  
+  // Reset lab tests
+  selectedLabTests.np = [];
+  renderLabChips("np");
+  
+  // Clear alert
+  var alertEl = document.getElementById("newPatientAlert");
+  if (alertEl) alertEl.innerHTML = "";
+  
+  // Build service cards
+  var container = document.getElementById("np_serviceContainer");
+  if (container) {
+    buildServiceCards("np_serviceContainer", "np");
+  }
+  
+  // Show modal
+  var modal = document.getElementById("newPatientModal");
+  if (modal) {
+    modal.classList.add("show");
+  }
+  
+  // Focus on name field
+  setTimeout(function() { 
+    var nameField = document.getElementById("np_fullName");
+    if (nameField) nameField.focus(); 
+  }, 200);
+}
+
+function saveNewPatient() {
+  var required = [
+    ["np_fullName","Full Legal Name"],["np_dob","Date of Birth"],["np_sex","Sex"],
+    ["np_mobile","Mobile Number"],["np_emgName","Emergency Contact Name"],
+    ["np_emgRelation","Emergency Relationship"],["np_emgMobile","Emergency Mobile"],
+    ["np_allergies","Known Allergies"],
+    ["np_locationType","Patient Location"]
+  ];
+
+    var locType = document.getElementById("np_locationType").value;
+  if (locType === 'Emergency' && !document.getElementById("np_triageLevel").value) {
+    showModalAlert("newPatient", "Please select a triage level for Emergency patients.");
+    return;
+  }
+  if (['Ward','ICU','HDU','Theatre','DayCase'].indexOf(locType) >= 0) {
+    if (!document.getElementById("np_wardId").value) {
+      showModalAlert("newPatient", "Please select a ward.");
+      return;
+    }
+    if (!document.getElementById("np_bedNumber").value.trim()) {
+      showModalAlert("newPatient", "Please enter a bed number.");
+      return;
+    }
+  }
+  for (var i = 0; i < required.length; i++) {
+    var id = required[i][0];
+    var label = required[i][1];
+    var el = document.getElementById(id);
+    if (!el || !el.value.trim()) { 
+      showModalAlert("newPatient", "Please complete: " + label);
+      if (el) el.focus();
+      return; 
+    }
+  }
+  if (!selectedService) { showModalAlert("newPatient", "Please select the reason for today's visit."); return; }
+  if (selectedService === "Consultation" && (!document.getElementById("np_department").value || !document.getElementById("np_consultant").value)) {
+    showModalAlert("newPatient", "Please select Department and Consultant."); return;
+  }
+  if (selectedService === "Laboratory" && (!selectedLabTests.np || !selectedLabTests.np.length)) {
+    showModalAlert("newPatient", "Add at least one test."); return;
+  }
+
+  var patient = {
+    id: generatePatientId(),
+    fullName: document.getElementById("np_fullName").value.trim(),
+    preferredName: document.getElementById("np_preferredName").value.trim(),
+    dob: document.getElementById("np_dob").value,
+    sex: document.getElementById("np_sex").value,
+    nationalId: document.getElementById("np_nationalId").value.trim(),
+    mobile: document.getElementById("np_mobile").value.trim(),
+    email: document.getElementById("np_email").value.trim(),
+    address: document.getElementById("np_address").value.trim(),
+    emgName: document.getElementById("np_emgName").value.trim(),
+    emgRelation: document.getElementById("np_emgRelation").value,
+    emgMobile: document.getElementById("np_emgMobile").value.trim(),
+    altPhone: document.getElementById("np_altPhone").value.trim(),
+    allergies: document.getElementById("np_allergies").value.trim(),
+    chronic: document.getElementById("np_chronic").value.trim(),
+    bloodGroup: document.getElementById("np_bloodGroup").value,
+    paymentType: document.getElementById("np_paymentType").value,
+    insName: document.getElementById("np_insName").value.trim(),
+    insNumber: document.getElementById("np_insNumber").value.trim(),
+    encounters: []
+  };
+
+  var selectedDoctor = clinicianDirectory.find(function (staff) {
+    return staff.id === document.getElementById("np_consultant").value;
+  });
+  var attendingDoctor = clinicianDirectory.find(function (staff) {
+    return staff.id === document.getElementById("np_attendingDoctor").value;
+  });
+  var primaryNurse = clinicianDirectory.find(function (staff) {
+    return staff.id === document.getElementById("np_primaryNurse").value;
+  });
+  var encounter = {
+    visitId: generateEncounterId(),
+    date: new Date().toISOString().slice(0, 10),
+    service: selectedService,
+    department: selectedService === "Consultation" ? document.getElementById("np_department").value : null,
+    consultant: selectedService === "Consultation" && selectedDoctor ? selectedDoctor.name : null,
+    consultantId: selectedService === "Consultation" && selectedDoctor ? selectedDoctor.id : null,
+    chiefComplaint: document.getElementById("np_complaint").value.trim(),
+    priority: document.getElementById("np_priority").value,
+    status: "Waiting",
+    createdAt: new Date().toISOString(),
+    closedAt: null,
+    clinicalNotes: "",
+    orders: [],
+    billing: [],
+        locationType: document.getElementById("np_locationType").value || "OPD",
+    triageLevel: document.getElementById("np_triageLevel") ? Number(document.getElementById("np_triageLevel").value) || null : null,
+    triageNote: document.getElementById("np_triageNote") ? document.getElementById("np_triageNote").value.trim() : ""
+    
+  };
+  patient.encounters.push(encounter);
+    // If this is an admission (Ward/ICU/HDU/Theatre/DayCase), create an admission record
+  var locType = encounter.locationType;
+  var admissionLocations = ['Ward', 'ICU', 'HDU', 'Theatre', 'DayCase'];
+  if (admissionLocations.indexOf(locType) >= 0) {
+    var wardSel = document.getElementById("np_wardId");
+    var wardId = wardSel ? wardSel.value : '';
+    var ward = (window.lcWardCatalogue && window.lcWardCatalogue.wards.find(function(w){return w.id === wardId;})) || null;
+    var admitResult = window.lcAdmit(patient.id, {
+      ward: ward ? ward.name : '',
+      wardId: wardId,
+      bed: document.getElementById("np_bedNumber").value.trim(),
+      locationType: locType,
+      triageLevel: encounter.triageLevel,
+      triageNote: encounter.triageNote,
+      diagnosis: document.getElementById("np_admissionDx").value.trim(),
+      expectedStay: document.getElementById("np_expectedStay").value,
+      attendingDoctor: attendingDoctor ? attendingDoctor.name : "",
+      attendingDoctorId: attendingDoctor ? attendingDoctor.id : "",
+      primaryNurse: primaryNurse ? primaryNurse.name : "",
+      primaryNurseId: primaryNurse ? primaryNurse.id : ""
+    });
+    if (admitResult.ok) {
+      encounter.admissionId = admitResult.admissionId;
+    }
+  }
+  if (selectedService === "Laboratory") applyLabOrdersToEncounter(encounter, "np");
+  patients.push(patient);
+  saveToStorage();
+  closeModal("newPatientModal");
+  renderPatients();
+  showToast("Patient " + patient.id + " created and encounter " + encounter.visitId + " opened", "success");
+  showPageAlert("Patient <strong>" + patient.id + "</strong> created and encounter <strong>" + encounter.visitId + "</strong> opened (" + encounter.service + ").");
+}
+
+/* =========================================================
+   OPEN ENCOUNTER
+========================================================= */
+function openEncounterModal(patientId) {
+  loadClinicianDirectory().catch(function () {});
+  currentPatientForEncounter = patients.find(function(p) { return p.id === patientId; });
+  if (!currentPatientForEncounter) return;
+  selectedService = null;
+  document.getElementById("encSubTitle").textContent = currentPatientForEncounter.fullName + " · " + currentPatientForEncounter.id;
+  document.getElementById("enc_complaint").value = ""; 
+  document.getElementById("enc_priority").value = "Routine";
+  document.getElementById("enc_consultFields").classList.remove("show");
+  document.getElementById("enc_department").innerHTML = '<option value="">Select department…</option>';
+  populateDepartmentOptions("enc");
+  document.getElementById("enc_consultant").innerHTML = '<option value="">Select consultant…</option>';
+  document.getElementById("enc_labFields").classList.remove("show");
+  selectedLabTests.enc = [];
+  renderLabChips("enc");
+  document.getElementById("encAlert").innerHTML = "";
+  buildServiceCards("enc_serviceContainer", "enc");
+  document.getElementById("encounterModal").classList.add("show");
+}
+
+function createEncounter() {
+  if (!selectedService) { showModalAlert("enc", "Please select the reason for today's visit."); return; }
+  if (selectedService === "Consultation" && (!document.getElementById("enc_department").value || !document.getElementById("enc_consultant").value)) {
+    showModalAlert("enc", "Please select Department and Consultant."); return;
+  }
+  if (selectedService === "Laboratory" && (!selectedLabTests.enc || !selectedLabTests.enc.length)) {
+    showModalAlert("enc", "Add at least one test."); return;
+  }
+
+  var consultant = clinicianDirectory.find(function (staff) {
+    return staff.id === document.getElementById("enc_consultant").value;
+  });
+  var encounter = {
+    visitId: generateEncounterId(),
+    date: new Date().toISOString().slice(0, 10),
+    service: selectedService,
+    department: selectedService === "Consultation" ? document.getElementById("enc_department").value : null,
+    consultant: selectedService === "Consultation" && consultant ? consultant.name : null,
+    consultantId: selectedService === "Consultation" && consultant ? consultant.id : null,
+    chiefComplaint: document.getElementById("enc_complaint").value.trim(),
+    priority: document.getElementById("enc_priority").value,
+    status: "Waiting",
+    createdAt: new Date().toISOString(),
+    closedAt: null,
+    clinicalNotes: "",
+    orders: [],
+    billing: []
+  };
+
+  currentPatientForEncounter.encounters = currentPatientForEncounter.encounters || [];
+  currentPatientForEncounter.encounters.push(encounter);
+  if (selectedService === "Laboratory") applyLabOrdersToEncounter(encounter, "enc");
+  saveToStorage();
+  closeModal("encounterModal");
+  renderPatients();
+  showToast("Encounter " + encounter.visitId + " opened for " + currentPatientForEncounter.fullName, "success");
+  showPageAlert("Encounter <strong>" + encounter.visitId + "</strong> opened for <strong>" + currentPatientForEncounter.fullName + "</strong> (" + encounter.service + ").");
+}
+
+/* =========================================================
+   PATIENT PROFILE
+========================================================= */
+function openProfile(patientId) {
+  currentProfilePatient = patients.find(function(p) { return p.id === patientId; });
+  if (!currentProfilePatient) return;
+
+  document.getElementById("profileSubTitle").textContent = currentProfilePatient.fullName + " · " + currentProfilePatient.id;
+  document.getElementById("profileOpenEncBtn").onclick = function() {
+    closeModal("profileModal");
+    openEncounterModal(patientId);
+  };
+    document.getElementById("profileEditBtn").onclick = function() {
+    closeModal("profileModal");
+    openEditPatient(patientId);
+  };
+
+  var p = currentProfilePatient;
+  var totalBilled = 0;
+  (p.encounters || []).forEach(function(e) {
+    (e.billing || []).forEach(function(b) {
+      totalBilled += (b.amount || 0);
+    });
+  });
+
+  var hasLabOrders = false;
+  var labOrdersList = [];
+  (p.encounters || []).forEach(function(e) {
+    (e.orders || []).forEach(function(o) {
+      if (o.type === "Laboratory" || o.type === "Lab") {
+        hasLabOrders = true;
+        labOrdersList.push({
+          encounter: e,
+          order: o
+        });
+      }
+    });
+  });
+
+  var html = '<div class="profile-header">' +
+    '<div class="avatar">' + p.fullName.charAt(0) + '</div>' +
+    '<div>' +
+    '<h2 style="font-size:20px;margin-bottom:4px">' + esc(p.fullName) + '</h2>' +
+    '<div style="color:#3A3577;font-weight:600;font-size:14px">' + p.id + '</div>' +
+    '<div style="font-size:13px;color:#5F5B75;margin-top:6px">' +
+    (p.sex || "") + ' · ' + ageFromDob(p.dob) + ' · ' + (p.mobile || "No mobile") + ' · ' +
+    'Allergies: <strong style="color:' + (p.allergies && p.allergies !== 'NKA' ? '#B3261E' : 'inherit') + '">' + esc(p.allergies || "—") + '</strong>' +
+    (hasLabOrders ? ' · 🧪 Has Lab Orders (' + labOrdersList.length + ')' : '') +
+    '</div></div></div>';
+
+  html += '<div class="info-grid">' +
+    '<div class="info-item"><div class="label">Date of Birth</div><div class="value">' + (p.dob || "—") + '</div></div>' +
+    '<div class="info-item"><div class="label">Blood Group</div><div class="value">' + (p.bloodGroup || "Unknown") + '</div></div>' +
+    '<div class="info-item"><div class="label">National ID</div><div class="value">' + esc(p.nationalId || "—") + '</div></div>' +
+    '<div class="info-item"><div class="label">Email</div><div class="value">' + esc(p.email || "—") + '</div></div>' +
+    '<div class="info-item"><div class="label">Address</div><div class="value">' + esc(p.address || "—") + '</div></div>' +
+    '<div class="info-item"><div class="label">Emergency Contact</div><div class="value">' + esc(p.emgName || "") + ' (' + (p.emgRelation || "") + ') · ' + (p.emgMobile || "") + '</div></div>' +
+    '<div class="info-item"><div class="label">Payment</div><div class="value">' + (p.paymentType || "—") + (p.insName ? ' · ' + esc(p.insName) : '') + '</div></div>' +
+    '<div class="info-item"><div class="label">Total Billed</div><div class="value">' + formatMoney(totalBilled) + '</div></div>' +
+    '</div>';
+
+  if (p.chronic) {
+    html += '<div class="alert alert-info"><strong>Chronic Conditions / Medications:</strong> ' + esc(p.chronic) + '</div>';
+  }
+
+  html += '<div class="tabs">' +
+    '<div class="tab active" data-tab="encounters">Encounters (' + (p.encounters || []).length + ')</div>' +
+    '<div class="tab" data-tab="billing">Billing Summary</div>' +
+    '<div class="tab" data-tab="demographics">Full Demographics</div>' +
+    (hasLabOrders ? '<div class="tab" data-tab="laborders">Lab Orders (' + labOrdersList.length + ')</div>' : '') +
+    '</div>';
+
+  // Encounters tab
+  html += '<div class="tab-content active" id="tab-encounters">';
+  if ((p.encounters || []).length === 0) {
+    html += '<div class="empty">No encounters recorded yet.</div>';
+  } else {
+    p.encounters.slice().reverse().forEach(function(e) {
+      var encTotal = 0;
+      (e.billing || []).forEach(function(b) { encTotal += b.amount; });
+      var isDeleted = e.status === "Deleted";
+      var cardStyle = isDeleted ? 'opacity:0.55;background:#f8f8f8;' : '';
+      html += '<div class="encounter-card" style="' + cardStyle + 'position:relative;" onclick="openEncounterDetail(\'' + p.id + '\', \'' + e.visitId + '\')">' +
+        '<button class="btn btn-sm btn-outline" style="position:absolute;top:8px;right:8px;color:#B3261E;border-color:#B3261E;" ' +
+          'onclick="event.stopPropagation(); deleteEncounterAction(\'' + p.id + '\', \'' + e.visitId + '\')" ' +
+          (isDeleted ? 'disabled title="Already deleted"' : 'title="' + (isAdminUser() ? 'Delete encounter' : 'Request deletion') + '"') + '>' +
+          (isDeleted ? '🗑️ Deleted' : (isAdminUser() ? '🗑️ Delete' : '📩 Request deletion')) +
+        '</button>' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">' +
+        '<div style="font-weight:700;font-size:14px">' + e.service + (e.consultant ? " · " + e.consultant : "") + '</div>' +
+        statusBadge(e.status) +
+        '</div>' +
+        '<div style="font-size:12px;color:#5F5B75">' + e.date + ' · Visit ID: ' + e.visitId + '</div>' +
+        '<div style="font-size:12.5px;color:#486581;margin-top:4px">' +
+        (e.chiefComplaint ? "Complaint: " + esc(e.chiefComplaint) + "<br>" : "") +
+        (e.orders || []).length + ' order(s) · ' +
+        'Billing: ' + formatMoney(encTotal) +
+        '</div></div>';
+    });
+  }
+  html += '</div>';
+
+  // Billing tab
+  html += '<div class="tab-content" id="tab-billing">' +
+    '<table style="width:100%;margin-bottom:16px"><thead><tr><th>Date</th><th>Visit ID</th><th>Service</th><th>Items</th><th style="text-align:right">Amount</th></tr></thead><tbody>';
+  var hasBilling = false;
+  (p.encounters || []).forEach(function(e) {
+    (e.billing || []).forEach(function(b) {
+      hasBilling = true;
+      html += '<tr><td>' + e.date + '</td><td>' + e.visitId + '</td><td>' + e.service + '</td><td>' + esc(b.item) + '</td><td style="text-align:right">' + formatMoney(b.amount) + '</td></tr>';
+    });
+  });
+  if (!hasBilling) {
+    html += '<tr><td colspan="5" class="empty">No billing records.</td></tr>';
+  }
+  html += '<tr class="total-row"><td colspan="4" style="text-align:right">Total Billed</td><td style="text-align:right">' + formatMoney(totalBilled) + '</td></tr>';
+  html += '</tbody></table></div>';
+
+  // Demographics tab
+  html += '<div class="tab-content" id="tab-demographics"><div class="grid">' +
+    '<div><label>Full Legal Name</label><div>' + esc(p.fullName) + '</div></div>' +
+    '<div><label>Preferred Name</label><div>' + esc(p.preferredName || "—") + '</div></div>' +
+    '<div><label>Date of Birth</label><div>' + (p.dob || "—") + '</div></div>' +
+    '<div><label>Sex</label><div>' + (p.sex || "—") + '</div></div>' +
+    '<div><label>Mobile</label><div>' + (p.mobile || "—") + '</div></div>' +
+    '<div><label>Email</label><div>' + esc(p.email || "—") + '</div></div>' +
+    '<div class="full"><label>Address</label><div>' + esc(p.address || "—") + '</div></div>' +
+    '<div><label>Emergency Contact</label><div>' + esc(p.emgName || "") + ' (' + (p.emgRelation || "") + ')</div></div>' +
+    '<div><label>Emergency Mobile</label><div>' + (p.emgMobile || "—") + '</div></div>' +
+    '<div class="full"><label>Allergies</label><div style="color:' + (p.allergies && p.allergies !== 'NKA' ? '#B3261E' : 'inherit') + '">' + esc(p.allergies || "—") + '</div></div>' +
+    '<div class="full"><label>Chronic Conditions</label><div>' + esc(p.chronic || "—") + '</div></div>' +
+    '<div><label>Blood Group</label><div>' + (p.bloodGroup || "Unknown") + '</div></div>' +
+    '<div><label>Payment Type</label><div>' + (p.paymentType || "—") + '</div></div>' +
+    '<div><label>Insurance</label><div>' + (esc(p.insName) || "—") + (p.insNumber ? " (" + esc(p.insNumber) + ")" : "") + '</div></div>' +
+    '</div></div>';
+
+  // Lab Orders tab
+  if (hasLabOrders) {
+    html += '<div class="tab-content" id="tab-laborders">';
+    var labHtml = '';
+    (p.encounters || []).forEach(function(e) {
+      var labs = (e.orders || []).filter(function(o) { 
+        return o.type === "Laboratory" || o.type === "Lab"; 
+      });
+      if (labs.length) {
+        labHtml += '<div style="font-weight:600;font-size:12px;margin:10px 0 4px;padding:6px 10px;background:#eef7fd;border-radius:4px;color:var(--lc-blue);">' + 
+          e.date + ' · ' + e.visitId + 
+          ' <span style="font-weight:400;color:#5F5B75;font-size:11px;">' + e.service + '</span></div>';
+        labs.forEach(function(o) {
+          var statusText = o.status || 'Pending';
+          var statusClass = statusText === 'Completed' || statusText === 'Validated' ? 'badge-success' : 
+                           statusText === 'Pending' ? 'badge-warning' : 'badge-info';
+          labHtml += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid #eee;font-size:12px;">' +
+            '<div><strong>' + esc(o.item) + '</strong>' +
+            (o.priority ? ' <span style="font-size:10px;color:var(--lc-muted);">(' + o.priority + ')</span>' : '') +
+            '</div>' +
+            '<div><span class="badge ' + statusClass + '">' + statusText + '</span>' +
+            (o.result ? ' <span style="color:var(--lc-muted);font-size:11px;">' + esc(o.result) + '</span>' : '') +
+            '</div></div>';
+        });
+      }
+    });
+    html += (labHtml || '<div class="empty">No lab orders found.</div>') + '</div>';
+  }
+
+  document.getElementById("profileBody").innerHTML = html;
+
+  // Tab switching
+  document.querySelectorAll("#profileBody .tab").forEach(function(tab) {
+    tab.addEventListener("click", function() {
+      document.querySelectorAll("#profileBody .tab").forEach(function(t) { t.classList.remove("active"); });
+      document.querySelectorAll("#profileBody .tab-content").forEach(function(c) { c.classList.remove("active"); });
+      tab.classList.add("active");
+      var tabId = "tab-" + tab.dataset.tab;
+      var content = document.getElementById(tabId);
+      if (content) content.classList.add("active");
+    });
+  });
+
+  document.getElementById("profileModal").classList.add("show");
+}
+
+/* =========================================================
+   PRINT PATIENT REPORT
+========================================================= */
+/* =========================================================
+   ENCOUNTER DELETION (soft-delete + receptionist requests)
+   Per ISO 15189: no hard-delete. Original data is retained.
+========================================================= */
+
+function getDeletionRequests() {
+  try { return JSON.parse(localStorage.getItem("labcore_deletion_requests") || "[]"); }
+  catch (e) { return []; }
+}
+function saveDeletionRequests(list) {
+  try { localStorage.setItem("labcore_deletion_requests", JSON.stringify(list)); return true; }
+  catch (e) { return false; }
+}
+function isAdminUser() {
+  var u = window.lcGetUser && window.lcGetUser();
+  return !!(u && u.id === "admin");
+}
+function currentActorName() {
+  var u = window.lcGetUser && window.lcGetUser();
+  return (u && u.name) || "Unknown";
+}
+
+/* ---- Delete button handler. Branches by role. ---- */
+function deleteEncounterAction(patientId, visitId) {
+  var p = patients.find(function (x) { return x.id === patientId; });
+  if (!p) return;
+  var e = (p.encounters || []).find(function (x) { return x.visitId === visitId; });
+  if (!e) return;
+  if (e.status === "Deleted") {
+    showToast("This encounter is already deleted", "info");
+    return;
+  }
+  if (isAdminUser()) {
+    openAdminDeleteModal(patientId, visitId);
+  } else {
+    openRequestDeletionModal(patientId, visitId);
+  }
+}
+
+/* ---- Receptionist path ---- */
+function openRequestDeletionModal(patientId, visitId) {
+  document.getElementById("requestDeletionSubTitle").textContent = visitId;
+  document.getElementById("requestDeletionReason").value = "";
+  document.getElementById("requestDeletionAlert").innerHTML = "";
+  document.getElementById("requestDeletionModal").dataset.patientId = patientId;
+  document.getElementById("requestDeletionModal").dataset.visitId = visitId;
+  document.getElementById("requestDeletionModal").classList.add("show");
+}
+
+function submitDeletionRequest() {
+  var modal = document.getElementById("requestDeletionModal");
+  var patientId = modal.dataset.patientId;
+  var visitId = modal.dataset.visitId;
+  var reason = document.getElementById("requestDeletionReason").value.trim();
+
+  if (!reason) {
+    document.getElementById("requestDeletionAlert").innerHTML =
+      '<div class="alert alert-danger">Please enter a reason.</div>';
+    return;
+  }
+
+  var list = getDeletionRequests();
+  var dup = list.find(function (r) {
+    return r.visitId === visitId && r.status === "pending";
+  });
+  if (dup) {
+    document.getElementById("requestDeletionAlert").innerHTML =
+      '<div class="alert alert-warning">A request for this encounter is already pending.</div>';
+    return;
+  }
+
+  var p = patients.find(function (x) { return x.id === patientId; });
+
+  list.push({
+    requestId: "DRQ-" + Date.now().toString(36).toUpperCase(),
+    patientId: patientId,
+    patientName: p ? p.fullName : "—",
+    visitId: visitId,
+    requestedBy: currentActorName(),
+    requestedAt: new Date().toISOString(),
+    reason: reason,
+    status: "pending"
+  });
+  saveDeletionRequests(list);
+
+  if (window.lcAudit) {
+    window.lcAudit("encounter.delete_requested", {
+      entity: "encounter",
+      entityId: visitId,
+      patientId: patientId,
+      patientName: p ? p.fullName : "",
+      visitId: visitId,
+      note: "Requested by " + currentActorName() + " — " + reason
+    });
+  }
+
+  closeModal("requestDeletionModal");
+  showToast("Deletion request submitted for review", "success");
+  renderPatients();
+  refreshDeletionRequestsBanner();
+}
+
+/* ---- Admin path ---- */
+function openAdminDeleteModal(patientId, visitId) {
+  document.getElementById("adminDeleteSubTitle").textContent = visitId;
+  document.getElementById("adminDeleteReason").value = "";
+  document.getElementById("adminDeleteAlert").innerHTML = "";
+  document.getElementById("adminDeleteEncounterModal").dataset.patientId = patientId;
+  document.getElementById("adminDeleteEncounterModal").dataset.visitId = visitId;
+  document.getElementById("adminDeleteEncounterModal").classList.add("show");
+}
+
+function confirmAdminDelete() {
+  var modal = document.getElementById("adminDeleteEncounterModal");
+  var patientId = modal.dataset.patientId;
+  var visitId = modal.dataset.visitId;
+  var reason = document.getElementById("adminDeleteReason").value.trim();
+
+  if (!reason) {
+    document.getElementById("adminDeleteAlert").innerHTML =
+      '<div class="alert alert-danger">Please enter a reason.</div>';
+    return;
+  }
+
+  performSoftDelete(patientId, visitId, reason, null);
+  closeModal("adminDeleteEncounterModal");
+}
+
+/* ---- The actual soft-delete (used by admin direct AND by approve) ---- */
+function performSoftDelete(patientId, visitId, reason, approvingRequestId) {
+  var p = patients.find(function (x) { return x.id === patientId; });
+  if (!p) { showToast("Patient not found", "error"); return false; }
+  var e = (p.encounters || []).find(function (x) { return x.visitId === visitId; });
+  if (!e) { showToast("Encounter not found", "error"); return false; }
+  if (e.status === "Deleted") { showToast("Already deleted", "info"); return false; }
+
+  var snapshot = JSON.parse(JSON.stringify(e));
+
+  e.status = "Deleted";
+  e.deletedAt = new Date().toISOString();
+  e.deletedBy = currentActorName();
+  e.deletionReason = reason;
+  e.deletionRequestId = approvingRequestId || null;
+
+  // Void billing lines so money trail survives but they stop counting
+  (e.billing || []).forEach(function (b) {
+    b.voided = true;
+    b.voidedAt = new Date().toISOString();
+    b.voidedBy = currentActorName();
+    b.voidReason = reason;
+  });
+
+  saveToStorage();
+
+  if (window.lcAudit) {
+    window.lcAudit("encounter.deleted", {
+      entity: "encounter",
+      entityId: visitId,
+      patientId: patientId,
+      patientName: p.fullName,
+      visitId: visitId,
+      before: { status: snapshot.status, orders: (snapshot.orders || []).length, billing: (snapshot.billing || []).length },
+      after: { status: "Deleted" },
+      note: (approvingRequestId ? "Approved request " + approvingRequestId + " — " : "") + reason
+    });
+  }
+  return true;
+}
+
+/* ---- Banner refresh ---- */
+function refreshDeletionRequestsBanner() {
+  var banner = document.getElementById("deletionRequestsBanner");
+  if (!banner) return;
+  if (!isAdminUser()) { banner.style.display = "none"; return; }
+  var pending = getDeletionRequests().filter(function (r) { return r.status === "pending"; });
+  if (!pending.length) { banner.style.display = "none"; return; }
+  document.getElementById("deletionRequestsText").textContent =
+    pending.length + " pending encounter deletion request" + (pending.length === 1 ? "" : "s");
+  banner.style.display = "block";
+}
+
+/* ---- Admin review modal ---- */
+function openDeletionRequestsModal() {
+  var body = document.getElementById("deletionRequestsBody");
+  var list = getDeletionRequests().filter(function (r) { return r.status === "pending"; })
+    .sort(function (a, b) { return b.requestedAt.localeCompare(a.requestedAt); });
+
+  if (!list.length) {
+    body.innerHTML = '<div class="empty">No pending requests.</div>';
+  } else {
+    var html = '<table style="width:100%"><thead><tr>' +
+      '<th>Requested</th><th>By</th><th>Patient</th><th>Encounter</th><th>Reason</th><th style="text-align:right">Action</th>' +
+      '</tr></thead><tbody>';
+    list.forEach(function (r) {
+      html += '<tr>' +
+        '<td style="font-size:12px">' + new Date(r.requestedAt).toLocaleString() + '</td>' +
+        '<td>' + esc(r.requestedBy) + '</td>' +
+        '<td>' + esc(r.patientName) + '<div style="font-size:11px;color:var(--lc-muted)">' + esc(r.patientId) + '</div></td>' +
+        '<td style="font-family:monospace;font-size:12px">' + esc(r.visitId) + '</td>' +
+        '<td style="font-size:12px">' + esc(r.reason) + '</td>' +
+        '<td style="text-align:right;white-space:nowrap">' +
+          '<button class="btn btn-sm btn-success" onclick="approveDeletionRequest(\'' + r.requestId + '\')">✅ Approve</button> ' +
+          '<button class="btn btn-sm btn-outline" onclick="rejectDeletionRequest(\'' + r.requestId + '\')">❌ Reject</button>' +
+        '</td>' +
+      '</tr>';
+    });
+    html += '</tbody></table>';
+    body.innerHTML = html;
+  }
+
+  document.getElementById("deletionRequestsModal").classList.add("show");
+}
+
+function approveDeletionRequest(requestId) {
+  var list = getDeletionRequests();
+  var r = list.find(function (x) { return x.requestId === requestId; });
+  if (!r) return;
+  var finalReason = prompt("Approval reason / note (optional):", r.reason) || r.reason;
+
+  var ok = performSoftDelete(r.patientId, r.visitId, finalReason, r.requestId);
+  if (!ok) return;
+
+  r.status = "approved";
+  r.reviewedBy = currentActorName();
+  r.reviewedAt = new Date().toISOString();
+  r.reviewNote = finalReason;
+  saveDeletionRequests(list);
+
+  if (window.lcAudit) {
+    window.lcAudit("encounter.delete_approved", {
+      entity: "deletion-request",
+      entityId: r.requestId,
+      patientId: r.patientId,
+      patientName: r.patientName,
+      visitId: r.visitId,
+      note: "Approved by " + currentActorName()
+    });
+  }
+
+  showToast("Request approved · encounter soft-deleted", "success");
+  renderPatients();
+  refreshDeletionRequestsBanner();
+  openDeletionRequestsModal();
+}
+
+function rejectDeletionRequest(requestId) {
+  var list = getDeletionRequests();
+  var r = list.find(function (x) { return x.requestId === requestId; });
+  if (!r) return;
+  var reason = prompt("Reason for rejection (optional):", "");
+  if (reason === null) return;
+
+  r.status = "rejected";
+  r.reviewedBy = currentActorName();
+  r.reviewedAt = new Date().toISOString();
+  r.reviewNote = reason || "";
+  saveDeletionRequests(list);
+
+  if (window.lcAudit) {
+    window.lcAudit("encounter.delete_rejected", {
+      entity: "deletion-request",
+      entityId: r.requestId,
+      patientId: r.patientId,
+      patientName: r.patientName,
+      visitId: r.visitId,
+      note: "Rejected by " + currentActorName() + (reason ? " — " + reason : "")
+    });
+  }
+
+  showToast("Request rejected", "info");
+  refreshDeletionRequestsBanner();
+  openDeletionRequestsModal();
+}
+/* =========================================================
+   EDIT PATIENT
+========================================================= */
+function openEditPatient(patientId) {
+  var p = patients.find(function(x) { return x.id === patientId; });
+  if (!p) { showToast("Patient not found", "error"); return; }
+
+  document.getElementById("editPatientSubTitle").textContent =
+    p.fullName + " · " + p.id;
+  document.getElementById("editPatientAlert").innerHTML = "";
+
+  document.getElementById("ep_fullName").value      = p.fullName || "";
+  document.getElementById("ep_preferredName").value = p.preferredName || "";
+  document.getElementById("ep_dob").value           = p.dob || "";
+  document.getElementById("ep_age").value           = p.dob ? ageFromDob(p.dob) : "";
+  document.getElementById("ep_sex").value           = p.sex || "";
+  document.getElementById("ep_nationalId").value    = p.nationalId || "";
+  document.getElementById("ep_mobile").value        = p.mobile || "";
+  document.getElementById("ep_email").value         = p.email || "";
+  document.getElementById("ep_address").value       = p.address || "";
+  document.getElementById("ep_emgName").value       = p.emgName || "";
+  document.getElementById("ep_emgRelation").value   = p.emgRelation || "";
+  document.getElementById("ep_emgMobile").value     = p.emgMobile || "";
+  document.getElementById("ep_altPhone").value      = p.altPhone || "";
+  document.getElementById("ep_allergies").value     = p.allergies || "";
+  document.getElementById("ep_chronic").value       = p.chronic || "";
+  document.getElementById("ep_bloodGroup").value    = p.bloodGroup || "";
+  document.getElementById("ep_paymentType").value   = p.paymentType || "Self-Pay";
+  document.getElementById("ep_insName").value       = p.insName || "";
+  document.getElementById("ep_insNumber").value     = p.insNumber || "";
+
+  document.getElementById("editPatientModal").dataset.patientId = patientId;
+  document.getElementById("editPatientModal").classList.add("show");
+  setTimeout(function() {
+    document.getElementById("ep_fullName").focus();
+  }, 200);
+}
+
+function savePatientEdits() {
+  var modal = document.getElementById("editPatientModal");
+  var patientId = modal.dataset.patientId;
+  var p = patients.find(function(x) { return x.id === patientId; });
+  if (!p) { showToast("Patient not found", "error"); return; }
+
+  var fullName = document.getElementById("ep_fullName").value.trim();
+  var dob      = document.getElementById("ep_dob").value;
+  var sex      = document.getElementById("ep_sex").value;
+  var mobile   = document.getElementById("ep_mobile").value.trim();
+
+  var alertEl = document.getElementById("editPatientAlert");
+  if (!fullName) { alertEl.innerHTML = '<div class="alert alert-danger">Full Legal Name is required.</div>'; return; }
+  if (!dob)      { alertEl.innerHTML = '<div class="alert alert-danger">Date of Birth is required.</div>'; return; }
+  if (!sex)      { alertEl.innerHTML = '<div class="alert alert-danger">Sex is required.</div>'; return; }
+  if (!mobile)   { alertEl.innerHTML = '<div class="alert alert-danger">Mobile Number is required.</div>'; return; }
+
+  var before = {
+    fullName: p.fullName, preferredName: p.preferredName, dob: p.dob, sex: p.sex,
+    nationalId: p.nationalId, mobile: p.mobile, email: p.email, address: p.address,
+    emgName: p.emgName, emgRelation: p.emgRelation, emgMobile: p.emgMobile, altPhone: p.altPhone,
+    allergies: p.allergies, chronic: p.chronic, bloodGroup: p.bloodGroup,
+    paymentType: p.paymentType, insName: p.insName, insNumber: p.insNumber
+  };
+
+  p.fullName      = fullName;
+  p.preferredName = document.getElementById("ep_preferredName").value.trim();
+  p.dob           = dob;
+  p.sex           = sex;
+  p.nationalId    = document.getElementById("ep_nationalId").value.trim();
+  p.mobile        = mobile;
+  p.email         = document.getElementById("ep_email").value.trim();
+  p.address       = document.getElementById("ep_address").value.trim();
+  p.emgName       = document.getElementById("ep_emgName").value.trim();
+  p.emgRelation   = document.getElementById("ep_emgRelation").value;
+  p.emgMobile     = document.getElementById("ep_emgMobile").value.trim();
+  p.altPhone      = document.getElementById("ep_altPhone").value.trim();
+  p.allergies     = document.getElementById("ep_allergies").value.trim();
+  p.chronic       = document.getElementById("ep_chronic").value.trim();
+  p.bloodGroup    = document.getElementById("ep_bloodGroup").value;
+  p.paymentType   = document.getElementById("ep_paymentType").value;
+  p.insName       = document.getElementById("ep_insName").value.trim();
+  p.insNumber     = document.getElementById("ep_insNumber").value.trim();
+
+  saveToStorage();
+
+  if (window.lcAudit) {
+    window.lcAudit('patient.updated', {
+      entity: 'patient',
+      entityId: p.id,
+      patientName: p.fullName,
+      before: before,
+      after: {
+        fullName: p.fullName, preferredName: p.preferredName, dob: p.dob, sex: p.sex,
+        nationalId: p.nationalId, mobile: p.mobile, email: p.email, address: p.address,
+        emgName: p.emgName, emgRelation: p.emgRelation, emgMobile: p.emgMobile, altPhone: p.altPhone,
+        allergies: p.allergies, chronic: p.chronic, bloodGroup: p.bloodGroup,
+        paymentType: p.paymentType, insName: p.insName, insNumber: p.insNumber
+      },
+      note: 'Patient demographics updated'
+    });
+  }
+
+  closeModal("editPatientModal");
+  renderPatients();
+  showToast("Patient " + p.id + " updated", "success");
+  showPageAlert("Patient <strong>" + p.id + "</strong> updated successfully.");
+}
+function printPatientReport() {
+  if (!currentProfilePatient) {
+    showToast('No patient selected', 'warning');
+    return;
+  }
+  var p = currentProfilePatient;
+  var printWindow = window.open('', '_blank', 'width=800,height=600');
+  if (!printWindow) {
+    showToast('Please allow popups for printing', 'warning');
+    return;
+  }
+
+  var encountersHtml = '';
+  (p.encounters || []).forEach(function(e) {
+    encountersHtml +=
+      '<div style="border-bottom:1px solid #ddd;padding:8px 0;">' +
+      '<strong>' + e.date + ' · ' + e.service + '</strong>' +
+      (e.consultant ? ' · ' + e.consultant : '') +
+      '<span style="float:right;">' + e.status + '</span>' +
+      '<div style="font-size:12px;color:#666;">' + (e.chiefComplaint || 'No complaint') + '</div>' +
+      '<div style="font-size:11px;color:#888;">Orders: ' + (e.orders || []).length +
+      ' · Billing: ' + formatMoney((e.billing || []).reduce(function(s,b) { return s + b.amount; }, 0)) + '</div>' +
+      '</div>';
+  });
+
+  var doc = printWindow.document;
+  doc.open();
+  while (doc.firstChild) doc.removeChild(doc.firstChild);
+
+  var htmlEl = doc.createElement('html');
+  var head = doc.createElement('head');
+  var title = doc.createElement('title');
+  title.textContent = 'Patient Report - ' + (p.fullName || '');
+  head.appendChild(title);
+  var style = doc.createElement('style');
+  style.textContent =
+    'body{font-family:Arial,sans-serif;padding:20px;color:#1a1a2e;}' +
+    'h1{color:#2A2656;border-bottom:2px solid #2A2656;padding-bottom:10px;}' +
+    '.info{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;background:#F8F7FB;padding:15px;border-radius:6px;margin:10px 0;}' +
+    '.info .label{font-size:9px;text-transform:uppercase;color:#888;}.info .value{font-weight:600;}' +
+    '.section{margin:15px 0;}.section h3{color:#3A3577;margin-bottom:8px;}' +
+    '@media print{body{padding:10px;}}';
+  head.appendChild(style);
+
+  var body = doc.createElement('body');
+  var h1 = doc.createElement('h1');
+  h1.textContent = 'LabCore Patient Report';
+  body.appendChild(h1);
+  var gen = doc.createElement('div');
+  gen.setAttribute('style', 'font-size:12px;color:#888;');
+  gen.textContent = 'Generated: ' + new Date().toLocaleString();
+  body.appendChild(gen);
+
+  var info = doc.createElement('div');
+  info.className = 'info';
+  function addInfo(label, value) {
+    var cell = doc.createElement('div');
+    var lb = doc.createElement('div');
+    lb.className = 'label';
+    lb.textContent = label;
+    var val = doc.createElement('div');
+    val.className = 'value';
+    val.textContent = value == null || value === '' ? '-' : String(value);
+    cell.appendChild(lb);
+    cell.appendChild(val);
+    info.appendChild(cell);
+  }
+  addInfo('Name', p.fullName);
+  addInfo('Patient ID', p.id);
+  addInfo('DOB / Age', (p.dob || '-') + ' (' + ageFromDob(p.dob) + ')');
+  addInfo('Sex', p.sex || '-');
+  addInfo('Mobile', p.mobile || '-');
+  addInfo('Blood Group', p.bloodGroup || 'Unknown');
+  addInfo('Allergies', p.allergies || 'NKA');
+  addInfo('Payment', p.paymentType || '-');
+  addInfo('Encounters', (p.encounters || []).length);
+  body.appendChild(info);
+
+  var section = doc.createElement('div');
+  section.className = 'section';
+  var sh = doc.createElement('h3');
+  sh.textContent = 'Encounters (' + (p.encounters || []).length + ')';
+  section.appendChild(sh);
+  var wrap = doc.createElement('div');
+  wrap.innerHTML = encountersHtml || '<div style="color:#888;">No encounters recorded.</div>';
+  section.appendChild(wrap);
+  body.appendChild(section);
+
+  var foot = doc.createElement('div');
+  foot.setAttribute('style', 'margin-top:20px;font-size:10px;color:#888;border-top:1px solid #ddd;padding-top:10px;');
+  foot.textContent = 'LabCore Diagnostic Laboratory - Accra, Ghana';
+  body.appendChild(foot);
+
+  htmlEl.appendChild(head);
+  htmlEl.appendChild(body);
+  doc.appendChild(htmlEl);
+  setTimeout(function() { printWindow.print(); }, 400);
+}
+
+function openEncounterDetail(patientId, visitId) {
+  var patient = patients.find(function(p) { return p.id === patientId; });
+  var encounter = patient.encounters.find(function(e) { return e.visitId === visitId; });
+  if (!encounter) return;
+
+  document.getElementById("encDetailSubTitle").textContent = patient.fullName + " · " + visitId + " · " + encounter.date;
+
+  var total = 0;
+  (encounter.billing || []).forEach(function(b) { total += b.amount; });
+
+  var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">' +
+    '<div><h3 style="font-size:18px;margin-bottom:4px">' + encounter.service + (encounter.consultant ? " — " + encounter.consultant : "") + '</h3>' +
+    '<div style="font-size:13px;color:#5F5B75">' +
+    (encounter.department ? encounter.department + " · " : "") +
+    'Priority: ' + (encounter.priority || "Routine") + ' · ' +
+    'Created: ' + new Date(encounter.createdAt).toLocaleString() +
+    (encounter.closedAt ? " · Closed: " + new Date(encounter.closedAt).toLocaleString() : "") +
+    '</div></div>' +
+    statusBadge(encounter.status) +
+    '</div>';
+
+  if (encounter.chiefComplaint) {
+    html += '<div class="info-item" style="margin-bottom:14px"><div class="label">Chief Complaint</div><div class="value">' + esc(encounter.chiefComplaint) + '</div></div>';
+  }
+
+  if (encounter.clinicalNotes) {
+    html += '<div class="section-title">Clinical Notes</div><div style="background:#f6f7f5;border:1px solid #DAD8E3;border-radius:6px;padding:12px;margin-bottom:16px;font-size:13.5px">' + esc(encounter.clinicalNotes) + '</div>';
+  }
+
+  html += '<div class="section-title">Orders & Results</div>';
+  if ((encounter.orders || []).length === 0) {
+    html += '<div class="empty" style="padding:20px">No orders placed during this encounter.</div>';
+  } else {
+    html += '<table style="width:100%;margin-bottom:20px"><thead><tr><th>Type</th><th>Item</th><th>Status</th><th>Result / Notes</th></tr></thead><tbody>';
+    encounter.orders.forEach(function(o) {
+      html += '<tr><td>' + o.type + '</td><td>' + esc(o.item) + '</td><td>' + statusBadge(o.status) + '</td><td>' + (esc(o.result) || (o.qty ? "Qty: " + o.qty : "—")) + '</td></tr>';
+    });
+    html += '</tbody></table>';
+  }
+
+  html += '<div class="section-title">Billing for this Encounter</div><table style="width:100%"><thead><tr><th>Item</th><th style="text-align:right">Amount</th></tr></thead><tbody>';
+  if ((encounter.billing || []).length === 0) {
+    html += '<tr><td colspan="2" class="empty">No charges recorded.</td></tr>';
+  } else {
+    encounter.billing.forEach(function(b) {
+      html += '<tr><td>' + esc(b.item) + '</td><td style="text-align:right">' + formatMoney(b.amount) + '</td></tr>';
+    });
+  }
+  html += '<tr class="total-row"><td style="text-align:right">Encounter Total</td><td style="text-align:right">' + formatMoney(total) + '</td></tr>';
+  html += '</tbody></table>';
+
+  document.getElementById("encounterDetailBody").innerHTML = html;
+  document.getElementById("encounterDetailModal").classList.add("show");
+    var delBtn = document.getElementById("encDetailDeleteBtn");
+  var encIsDeleted = encounter.status === "Deleted";
+  delBtn.textContent = encIsDeleted ? "🗑️ Deleted" : (isAdminUser() ? "🗑️ Delete Encounter" : "📩 Request Deletion");
+  delBtn.disabled = encIsDeleted;
+  delBtn.onclick = function () {
+    closeModal("encounterDetailModal");
+    deleteEncounterAction(patientId, visitId);
+  };
+}
+
+function printEncounterReport() {
+  var content = document.getElementById('encounterDetailBody');
+  if (!content) return;
+  var printWindow = window.open('', '_blank', 'width=800,height=600');
+  if (!printWindow) {
+    showToast('Please allow popups for printing', 'warning');
+    return;
+  }
+  var titleEl = document.getElementById('encDetailSubTitle');
+  var title = titleEl ? titleEl.textContent : 'Encounter Report';
+  var doc = printWindow.document;
+  doc.open();
+  while (doc.firstChild) doc.removeChild(doc.firstChild);
+  var htmlEl = doc.createElement('html');
+  var head = doc.createElement('head');
+  var t = doc.createElement('title');
+  t.textContent = title;
+  head.appendChild(t);
+  var style = doc.createElement('style');
+  style.textContent =
+    'body{font-family:Arial,sans-serif;padding:20px;color:#1a1a2e;}' +
+    'h1{color:#2A2656;border-bottom:2px solid #2A2656;padding-bottom:10px;}' +
+    '.section-title{font-size:13px;font-weight:700;color:#3A3577;border-bottom:1px solid #ddd;padding-bottom:6px;margin:10px 0;text-transform:uppercase;}' +
+    'table{width:100%;border-collapse:collapse;font-size:12px;}' +
+    'th{background:#f5f7f9;text-align:left;padding:8px;border-bottom:1px solid #ddd;}' +
+    'td{padding:8px;border-bottom:1px solid #eee;}' +
+    '.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;}' +
+    '.total-row{font-weight:700;background:#f0f7ff;}@media print{body{padding:10px;}}';
+  head.appendChild(style);
+  var body = doc.createElement('body');
+  var h1 = doc.createElement('h1');
+  h1.textContent = 'LabCore Encounter Report';
+  body.appendChild(h1);
+  var meta = doc.createElement('div');
+  meta.setAttribute('style', 'font-size:12px;color:#888;');
+  meta.textContent = title + ' - Generated: ' + new Date().toLocaleString();
+  body.appendChild(meta);
+  body.appendChild(doc.createElement('hr'));
+  body.appendChild(content.cloneNode(true));
+  var foot = doc.createElement('div');
+  foot.setAttribute('style', 'margin-top:20px;font-size:10px;color:#888;border-top:1px solid #ddd;padding-top:10px;');
+  foot.textContent = 'LabCore Diagnostic Laboratory - Accra, Ghana';
+  body.appendChild(foot);
+  htmlEl.appendChild(head);
+  htmlEl.appendChild(body);
+  doc.appendChild(htmlEl);
+  setTimeout(function() { printWindow.print(); }, 400);
+}
+
+/* =========================================================
+   BILLING
+========================================================= */
+function openBilling(patientId) {
+  var p = patients.find(function(x) { return x.id === patientId; });
+  if (!p) return;
+
+  document.getElementById("billingSubTitle").textContent = p.fullName + " · " + p.id;
+
+  var totalBilled = 0;
+  (p.encounters || []).forEach(function(e) {
+    (e.billing || []).forEach(function(b) {
+      totalBilled += b.amount;
+    });
+  });
+
+  var html = '<div class="alert alert-info">Complete billing history for this patient. Click any Visit ID to see the clinical detail of that encounter.</div>' +
+    '<table style="width:100%"><thead><tr><th>Date</th><th>Visit ID</th><th>Service</th><th>Item</th><th style="text-align:right">Amount</th></tr></thead><tbody>';
+  var hasBilling = false;
+  (p.encounters || []).forEach(function(e) {
+    (e.billing || []).forEach(function(b) {
+      hasBilling = true;
+      html += '<tr><td>' + e.date + '</td><td><a href="#" onclick="closeModal(\'billingModal\'); openEncounterDetail(\'' + p.id + '\',\'' + e.visitId + '\'); return false;" style="color:#3A3577">' + e.visitId + '</a></td><td>' + e.service + '</td><td>' + esc(b.item) + '</td><td style="text-align:right">' + formatMoney(b.amount) + '</td></tr>';
+    });
+  });
+  if (!hasBilling) {
+    html += '<tr><td colspan="5" class="empty">No billing records yet.</td></tr>';
+  }
+  html += '<tr class="total-row"><td colspan="4" style="text-align:right">Total Billed to Date</td><td style="text-align:right">' + formatMoney(totalBilled) + '</td></tr>';
+  html += '</tbody></table>';
+  document.getElementById("billingBody").innerHTML = html;
+  document.getElementById("billingModal").classList.add("show");
+}
+
+function exportBillingData() {
+  if (!currentProfilePatient) {
+    showToast('No patient selected', 'warning');
+    return;
+  }
+  var p = currentProfilePatient;
+  var data = [];
+  (p.encounters || []).forEach(function(e) {
+    (e.billing || []).forEach(function(b) {
+      data.push({
+        'Date': e.date,
+        'Visit ID': e.visitId,
+        'Service': e.service,
+        'Item': b.item,
+        'Amount': b.amount
+      });
+    });
+  });
+  if (!data.length) {
+    showToast('No billing data to export', 'warning');
+    return;
+  }
+  try {
+    var ws = XLSX.utils.json_to_sheet(data);
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Billing');
+    XLSX.writeFile(wb, 'Billing_' + p.id + '_' + new Date().toISOString().slice(0,10) + '.xlsx');
+    showToast('Billing data exported', 'success');
+  } catch (e) {
+    showToast('Error exporting data', 'error');
+  }
+}
+
+/* =========================================================
+   EXPORT PATIENT LIST
+========================================================= */
+function exportPatientList() {
+  var data = patients.map(function(p) {
+    var totalBilled = 0;
+    (p.encounters || []).forEach(function(e) {
+      (e.billing || []).forEach(function(b) {
+        totalBilled += b.amount;
+      });
+    });
+    return {
+      'Patient ID': p.id,
+      'Name': p.fullName,
+      'DOB': p.dob || '—',
+      'Age': ageFromDob(p.dob),
+      'Sex': p.sex || '—',
+      'Mobile': p.mobile || '—',
+      'Email': p.email || '—',
+      'Blood Group': p.bloodGroup || 'Unknown',
+      'Allergies': p.allergies || 'NKA',
+      'Payment Type': p.paymentType || '—',
+      'Insurance': p.insName || '—',
+      'Encounters': (p.encounters || []).length,
+      'Total Billed': totalBilled
+    };
+  });
+  try {
+    var ws = XLSX.utils.json_to_sheet(data);
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Patients');
+    XLSX.writeFile(wb, 'Patients_' + new Date().toISOString().slice(0,10) + '.xlsx');
+    showToast('Patient list exported', 'success');
+  } catch (e) {
+    showToast('Error exporting data', 'error');
+  }
+}
+
+/* =========================================================
+   STATISTICS
+========================================================= */
+function showPatientStatistics() {
+  var modal = document.getElementById('statsModal');
+  document.getElementById('statsSubTitle').textContent = 'Demographic and activity overview · ' + new Date().toLocaleDateString();
+  
+  var total = patients.length;
+  var male = 0, female = 0, other = 0;
+  var active = 0, totalEncounters = 0, totalOrders = 0;
+  var bloodGroups = {};
+  var paymentTypes = {};
+  
+  patients.forEach(function(p) {
+    if (p.sex === "Male") male++;
+    else if (p.sex === "Female") female++;
+    else other++;
+    
+    if (p.encounters && p.encounters.length > 0) {
+      active++;
+      totalEncounters += p.encounters.length;
+      p.encounters.forEach(function(e) {
+        (e.orders || []).forEach(function(o) {
+          if (o.type === "Laboratory") totalOrders++;
+        });
+      });
+    }
+    
+    var bg = p.bloodGroup || 'Unknown';
+    bloodGroups[bg] = (bloodGroups[bg] || 0) + 1;
+    
+    var pt = p.paymentType || 'Unknown';
+    paymentTypes[pt] = (paymentTypes[pt] || 0) + 1;
+  });
+  
+  var html = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;">' +
+    '<div class="dashboard-card"><div class="label">Total Patients</div><div class="number" style="font-size:20px;">' + total + '</div></div>' +
+    '<div class="dashboard-card"><div class="label">Active Patients</div><div class="number" style="font-size:20px;color:var(--lc-green);">' + active + '</div></div>' +
+    '<div class="dashboard-card"><div class="label">Total Encounters</div><div class="number" style="font-size:20px;color:var(--lc-blue);">' + totalEncounters + '</div></div>' +
+    '<div class="dashboard-card"><div class="label">Lab Orders</div><div class="number" style="font-size:20px;color:var(--lc-warning);">' + totalOrders + '</div></div>' +
+    '</div>' +
+    '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">' +
+    '<div style="background:#F8F7FB;padding:14px;border-radius:6px;"><h4 style="font-size:12px;margin-bottom:8px;">Gender Distribution</h4>' +
+    '<div style="font-size:14px;">👨 Male: ' + male + ' (' + Math.round(male/total*100) + '%)</div>' +
+    '<div style="font-size:14px;">👩 Female: ' + female + ' (' + Math.round(female/total*100) + '%)</div>' +
+    (other > 0 ? '<div style="font-size:14px;">Other: ' + other + '</div>' : '') + '</div>' +
+    '<div style="background:#F8F7FB;padding:14px;border-radius:6px;"><h4 style="font-size:12px;margin-bottom:8px;">Blood Groups</h4>';
+  Object.keys(bloodGroups).forEach(function(bg) {
+    html += '<div style="font-size:13px;">' + bg + ': ' + bloodGroups[bg] + '</div>';
+  });
+  html += '</div><div style="background:#F8F7FB;padding:14px;border-radius:6px;"><h4 style="font-size:12px;margin-bottom:8px;">Payment Types</h4>';
+  Object.keys(paymentTypes).forEach(function(pt) {
+    html += '<div style="font-size:13px;">' + pt + ': ' + paymentTypes[pt] + '</div>';
+  });
+  html += '</div></div>';
+  
+  document.getElementById('statsBody').innerHTML = html;
+  modal.classList.add("show");
+}
+
+function exportStatistics() {
+  showToast('Exporting statistics...', 'info');
+}
+
+/* =========================================================
+   MODAL HELPERS
+========================================================= */
+function closeModal(id) {
+  var el = document.getElementById(id);
+  if (el) el.classList.remove("show");
+}
+
+function updateClock() {
+  var el = document.getElementById("clock");
+  if (el) {
+    el.textContent = new Date().toLocaleTimeString("en-GH", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  }
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+/* =========================================================
+   MODAL CLICK OUTSIDE
+========================================================= */
+document.querySelectorAll('.modal-bg').forEach(function(bg) {
+  bg.addEventListener("click", function(e) {
+    if (e.target === bg) bg.classList.remove("show");
+  });
+});
+
+/* =========================================================
+   KEYBOARD SHORTCUTS
+========================================================= */
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.modal-bg.show').forEach(function(m) { m.classList.remove('show'); });
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+    e.preventDefault();
+    var input = document.getElementById('searchInput');
+    if (input) input.focus();
+  }
+});
+
+/* =========================================================
+   INIT
+========================================================= */
+renderPatients();
+updateDashboardStats();
+refreshDeletionRequestsBanner();
+
+console.log('👥 LabCore Patient Management loaded');
+console.log('📊 ' + patients.length + ' patients loaded');
+</script>
+</body>
+</html>

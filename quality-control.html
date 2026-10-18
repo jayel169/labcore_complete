@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Quality Control | LabCore</title>
+  <link rel="stylesheet" href="shared/labcore-nav.css">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: var(--lc-font); background: var(--lc-bg); color: var(--lc-text); }
+    .main { padding: 28px; margin-left: var(--lc-sidebar-w); }
+    .head { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; margin-bottom:18px; }
+    h1 { margin:0 0 5px; font-size:25px; } p { margin:0; color:var(--lc-muted); font-size:13px; }
+    .grid { display:grid; grid-template-columns:minmax(320px,.9fr) minmax(400px,1.4fr); gap:14px; }
+    .panel { min-width:0; background:#fff; border:1px solid var(--lc-border); border-radius:7px; padding:16px; margin-bottom:14px; }
+    .panel h2 { margin:0 0 12px; font-size:17px; }
+    .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:11px; }
+    label { display:block; font-size:12px; font-weight:600; margin-bottom:5px; }
+    input,select,textarea { width:100%; border:1px solid var(--lc-border); border-radius:5px; padding:9px 10px; background:#fff; color:var(--lc-text); font:inherit; font-size:13px; }
+    .full { grid-column:1/-1; }
+    .btn { border:1px solid var(--lc-border); border-radius:5px; padding:8px 11px; background:#fff; font:inherit; font-size:13px; cursor:pointer; }
+    .btn-primary { color:#fff; background:var(--lc-brand-primary); border-color:var(--lc-brand-primary); }
+    .btn-small { padding:5px 8px; font-size:12px; }
+    .toolbar { display:flex; gap:8px; justify-content:flex-end; margin-top:12px; }
+    .table-wrap { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; min-width:610px; }
+    th,td { text-align:left; vertical-align:top; border-bottom:1px solid var(--lc-border); padding:9px 8px; font-size:12px; }
+    th { color:var(--lc-muted); text-transform:uppercase; font-size:10px; }
+    .sub { display:block; color:var(--lc-muted); font-size:11px; margin-top:3px; }
+    .badge { display:inline-block; padding:3px 8px; border-radius:12px; background:var(--lc-info-bg); color:var(--lc-info); font-weight:700; font-size:11px; }
+    .pass { background:var(--lc-success-bg); color:var(--lc-success); }
+    .fail { background:var(--lc-danger-bg); color:var(--lc-danger); }
+    .inactive { opacity:.7; }
+    .notice { display:none; padding:10px 12px; margin-bottom:14px; border-radius:5px; background:var(--lc-info-bg); color:var(--lc-info); font-size:13px; }
+    .notice.error { background:var(--lc-danger-bg); color:var(--lc-danger); }
+    .empty { padding:18px; text-align:center; color:var(--lc-muted); }
+    .safety { margin-bottom:14px; padding:12px 14px; border-left:4px solid var(--lc-brand-gold); background:#fff9e9; font-size:13px; }
+    @media(max-width:900px) { .main { margin-left:0; padding:76px 16px 20px; } .grid { grid-template-columns:1fr; } }
+    @media(max-width:520px) { .head { flex-direction:column; } .form-grid { grid-template-columns:1fr; } .full { grid-column:auto; } }
+  </style>
+</head>
+<body>
+  <aside class="sidebar"></aside><div class="lc-sidebar-overlay"></div>
+  <main class="main">
+    <header class="head">
+      <div><h1>Quality Control</h1><p>Configure control limits and record daily instrument QC before validating configured patient results.</p></div>
+      <button class="btn" id="refreshButton" type="button">Refresh</button>
+    </header>
+    <div class="safety"><strong>QC policy:</strong> control limits are entered by your laboratory and are not inferred from patient reference ranges. A configured panel/analyte/instrument is held from validation until every active control level has a passing QC run today (Africa/Accra). Preliminary saves are unaffected.</div>
+    <div class="notice" id="notice" role="status"></div>
+    <div class="grid">
+      <section>
+        <div class="panel">
+          <h2>Configure control</h2>
+          <form id="controlForm">
+            <div class="form-grid">
+              <div><label for="panel">Panel / order name *</label><input id="panel" required maxlength="160"></div>
+              <div><label for="test">Analyte / result field *</label><input id="test" required maxlength="160"></div>
+              <div><label for="instrument">Instrument / analyser *</label><input id="instrument" required maxlength="160"></div>
+              <div><label for="lot">Control lot *</label><input id="lot" required maxlength="100"></div>
+              <div><label for="level">Control level *</label><input id="level" required maxlength="80" placeholder="e.g. Level 1"></div>
+              <div><label for="expiresOn">Expiry date</label><input id="expiresOn" type="date"></div>
+              <div><label for="target">Target *</label><input id="target" type="number" step="any" required></div>
+              <div><label for="lowerLimit">Lower limit *</label><input id="lowerLimit" type="number" step="any" required></div>
+              <div><label for="upperLimit">Upper limit *</label><input id="upperLimit" type="number" step="any" required></div>
+            </div>
+            <div class="toolbar"><button class="btn btn-primary" type="submit">Save control</button></div>
+          </form>
+        </div>
+        <div class="panel">
+          <h2>Record QC run</h2>
+          <form id="runForm">
+            <div class="form-grid">
+              <div class="full"><label for="runControl">Active control *</label><select id="runControl" required></select></div>
+              <div><label for="runValue">Measured value *</label><input id="runValue" type="number" step="any" required></div>
+              <div><label for="runNote">Note</label><input id="runNote" maxlength="1000"></div>
+            </div>
+            <div class="toolbar"><button class="btn btn-primary" type="submit">Record measurement</button></div>
+          </form>
+        </div>
+      </section>
+      <section>
+        <div class="panel">
+          <h2>Configured controls</h2>
+          <div class="table-wrap"><table><thead><tr><th>Scope / instrument</th><th>Lot / level</th><th>Target / limits</th><th>Expiry</th><th>State</th><th></th></tr></thead><tbody id="controlRows"></tbody></table></div>
+        </div>
+        <div class="panel">
+          <h2>Recent QC runs</h2>
+          <div class="table-wrap"><table><thead><tr><th>Recorded</th><th>Scope / level</th><th>Value</th><th>Outcome</th><th>By</th></tr></thead><tbody id="runRows"></tbody></table></div>
+        </div>
+      </section>
+    </div>
+  </main>
+  <script src="shared/labcore-api.js"></script><script src="shared/labcore-auth.js"></script><script src="shared/labcore-icons.js"></script><script src="shared/labcore-nav.js"></script>
+  <script>
+    (function () {
+      'use strict';
+      var controls = [], runs = [];
+      var $ = function (id) { return document.getElementById(id); };
+      function notice(message, error) {
+        var el = $('notice'); el.textContent = message || ''; el.classList.toggle('error', !!error); el.style.display = message ? 'block' : 'none';
+      }
+      function cell(row, text, sub) {
+        var td = document.createElement('td'); td.textContent = text == null || text === '' ? '—' : String(text);
+        if (sub) { var small = document.createElement('span'); small.className = 'sub'; small.textContent = sub; td.appendChild(small); }
+        row.appendChild(td); return td;
+      }
+      function load() {
+        Promise.all([window.lcApiGetQcControls(), window.lcApiGetQcRuns()]).then(function (data) {
+          controls = data[0]; runs = data[1]; render();
+        }).catch(function (err) { notice('Could not load QC data: ' + err.message, true); });
+      }
+      function render() {
+        var controlBody = $('controlRows'); controlBody.replaceChildren();
+        controls.forEach(function (c) {
+          var row = document.createElement('tr'); if (!c.active) row.className = 'inactive';
+          cell(row, c.panel, c.test + ' · ' + c.instrument);
+          cell(row, c.lot, c.level);
+          cell(row, String(c.target), c.lowerLimit + ' – ' + c.upperLimit);
+          cell(row, c.expiresOn || 'No expiry');
+          cell(row, c.active ? 'Active' : 'Inactive');
+          var action = document.createElement('td');
+          if (c.active) {
+            var button = document.createElement('button'); button.type = 'button'; button.className = 'btn btn-small'; button.textContent = 'Deactivate';
+            button.addEventListener('click', function () { deactivate(c); }); action.appendChild(button);
+          }
+          row.appendChild(action); controlBody.appendChild(row);
+        });
+        if (!controls.length) controlBody.innerHTML = '<tr><td class="empty" colspan="6">No QC controls configured yet.</td></tr>';
+        var select = $('runControl'); select.replaceChildren();
+        var active = controls.filter(function (c) { return c.active; });
+        active.forEach(function (c) {
+          var option = document.createElement('option'); option.value = c.id;
+          option.textContent = c.panel + ' · ' + c.test + ' · ' + c.instrument + ' · ' + c.level + ' (lot ' + c.lot + ')';
+          select.appendChild(option);
+        });
+        if (!active.length) { var emptyOption = document.createElement('option'); emptyOption.value = ''; emptyOption.textContent = 'Configure an active control first'; select.appendChild(emptyOption); }
+        $('runValue').disabled = !active.length;
+        var runBody = $('runRows'); runBody.replaceChildren();
+        runs.forEach(function (r) {
+          var row = document.createElement('tr');
+          cell(row, r.runAt ? new Date(r.runAt).toLocaleString() : '—', r.instrument);
+          cell(row, r.panel, r.test + ' · ' + r.level + ' · lot ' + r.lot);
+          cell(row, String(r.value));
+          var result = document.createElement('td'); var badge = document.createElement('span');
+          badge.className = 'badge ' + (r.status === 'Pass' ? 'pass' : 'fail'); badge.textContent = r.status;
+          result.appendChild(badge); row.appendChild(result);
+          cell(row, r.runBy, r.note);
+          runBody.appendChild(row);
+        });
+        if (!runs.length) runBody.innerHTML = '<tr><td class="empty" colspan="5">No QC runs recorded.</td></tr>';
+      }
+      async function deactivate(control) {
+        if (!window.confirm('Deactivate this control? Its history will remain, and patient results in its scope will no longer be QC-gated.')) return;
+        try { await window.lcApiDeactivateQcControl(control.id); notice('Control deactivated.', false); load(); }
+        catch (err) { notice('Could not deactivate control: ' + err.message, true); }
+      }
+      $('controlForm').addEventListener('submit', async function (event) {
+        event.preventDefault();
+        var payload = {
+          panel: $('panel').value.trim(), test: $('test').value.trim(), instrument: $('instrument').value.trim(),
+          lot: $('lot').value.trim(), level: $('level').value.trim(), expiresOn: $('expiresOn').value || null,
+          target: $('target').value, lowerLimit: $('lowerLimit').value, upperLimit: $('upperLimit').value
+        };
+        try {
+          await window.lcApiCreateQcControl(payload); this.reset(); notice('Control saved. Record QC for it today before validating matching patient results.', false); load();
+        } catch (err) { notice('Control was not saved: ' + err.message, true); }
+      });
+      $('runForm').addEventListener('submit', async function (event) {
+        event.preventDefault();
+        if (!$('runControl').value) { notice('Configure an active control before recording a run.', true); return; }
+        try {
+          var run = await window.lcApiRecordQcRun({ controlId: $('runControl').value, value: $('runValue').value, note: $('runNote').value.trim() });
+          $('runForm').reset(); notice('QC run recorded: ' + run.status + ' (' + run.value + ').', run.status === 'Fail'); load();
+        } catch (err) { notice('QC run was not recorded: ' + err.message, true); }
+      });
+      $('refreshButton').addEventListener('click', load);
+      load();
+    }());
+  </script>
+</body>
+</html>

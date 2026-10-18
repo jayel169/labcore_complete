@@ -1,0 +1,1808 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sample Registration | LabCore</title>
+    <link rel="stylesheet" href="shared/labcore-nav.css">
+
+    <!-- Export Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <!-- Fuzzy Search -->
+    <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.min.js"></script>
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        
+
+        body {
+            font-family: var(--lc-font);
+            background: var(--lc-bg); color: var(--lc-text); line-height: 1.5;
+        }
+        button, input, select { font-family: inherit; }
+
+        .app { display: flex; min-height: 100vh; }
+
+        /* MAIN */
+        .main {
+            margin-left: 245px; width: calc(100% - 245px);
+            min-height: 100vh; transition: margin var(--lc-transition);
+        }
+
+        .top-header {
+            height: 70px; background: #ffffff;
+            border-bottom: 1px solid var(--lc-border);
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0 30px; position: sticky; top: 0; z-index: 50;
+        }
+
+        .breadcrumb { font-size: 12px; color: #888; }
+        .breadcrumb strong { color: #333; }
+
+        .header-right { display: flex; align-items: center; gap: 20px; }
+
+        .notification { position: relative; font-size: 17px; }
+        .notification-dot {
+            position: absolute; width: 6px; height: 6px; background: #B3261E;
+            border-radius: 50%; top: -2px; right: -3px;
+        }
+
+        .header-date { font-size: 12px; color: #777; }
+        .header-actions { display: flex; gap: 8px; align-items: center; }
+
+        /* CONTENT */
+        .content { padding: 28px 30px; }
+
+        .page-title {
+            display: flex; justify-content: space-between;
+            align-items: flex-start; margin-bottom: 25px;
+            flex-wrap: wrap; gap: 12px;
+        }
+        .page-title h1 { font-size: 24px; font-weight: 600; color: #2A2656; }
+        .page-title p { margin-top: 7px; font-size: 13px; color: var(--lc-muted); }
+
+        /* SUMMARY */
+        .summary {
+            display: grid; grid-template-columns: repeat(4, 1fr);
+            gap: 15px; margin-bottom: 25px;
+        }
+        .summary-card {
+            background: white; border: 1px solid var(--lc-border);
+            border-radius: 8px; padding: 17px; transition: var(--lc-transition);
+        }
+        .summary-card:hover { box-shadow: var(--lc-shadow); transform: translateY(-2px); }
+        .summary-top { display: flex; justify-content: space-between; align-items: center; }
+        .summary-label {
+            font-size: 11px; color: #7d827e;
+             
+        }
+        .summary-icon {
+            width: 30px; height: 30px; border-radius: 6px;
+            background: #f0eee7; display: flex;
+            align-items: center; justify-content: center; font-size: 13px;
+        }
+        .summary-number { margin-top: 12px; font-size: 24px; font-weight: 600; }
+
+        /* TABLE */
+        .table-card {
+            background: white; border: 1px solid var(--lc-border);
+            border-radius: 9px; overflow: hidden; position: relative;
+        }
+        .table-toolbar {
+            padding: 18px 20px; border-bottom: 1px solid #e4e5e3;
+            display: flex; justify-content: space-between; align-items: center;
+            flex-wrap: wrap; gap: 10px;
+        }
+        .table-toolbar h2 { font-size: 16px; font-weight: 600; }
+        .table-toolbar p { color: #8A869C; font-size: 11px; margin-top: 4px; }
+        .debug-info { font-size: 10px; color: #555; margin-top: 4px; }
+        .toolbar-right { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+        .search {
+            width: 250px; height: 36px; border: 1px solid var(--lc-border);
+            border-radius: 6px; padding: 0 12px; font-size: 12px;
+            outline: none; background: #fff; color: var(--lc-text);
+            transition: var(--lc-transition);
+        }
+        .search:focus {
+            border-color: var(--lc-blue);
+            box-shadow: 0 0 0 3px rgba(36, 91, 134, 0.15);
+        }
+
+        .table-wrapper { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; min-width: 1200px; }
+        thead { background: #F8F7FB; }
+        th {
+            padding: 13px 12px; text-align: left; font-size: 10px;
+            color: #5F5B75; font-weight: 600; 
+             border-bottom: 1px solid var(--lc-border);
+        }
+        td {
+            padding: 14px 12px; font-size: 12px;
+            border-bottom: 1px solid #EFEDF4; vertical-align: middle;
+        }
+        tbody tr:hover { background: #fbfbfa; }
+
+        .patient-name { font-weight: 600; color: #292d2a; }
+        .patient-identifiers { margin-top: 4px; color: #8a8e8a; font-size: 10px; }
+        .visit-id { font-weight: 600; color: #454a46; }
+        .age { font-weight: 600; }
+
+        .priority {
+            display: inline-block; padding: 5px 8px; border-radius: 4px;
+            font-size: 10px; font-weight: 600;
+        }
+        .priority-normal { background: #EFEDF4; color: #5F5B75; }
+        .priority-urgent { background: #f1e3c2; color: #775d18; }
+        .priority-stat { background: #ead5d2; color: #813b35; }
+
+        .tests {
+            max-width: 275px; display: flex; flex-wrap: wrap; gap: 4px;
+        }
+        .test-tag {
+            background: #f0f1ef; border: 1px solid var(--lc-border);
+            padding: 4px 6px; border-radius: 4px; font-size: 10px; white-space: nowrap;
+        }
+        .test-tag.received {
+            background: #E5F1EA; border-color: #9bc4a8;
+        }
+        .more-tests {
+            font-size: 10px; color: #777d78; padding: 5px 2px; white-space: nowrap;
+        }
+
+        .status {
+            display: inline-flex; align-items: center; gap: 6px;
+            white-space: nowrap; font-size: 10px; font-weight: 600;
+        }
+        .status-dot { width: 7px; height: 7px; border-radius: 50%; background: #999; }
+        .status-awaiting .status-dot { background: #9b9e9a; }
+        .status-progress .status-dot { background: #c29435; }
+        .status-completed .status-dot { background: #4b875b; }
+        .status-received .status-dot { background: #3d7850; }
+
+        .actions { display: flex; gap: 5px; flex-wrap: wrap; }
+        .action-btn {
+            border: 1px solid #BDBACB; background: white; border-radius: 5px;
+            padding: 7px 8px; cursor: pointer; font-size: 10px;
+            color: #444945; transition: 0.2s;
+        }
+        .action-btn:hover { background: #f1f2ef; }
+        .register-btn {
+            background: #2A2656; color: white; border-color: #2A2656;
+        }
+        .register-btn:hover { background: #3A3577; }
+        .register-btn.has-awaiting {
+            background: var(--lc-gold); border-color: var(--lc-gold); color: var(--lc-brand-primary);
+        }
+        .register-btn.has-awaiting:hover { background: #c9a45a; }
+        .register-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* MODALS */
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(22, 25, 23, 0.52);
+            display: none; align-items: center; justify-content: center;
+            z-index: 1000; padding: 20px; 
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            width: 950px; max-width: 100%; max-height: 90vh;
+            background: white; border-radius: 9px; overflow-y: auto;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        }
+        .modal-header {
+            padding: 18px 20px; border-bottom: 1px solid var(--lc-border);
+            display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; background: white; z-index: 10;
+        }
+        .modal-header h2 { font-size: 17px; font-weight: 600; }
+        .modal-header p { color: #8A869C; font-size: 11px; margin-top: 4px; }
+        .close-btn {
+            border: none; background: none; font-size: 22px;
+            color: #777; cursor: pointer; transition: var(--lc-transition);
+        }
+        .close-btn:hover { color: var(--lc-red); transform: scale(1.1); }
+
+        .modal-body { padding: 20px; position: relative; }
+        .modal-footer {
+            border-top: 1px solid var(--lc-border);
+            padding: 14px 20px; display: flex; justify-content: flex-end;
+            gap: 8px; position: sticky; bottom: 0; background: white;
+            z-index: 10; flex-wrap: wrap;
+        }
+
+        .patient-info {
+            background: #f6f7f5; border: 1px solid var(--lc-border);
+            border-radius: 7px; padding: 15px;
+            display: grid; grid-template-columns: repeat(4, 1fr);
+            gap: 15px; margin-bottom: 22px;
+        }
+        .info-label {
+            display: block; font-size: 9px; color: #8A869C;
+             margin-bottom: 4px;
+        }
+        .info-value { font-size: 12px; font-weight: 600; }
+
+        .section-heading { font-size: 13px; font-weight: 600; margin-bottom: 10px; }
+        .section-description {
+            font-size: 11px; color: #777d78; margin-bottom: 12px;
+        }
+
+        .specimen-groups { display: flex; flex-direction: column; gap: 14px; }
+
+        .specimen-group {
+            border: 1px solid var(--lc-border); border-radius: 8px;
+            overflow: hidden; background: #fff;
+            transition: var(--lc-transition);
+        }
+        .specimen-group:hover { border-color: var(--lc-blue); }
+
+        .specimen-group-header {
+            background: #f6f7f5; border-bottom: 1px solid var(--lc-border);
+            padding: 12px 14px; display: flex;
+            justify-content: space-between; align-items: center;
+            gap: 12px; flex-wrap: wrap;
+        }
+        .specimen-group-title {
+            font-size: 12px; font-weight: 600; color: #292d2a;
+        }
+        .specimen-group-subtitle {
+            font-size: 10px; color: #8A869C; margin-top: 3px;
+        }
+        .specimen-group-badge {
+            font-size: 9px; font-weight: 600; padding: 5px 8px;
+            border-radius: 4px; background: #EFEDF4;
+            color: #5F5B75; white-space: nowrap;
+        }
+
+        .specimen-tests { padding: 0 14px; }
+        .specimen-test-row {
+            display: grid; grid-template-columns: 28px 1.5fr 1fr;
+            align-items: center; gap: 8px;
+            padding: 10px 0; border-bottom: 1px solid #EFEDF4;
+        }
+        .specimen-test-row:last-child { border-bottom: none; }
+        .specimen-test-row.disabled { opacity: 0.5; pointer-events: none; }
+        .specimen-test-row input[type="checkbox"] {
+            width: 16px; height: 16px; cursor: pointer;
+        }
+        .specimen-test-name { font-size: 11px; font-weight: 600; }
+        .specimen-test-status {
+            font-size: 10px; font-weight: 600; text-align: right;
+        }
+        .specimen-test-status.received { color: #3d7850; }
+        .specimen-test-status.awaiting { color: #8A869C; }
+
+        .specimen-receipt {
+            border-top: 1px solid #EFEDF4;
+            padding: 14px; background: #fbfbfa;
+        }
+        .receipt-heading {
+            display: flex; justify-content: space-between;
+            align-items: center; margin-bottom: 11px;
+        }
+        .receipt-heading strong { font-size: 11px; }
+        .receipt-note { font-size: 9px; color: #8A869C; }
+
+        .receipt-form-grid {
+            display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;
+        }
+
+        .required-mark { color: #B3261E; }
+
+        .form-group label {
+            display: block; font-size: 10px; font-weight: 600;
+            margin-bottom: 6px; color: #4A4660;
+        }
+        .form-group input, .form-group select {
+            width: 100%; height: 37px; border: 1px solid var(--lc-border);
+            border-radius: 6px; padding: 0 10px; outline: none;
+            font-size: 11px; background: white; color: var(--lc-text);
+            transition: var(--lc-transition);
+        }
+        .form-group input:focus, .form-group select:focus {
+            border-color: var(--lc-blue);
+            box-shadow: 0 0 0 3px rgba(36, 91, 134, 0.15);
+        }
+        .form-group input[readonly] { background: #F3F2F6; color: #555; }
+
+        /* BUTTONS */
+        .btn {
+            padding: 7px 14px; border-radius: 6px;
+            border: 1px solid var(--lc-border); background: white;
+            cursor: pointer; font-size: 12px; font-weight: 600;
+            transition: var(--lc-transition); display: inline-flex;
+            align-items: center; gap: 6px; text-decoration: none;
+            color: var(--lc-text);
+        }
+        .btn:hover {
+            background: var(--lc-bg); transform: translateY(-1px);
+            box-shadow: var(--lc-shadow);
+        }
+        .btn-primary {
+            background: var(--lc-blue); border-color: var(--lc-blue); color: white;
+        }
+        .btn-primary:hover { background: #2A2656; border-color: #2A2656; }
+        .btn-success {
+            background: var(--lc-green); border-color: var(--lc-green); color: white;
+        }
+        .btn-success:hover { background: #206038; border-color: #206038; }
+        .btn-danger {
+            background: var(--lc-red); border-color: var(--lc-red); color: white;
+        }
+        .btn-danger:hover { background: #8C1C16; border-color: #8C1C16; }
+        .btn-warning {
+            background: var(--lc-warning); border-color: var(--lc-warning); color: white;
+        }
+        .btn-sm { padding: 4px 10px; font-size: 10px; }
+
+        .modal-btn {
+            padding: 8px 13px; border-radius: 5px;
+            border: 1px solid #BDBACB; background: white;
+            cursor: pointer; font-size: 11px; transition: var(--lc-transition);
+        }
+        .modal-btn:hover { background: var(--lc-bg); }
+        .save-btn {
+            background: #2A2656; border-color: #2A2656; color: white;
+        }
+        .save-btn:hover { background: #3A3577; border-color: #3A3577; }
+
+        .empty {
+            text-align: center; padding: 35px;
+            color: #8A869C; font-size: 12px;
+        }
+
+        /* LOADING */
+        .lc-loading-overlay {
+            position: absolute; inset: 0;
+            background: rgba(255, 255, 255, 0.85);
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            z-index: 50; border-radius: var(--lc-radius);
+        }
+        .lc-loading-spinner {
+            width: 40px; height: 40px;
+            border: 4px solid var(--lc-border);
+            border-top-color: var(--lc-blue);
+            border-radius: 50%; animation: lcSpin 0.8s linear infinite;
+        }
+        .lc-loading-text { margin-top: 12px; font-size: 13px; color: var(--lc-muted); }
+        @keyframes lcSpin { to { transform: rotate(360deg); } }
+
+        /* RESPONSIVE */
+        @media (max-width: 1000px) {
+            .main { margin-left: 0; width: 100%; }
+            .summary { grid-template-columns: repeat(2, 1fr); }
+            .patient-info { grid-template-columns: repeat(2, 1fr); }
+            .receipt-form-grid { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 900px) {
+            .main { padding-top: 60px; }
+            .summary { grid-template-columns: 1fr 1fr; }
+            .patient-info { grid-template-columns: 1fr 1fr; }
+            .specimen-test-row { grid-template-columns: 28px 1fr; }
+            .specimen-test-status { grid-column: 2; text-align: left; }
+        }
+        @media (max-width: 700px) {
+            .top-header { height: 56px; padding: 0 16px; }
+            .content { padding: 16px; }
+            .page-title { flex-direction: column; align-items: flex-start; }
+            .page-title h1 { font-size: 20px; }
+            .table-toolbar { flex-direction: column; align-items: flex-start; gap: 12px; }
+            .search { width: 100%; }
+            .toolbar-right { width: 100%; }
+            .summary { grid-template-columns: 1fr; }
+            .patient-info { grid-template-columns: 1fr; }
+            .modal { width: 100%; max-height: 100vh; border-radius: 0; }
+            .modal-header { padding: 12px 16px; }
+            .modal-body { padding: 14px; }
+            .modal-footer { padding: 10px 16px; flex-wrap: wrap; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="app">
+
+        <!-- SIDEBAR (built by shared/labcore-nav.js) -->
+        <aside class="sidebar"></aside>
+
+        <!-- Mobile Toggle -->
+        <button class="lc-mobile-toggle" aria-label="Toggle navigation">☰</button>
+        <div class="lc-sidebar-overlay"></div>
+
+        <!-- MAIN -->
+        <main class="main">
+
+            <header class="top-header">
+
+                <div class="breadcrumb">
+                    Laboratory <span>/</span> <strong>Sample Registration</strong>
+                </div>
+
+                               <div class="header-right">
+
+                    <div class="header-actions">
+                        <button class="btn btn-sm" onclick="openScanMode()" title="Scan barcode">📷 Scan</button>
+                        <button class="btn btn-sm" onclick="exportSpecimenList()" title="Export to Excel">📊</button>
+                        <a class="btn btn-sm" href="label-designer.html" title="Open Label Designer">🏷️</a>
+                    </div>
+
+                    <div class="notification">
+                        ♧
+                        <span class="notification-dot"></span>
+                    </div>
+
+                    <div class="header-date" id="currentDate"></div>
+
+                </div>
+
+            </header>
+
+            <section class="content">
+
+                <div class="page-title">
+
+                    <div>
+                        <h1>Sample Registration</h1>
+                        <p>Register specimens received against existing laboratory requests from consultation.</p>
+                    </div>
+
+                    <div>
+                        <a class="btn btn-sm btn-primary" href="label-designer.html">🏷️ Open Label Designer</a>
+                    </div>
+
+                </div>
+
+                <!-- SUMMARY -->
+                <div class="summary">
+
+                    <div class="summary-card">
+                        <div class="summary-top">
+                            <span class="summary-label">Total Visits</span>
+                            <span class="summary-icon">▣</span>
+                        </div>
+                        <div class="summary-number" id="totalVisits">0</div>
+                    </div>
+
+                    <div class="summary-card">
+                        <div class="summary-top">
+                            <span class="summary-label">Awaiting Specimen</span>
+                            <span class="summary-icon">◷</span>
+                        </div>
+                        <div class="summary-number" id="awaitingCount">0</div>
+                    </div>
+
+                    <div class="summary-card">
+                        <div class="summary-top">
+                            <span class="summary-label">In Progress</span>
+                            <span class="summary-icon">◌</span>
+                        </div>
+                        <div class="summary-number" id="progressCount">0</div>
+                    </div>
+
+                    <div class="summary-card">
+                        <div class="summary-top">
+                            <span class="summary-label">Completed</span>
+                            <span class="summary-icon">✓</span>
+                        </div>
+                        <div class="summary-number" id="completedCount">0</div>
+                    </div>
+
+                </div>
+
+                <!-- TABLE -->
+                <div class="table-card">
+
+                    <div class="table-toolbar">
+
+                        <div>
+                            <h2>Laboratory Requests</h2>
+                            <p>All laboratory requests remain visible here, including those with specimens already registered.</p>
+                            <div class="debug-info" id="debugInfo">Loading...</div>
+                        </div>
+
+                        <div class="toolbar-right">
+                            <input type="text" id="searchInput" class="search" placeholder="Search patient, ID or visit..."
+                                oninput="window.lcDebounce(renderTable, 300)()">
+                            <button class="btn btn-sm btn-outline" onclick="clearSearch()">Clear</button>
+                            <button class="btn btn-sm btn-primary" onclick="exportSpecimenList()">📊 Export</button>
+                        </div>
+
+                    </div>
+
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Specimen ID</th>
+                                    <th>Patient</th>
+                                    <th>Age</th>
+                                    <th>Gender</th>
+                                    <th>Doctor</th>
+                                    <th>Priority</th>
+                                    <th>Tests</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="patientTable"></tbody>
+                        </table>
+                    </div>
+
+                </div>
+
+                <!-- REMOVED: Specimen Barcodes section — barcodes now live in label-designer.html -->
+
+            </section>
+
+        </main>
+
+    </div>
+
+    <!-- REGISTER SPECIMEN MODAL -->
+    <div class="modal-overlay" id="registerModal">
+
+        <div class="modal">
+
+            <div class="modal-header">
+                <div>
+                    <h2>Register Specimen</h2>
+                    <p>Select the specimens actually received. Tests are grouped by their required specimen.</p>
+                </div>
+                <button class="close-btn" onclick="closeModal('registerModal')">×</button>
+            </div>
+
+            <div class="modal-body">
+
+                <div class="patient-info">
+                    <div>
+                        <span class="info-label">Patient</span>
+                        <span class="info-value" id="modalPatientName"></span>
+                    </div>
+                    <div>
+                        <span class="info-label">Patient ID</span>
+                        <span class="info-value" id="modalPatientId"></span>
+                    </div>
+                    <div>
+                        <span class="info-label">Visit ID</span>
+                        <span class="info-value" id="modalVisitId"></span>
+                    </div>
+                    <div>
+                        <span class="info-label">Age</span>
+                        <span class="info-value" id="modalAge"></span>
+                    </div>
+                    <div>
+                        <span class="info-label">Gender</span>
+                        <span class="info-value" id="modalGender"></span>
+                    </div>
+                    <div>
+                        <span class="info-label">Doctor</span>
+                        <span class="info-value" id="modalDoctor"></span>
+                    </div>
+                    <div>
+                        <span class="info-label">Request Date</span>
+                        <span class="info-value" id="modalRequestDate"></span>
+                    </div>
+                    <div>
+                        <span class="info-label">Specimen ID</span>
+                        <span class="info-value" id="modalSpecimenId"></span>
+                    </div>
+                </div>
+
+                <div class="section-heading">Requested Investigations</div>
+
+                <div class="section-description">
+                    Select only the investigations for which the specimen has actually arrived.
+                    Tests using the same specimen type can be registered under one specimen ID.
+                </div>
+
+                <div id="modalSpecimenGroups"></div>
+
+            </div>
+
+            <div class="modal-footer">
+                <button class="modal-btn" onclick="closeModal('registerModal')">Cancel</button>
+                <button class="modal-btn save-btn" onclick="saveSpecimens()">Register Selected Specimens</button>
+            </div>
+
+        </div>
+
+    </div>
+
+<script src="shared/labcore-api.js"></script>
+<script src="shared/labcore-utils.js"></script>
+<script src="shared/labcore-ward.js"></script>
+<script src="shared/labcore-auth.js"></script>
+<script src="shared/labcore-staff.js"></script> <!-- NEW -->
+    <script src="shared/labcore-audit.js"></script>
+      <script src="shared/labcore-labels.js"></script>
+    <script src="shared/labcore-scan.js"></script>
+    <script src="shared/labcore-icons.js"></script>
+<script src="shared/labcore-nav.js"></script>
+    <script src="shared/labcore-search.js"></script>
+<script src="shared/labcore-notifications.js"></script>
+<script src="shared/labcore-print-preview.js"></script>
+<script src="shared/labcore-timeline.js"></script>
+
+    <script>
+        /* =========================================================
+           GLOBAL VARIABLES
+        ========================================================= */
+
+        let visits = [];
+        let selectedVisitIndex = null;
+
+        let specimenCounter =
+            Number(localStorage.getItem("hms_specimen_counter") || "100");
+
+        /* =========================================================
+           TEST → SPECIMEN MAPPING
+        ========================================================= */
+
+        var testSpecimenMap = {
+            "Full Blood Count": { specimen: "Whole Blood", container: "EDTA Tube" },
+            "FBC": { specimen: "Whole Blood", container: "EDTA Tube" },
+            "Full Blood Count (FBC)": { specimen: "Whole Blood", container: "EDTA Tube" },
+            "U&E": { specimen: "Serum", container: "Plain Tube" },
+            "LFT": { specimen: "Serum", container: "Plain Tube" },
+            "Liver Function Test": { specimen: "Serum", container: "Plain Tube" },
+            "Liver Function Panel": { specimen: "Serum", container: "Plain Tube" },
+            "CRP": { specimen: "Serum", container: "Plain Tube" },
+            "Malaria RDT": { specimen: "Whole Blood", container: "EDTA Tube" },
+            "Malaria Panel": { specimen: "Whole Blood", container: "EDTA Tube" },
+            "Malaria Microscopy": { specimen: "Whole Blood", container: "EDTA Tube" },
+            "Malaria Profiel": { specimen: "Whole Blood", container: "EDTA Tube" },
+            "Blood Film": { specimen: "Whole Blood", container: "EDTA Tube" },
+            "Lipid Profile": { specimen: "Serum", container: "Plain Tube" },
+            "Fasting Blood Glucose": { specimen: "Plasma", container: "Fluoride Oxalate Tube" },
+            "PT": { specimen: "Citrated Blood", container: "Citrate Tube" },
+            "APTT": { specimen: "Citrated Blood", container: "Citrate Tube" },
+            "HbA1c": { specimen: "Whole Blood", container: "EDTA Tube" },
+            "HIV 1/2": { specimen: "Serum", container: "Plain Tube" },
+            "HIV Screening": { specimen: "Serum", container: "Plain Tube" },
+            "HIV 1/2 Ag/Ab": { specimen: "Serum", container: "Plain Tube" },
+            "HBsAg": { specimen: "Serum", container: "Plain Tube" },
+            "HCV": { specimen: "Serum", container: "Plain Tube" },
+            "Syphilis": { specimen: "Serum", container: "Plain Tube" },
+            "Hepatitis B Panel": { specimen: "Serum", container: "Plain Tube" },
+            "Retroviral screening": { specimen: "Serum", container: "Plain Tube" },
+            "HIV": { specimen: "Serum", container: "Plain Tube" },
+            "Malaria": { specimen: "Whole Blood", container: "EDTA Tube" },
+            "Retro": { specimen: "Serum", container: "Plain Tube" },
+            "Urinalysis": { specimen: "Urine", container: "Sterile Universal Container" },
+            "Stool R/E": { specimen: "Stool", container: "Sterile Universal Container" },
+            "Stool MCS": { specimen: "Stool", container: "Sterile Universal Container" },
+            "Sputum MCS": { specimen: "Sputum", container: "Sterile Universal Container" },
+            "H. pylori": { specimen: "Stool", container: "Sterile Universal Container" },
+            "Chlamydia": { specimen: "Swab", container: "Swab Transport Medium" },
+            "Gonorrhoea": { specimen: "Swab", container: "Swab Transport Medium" },
+            "Widal Test": { specimen: "Serum", container: "Plain Tube" },
+            "Renal Function Test": { specimen: "Serum", container: "Plain Tube" },
+            "G6PD (Qualitative)": { specimen: "Whole Blood", container: "EDTA Tube" },
+            "Hemoglobin Electrophoresis": { specimen: "Whole Blood", container: "EDTA Tube" },
+            "ABO Group": { specimen: "Whole Blood", container: "EDTA Tube" },
+            "hCG": { specimen: "Urine", container: "Sterile Universal Container" },
+            "esr": { specimen: "Whole Blood", container: "EDTA Tube" },
+            "Lipase": { specimen: "Serum", container: "Plain Tube" },
+            "Magnesium": { specimen: "Serum", container: "Plain Tube" },
+            "klebsiella": { specimen: "Stool", container: "Sterile Universal Container" }
+        };
+
+        /* =========================================================
+           SPECIMEN HELPERS
+        ========================================================= */
+
+        function getTestSpecimenInfo(testName) {
+            var mapping = testSpecimenMap[testName];
+            if (mapping) return mapping;
+            var lowerName = String(testName || "").toLowerCase();
+            for (var key in testSpecimenMap) {
+                if (key.toLowerCase() === lowerName) return testSpecimenMap[key];
+            }
+            return { specimen: "Unknown", container: "" };
+        }
+
+        function normalizeSpecimen(specimen) {
+            var value = String(specimen || "").toLowerCase();
+            if (value.includes("edta") || value.includes("whole blood")) return "Whole Blood";
+            if (value.includes("citrate") || value.includes("citrated")) return "Citrated Blood";
+            if (value.includes("serum")) return "Serum";
+            if (value.includes("plasma")) return "Plasma";
+            if (value.includes("urine")) return "Urine";
+            if (value.includes("stool")) return "Stool";
+            if (value.includes("swab")) return "Swab";
+            if (value.includes("sputum")) return "Sputum";
+            return specimen;
+        }
+
+        function specimenDefaultContainer(specimen) {
+            var norm = normalizeSpecimen(specimen);
+            if (norm === "Whole Blood") return "EDTA Tube";
+            if (norm === "Citrated Blood") return "Citrate Tube";
+            if (norm === "Serum") return "Plain Tube";
+            if (norm === "Plasma") return "Fluoride Oxalate Tube";
+            if (norm === "Urine" || norm === "Stool" || norm === "Sputum") return "Sterile Universal Container";
+            if (norm === "Swab") return "Swab Transport Medium";
+            return "";
+        }
+
+        /* =========================================================
+           LOAD VISITS
+        ========================================================= */
+
+        function loadVisitsFromStorage() {
+            var patients = JSON.parse(localStorage.getItem("hms_patients_v3") || "[]");
+            var list = [];
+
+            patients.forEach(function (patient) {
+                if (!patient.encounters || patient.encounters.length === 0) return;
+
+                patient.encounters.forEach(function (enc) {
+                    if (!enc.orders || enc.orders.length === 0) return;
+
+                    var labOrders = enc.orders.filter(function (o) {
+                        var type = String(o.type || "").toLowerCase().trim();
+                        return (type === "laboratory" || type === "lab");
+                    });
+                    if (labOrders.length === 0) return;
+
+                    var tests = labOrders.map(function (o) {
+                        var rawStatus = String(o.status || "Pending").trim();
+                        var status = normalizeOrderStatus(rawStatus);
+                        var testName = o.item || o.test || o.name || "Unknown Test";
+                        var specInfo = getTestSpecimenInfo(testName);
+
+                        return {
+                            name: testName,
+                            requestDate: enc.date || (enc.createdAt || "").slice(0, 10) || new Date().toISOString().slice(0, 10),
+                            status: status,
+                            specimenId: o.specimenId || null,
+                            specimenType: o.specimenType || specInfo.specimen || null,
+                            specimenReceivedDate: o.specimenReceivedDate || null,
+                            specimenReceivedTime: o.specimenReceivedTime || null,
+                            container: o.container || specInfo.container || null,
+                            specimenCondition: o.specimenCondition || null,
+                            receivedFrom: o.receivedFrom || null,
+                            receivedBy: o.receivedBy || null,
+                            remarks: o.remarks || "",
+                            orderIndex: enc.orders.indexOf(o)
+                        };
+                    });
+
+                    list.push({
+                        visitId: enc.visitId || enc.id || "Unknown",
+                        patientId: patient.id || patient.patientId || "Unknown",
+                        name: patient.fullName || patient.name || "Unknown Patient",
+                        age: ageFromDob(patient.dob || patient.dateOfBirth),
+                        gender: patient.sex || patient.gender || "",
+                        doctor: enc.consultant || enc.doctor || enc.physician || "—",
+                        priority: enc.priority || labOrders[0].priority || "Normal",
+                        requestDate: enc.date || (enc.createdAt || "").slice(0, 10) || new Date().toISOString().slice(0, 10),
+                        tests: tests,
+                        patientIdForStorage: patient.id || patient.patientId,
+                        encounterIdForStorage: enc.visitId || enc.id
+                    });
+                });
+            });
+
+            list.sort(function (a, b) {
+                return (b.requestDate || "").localeCompare(a.requestDate || "");
+            });
+            return list;
+        }
+
+        async function refreshPatientsFromServer() {
+            if (!window.lcApiGetPatients || !window.lcApiGetLabOrders ||
+                !window.lcGetToken || !window.lcGetToken()) return;
+            try {
+                var results = await Promise.all([
+                    window.lcApiGetPatients(),
+                    window.lcApiGetLabOrders(2000)
+                ]);
+                var serverPatients = results[0];
+                var serverOrders = results[1];
+                var ordersByEncounter = new Map();
+                serverOrders.forEach(function (order) {
+                    var key = String(order.patientId) + '|' + String(order.encounterId);
+                    if (!ordersByEncounter.has(key)) ordersByEncounter.set(key, []);
+                    ordersByEncounter.get(key).push(order);
+                });
+
+                serverPatients.forEach(function (patient) {
+                    (patient.encounters || []).forEach(function (encounter) {
+                        var key = String(patient.id) + '|' + String(encounter.visitId || encounter.id);
+                        var localNonLabOrders = (encounter.orders || []).filter(function (order) {
+                            var type = String(order.type || '').toLowerCase().trim();
+                            return type !== 'laboratory' && type !== 'lab';
+                        });
+                        encounter.orders = localNonLabOrders.concat(ordersByEncounter.get(key) || []);
+                    });
+                });
+
+                localStorage.setItem('hms_patients_v3', JSON.stringify(serverPatients));
+                visits = loadVisitsFromStorage();
+                renderTable();
+            } catch (error) {
+                console.error('[specimens] could not load shared patient orders:', error);
+                window.lcToast('Could not refresh lab requests from the server. Showing this browser’s saved records.', 'warning');
+            }
+        }
+
+        function normalizeOrderStatus(status) {
+            var value = String(status || "").trim().toLowerCase();
+            if (value === "pending" || value === "awaiting specimen" || value === "awaiting sample" || value === "sample pending") return "Awaiting Specimen";
+            if (value === "specimen received" || value === "sample received" || value === "received") return "Specimen Received";
+            if (value === "validated" || value === "completed") return "Completed";
+            if (value === "preliminary" || value === "awaiting validation" || value === "in progress") return "In Progress";
+            if (value === "verified") return "Verified";
+            return "Awaiting Specimen";
+        }
+
+        function ageFromDob(dob) {
+            if (!dob) return "—";
+            var b = new Date(dob);
+            var t = new Date();
+            if (isNaN(b.getTime())) return "—";
+            var a = t.getFullYear() - b.getFullYear();
+            var m = t.getMonth() - b.getMonth();
+            if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--;
+            return a + "y";
+        }
+
+        function formatDateDisplay(dateString) {
+            if (!dateString) return "N/A";
+            var d = new Date(dateString + "T00:00:00");
+            if (isNaN(d.getTime())) return dateString;
+            var day = d.getDate();
+            var month = d.toLocaleString("en-US", { month: "long" });
+            var year = d.getFullYear();
+            var suffix = "th";
+            if (day % 10 === 1 && day !== 11) suffix = "st";
+            else if (day % 10 === 2 && day !== 12) suffix = "nd";
+            else if (day % 10 === 3 && day !== 13) suffix = "rd";
+            return day + suffix + " " + month + ", " + year;
+        }
+
+        function esc(str) {
+            return String(str || "")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;");
+        }
+
+        document.getElementById("currentDate").textContent =
+            new Date().toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" });
+
+        /* =========================================================
+           RENDER TABLE
+        ========================================================= */
+
+        function renderTable() {
+            visits = loadVisitsFromStorage();
+
+            var searchInput = document.getElementById("searchInput");
+            var q = (searchInput.value || "").toLowerCase().trim();
+            var data = visits;
+
+            if (q) {
+                if (typeof Fuse !== 'undefined') {
+                    try {
+                        const fuse = new Fuse(visits, {
+                            keys: ['name', 'patientId', 'visitId', 'doctor'],
+                            threshold: 0.4
+                        });
+                        data = fuse.search(q).map(r => r.item);
+                    } catch (e) {
+                        data = visits.filter(function (v) {
+                            return (v.name || '').toLowerCase().includes(q) ||
+                                (v.patientId || '').toLowerCase().includes(q) ||
+                                (v.visitId || '').toLowerCase().includes(q) ||
+                                (v.doctor || '').toLowerCase().includes(q);
+                        });
+                    }
+                } else {
+                    data = visits.filter(function (v) {
+                        return (v.name || '').toLowerCase().includes(q) ||
+                            (v.patientId || '').toLowerCase().includes(q) ||
+                            (v.visitId || '').toLowerCase().includes(q) ||
+                            (v.doctor || '').toLowerCase().includes(q);
+                    });
+                }
+            }
+
+            var table = document.getElementById("patientTable");
+            table.innerHTML = "";
+
+            var totalLabOrders = 0;
+            visits.forEach(function (v) { totalLabOrders += (v.tests || []).length; });
+
+            document.getElementById("debugInfo").textContent =
+                "Patients: " + visits.length + " visits | Total lab orders: " + totalLabOrders + " | Showing: " + data.length + " (fuzzy search active)";
+
+            if (data.length === 0) {
+                table.innerHTML = '<tr><td colspan="9"><div class="empty">No laboratory requests found. Orders from Consultation will appear here automatically.</div></td></tr>';
+                updateSummary([]);
+                return;
+            }
+
+            data.forEach(function (visit) {
+                var originalIndex = visits.indexOf(visit);
+                var row = document.createElement("tr");
+
+                var specimenId = visit.tests && visit.tests.length > 0 && visit.tests[0].specimenId ? visit.tests[0].specimenId : '—';
+                var visibleTests = visit.tests.slice(0, 4);
+                var remaining = visit.tests.length - visibleTests.length;
+
+                var testsHTML = "";
+                visibleTests.forEach(function (test) {
+                    var isReceived = test.status === "Specimen Received" || test.status === "In Progress" || test.status === "Completed" || test.status === "Verified";
+                    testsHTML += '<span class="test-tag ' + (isReceived ? "received" : "") + '">' + esc(test.name) + '</span>';
+                });
+                if (remaining > 0) testsHTML += '<span class="more-tests">+' + remaining + ' more</span>';
+
+                var priorityClass = "priority-normal";
+                if (String(visit.priority).toLowerCase() === "urgent") priorityClass = "priority-urgent";
+                if (String(visit.priority).toLowerCase() === "stat") priorityClass = "priority-stat";
+
+                var hasAwaiting = visit.tests.some(function (t) { return t.status === "Awaiting Specimen"; });
+                var registerBtnClass = hasAwaiting ? "register-btn has-awaiting" : "register-btn";
+
+                row.innerHTML =
+                    '<td><span class="visit-id">' + esc(specimenId) + '</span></td>' +
+                    '<td><div class="patient-name">' + esc(visit.name) + '</div><div class="patient-identifiers">' + esc(visit.patientId) + '</div></td>' +
+                    '<td><span class="age">' + esc(visit.age) + '</span></td>' +
+                    '<td>' + esc(visit.gender) + '</td>' +
+                    '<td>' + esc(visit.doctor) + '</td>' +
+                    '<td><span class="priority ' + priorityClass + '">' + esc(visit.priority) + '</span></td>' +
+                    '<td><div class="tests">' + testsHTML + '</div></td>' +
+                    '<td>' + getOverallStatus(visit.tests) + '</td>' +
+                    '<td><div class="actions">' +
+                    '<button class="action-btn ' + registerBtnClass + '" ' + (hasAwaiting ? "" : "disabled") + ' onclick="openRegister(' + originalIndex + ')">Register</button>' +
+                    '<button class="action-btn" onclick="enterResults(' + originalIndex + ')">Enter Results</button>' +
+                    '</div></td>';
+
+                table.appendChild(row);
+            });
+
+            updateSummary(data);
+        }
+
+        function getOverallStatus(tests) {
+            if (!tests || tests.length === 0) return '<span class="status status-awaiting"><span class="status-dot"></span>Awaiting Specimen</span>';
+
+            var completed = tests.filter(function (t) { return t.status === "Completed" || t.status === "Verified"; }).length;
+            var received = tests.filter(function (t) { return t.status === "Specimen Received"; }).length;
+            var inProgress = tests.filter(function (t) { return t.status === "In Progress"; }).length;
+            var awaiting = tests.filter(function (t) { return t.status === "Awaiting Specimen"; }).length;
+
+            if (completed === tests.length) return '<span class="status status-completed"><span class="status-dot"></span>Completed</span>';
+            if (awaiting === 0 && (received > 0 || inProgress > 0)) return '<span class="status status-progress"><span class="status-dot"></span>In Progress</span>';
+            if (received > 0 || inProgress > 0) return '<span class="status status-progress"><span class="status-dot"></span>Partially Received</span>';
+            return '<span class="status status-awaiting"><span class="status-dot"></span>Awaiting Specimen</span>';
+        }
+
+        function updateSummary(data) {
+            var awaiting = 0, progress = 0, completed = 0;
+            data.forEach(function (visit) {
+                visit.tests.forEach(function (test) {
+                    if (test.status === "Awaiting Specimen") awaiting++;
+                    else if (test.status === "Specimen Received" || test.status === "In Progress") progress++;
+                    else if (test.status === "Completed" || test.status === "Verified") completed++;
+                });
+            });
+            document.getElementById("totalVisits").textContent = data.length;
+            document.getElementById("awaitingCount").textContent = awaiting;
+            document.getElementById("progressCount").textContent = progress;
+            document.getElementById("completedCount").textContent = completed;
+        }
+
+        /* =========================================================
+           SPECIMEN ID
+        ========================================================= */
+
+        function generateSpecimenId() {
+            specimenCounter++;
+            localStorage.setItem("hms_specimen_counter", String(specimenCounter));
+            var d = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+            var n = String(specimenCounter);
+            while (n.length < 4) n = "0" + n;
+            return "SP-" + d + "-" + n;
+        }
+
+        /* =========================================================
+           OPEN REGISTER
+        ========================================================= */
+
+        function openRegister(index) {
+            selectedVisitIndex = index;
+            var visit = visits[index];
+
+            if (!visit) {
+                window.lcToast("Visit not found. Please refresh.", "error");
+                return;
+            }
+
+            var modalBody = document.querySelector('#registerModal .modal-body');
+            if (modalBody) {
+                var loading = document.createElement('div');
+                loading.className = 'lc-loading-overlay';
+                loading.id = 'registerLoading';
+                loading.innerHTML = '<div class="lc-loading-spinner"></div><div class="lc-loading-text">Loading specimen data...</div>';
+                modalBody.style.position = 'relative';
+                modalBody.appendChild(loading);
+            }
+
+            setTimeout(function () {
+                try {
+                    document.getElementById("modalPatientName").textContent = visit.name;
+                    document.getElementById("modalPatientId").textContent = visit.patientId;
+                    document.getElementById("modalVisitId").textContent = visit.visitId;
+                    document.getElementById("modalAge").textContent = visit.age;
+                    document.getElementById("modalGender").textContent = visit.gender;
+                    document.getElementById("modalDoctor").textContent = visit.doctor;
+                    document.getElementById("modalRequestDate").textContent = formatDateDisplay(visit.requestDate);
+                    document.getElementById("modalSpecimenId").textContent = "Generated on registration";
+
+                    renderSpecimenGroups(visit);
+                    document.getElementById("registerModal").classList.add("active");
+                } catch (e) {
+                    console.error('Error opening register:', e);
+                    window.lcToast('Error loading specimen data', 'error');
+                } finally {
+                    var loadingEl = document.getElementById('registerLoading');
+                    if (loadingEl) loadingEl.remove();
+                }
+            }, 200);
+        }
+
+        /* =========================================================
+           RENDER SPECIMEN GROUPS
+        ========================================================= */
+
+        function renderSpecimenGroups(visit) {
+            var container = document.getElementById("modalSpecimenGroups");
+            container.innerHTML = "";
+
+            var awaitingTests = [];
+            var receivedTests = [];
+
+            visit.tests.forEach(function (test, index) {
+                if (test.status === "Awaiting Specimen") awaitingTests.push({ test: test, index: index });
+                else receivedTests.push({ test: test, index: index });
+            });
+
+            if (awaitingTests.length === 0 && receivedTests.length === 0) {
+                container.innerHTML = '<div class="empty">No investigations found for this request.</div>';
+                return;
+            }
+
+            var wrapper = document.createElement("div");
+            wrapper.className = "specimen-groups";
+
+            if (receivedTests.length > 0) {
+                var infoGroup = document.createElement("div");
+                infoGroup.className = "specimen-group";
+                infoGroup.style.borderColor = "#9bc4a8";
+                infoGroup.style.background = "#f6faf7";
+
+                var infoTestsHTML = receivedTests.map(function (item) {
+                    return '<div class="specimen-test-row disabled">' +
+                        '<div><input type="checkbox" disabled checked style="opacity:0.5;"></div>' +
+                        '<div><div class="specimen-test-name">' + esc(item.test.name) + '</div>' +
+                        '<div class="specimen-test-status received">' + esc(item.test.specimenId || "Specimen Received") + '</div></div>' +
+                        '<div class="specimen-test-status received">' + esc(item.test.status) + '</div></div>';
+                }).join("");
+
+                infoGroup.innerHTML =
+                    '<div class="specimen-group-header" style="background:#e6f0e8;">' +
+                    '<div><div class="specimen-group-title">✓ Already Registered</div>' +
+                    '<div class="specimen-group-subtitle">These tests already have specimens registered</div></div>' +
+                    '<span class="specimen-group-badge" style="background:#9bc4a8;color:#1a4a2a;">' + receivedTests.length + ' registered</span>' +
+                    '</div>' +
+                    '<div class="specimen-tests">' + infoTestsHTML + '</div>';
+
+                wrapper.appendChild(infoGroup);
+            }
+
+            if (awaitingTests.length === 0) {
+                var emptyGroup = document.createElement("div");
+                emptyGroup.className = "specimen-group";
+                emptyGroup.innerHTML =
+                    '<div class="specimen-group-header"><div>' +
+                    '<div class="specimen-group-title">All specimens received</div>' +
+                    '<div class="specimen-group-subtitle">No tests are awaiting specimen collection</div>' +
+                    '</div></div>';
+                wrapper.appendChild(emptyGroup);
+                container.appendChild(wrapper);
+                return;
+            }
+
+            var groups = {};
+            awaitingTests.forEach(function (item) {
+                var specInfo = getTestSpecimenInfo(item.test.name);
+                var specimenType = normalizeSpecimen(specInfo.specimen || "Unknown");
+                if (!groups[specimenType]) groups[specimenType] = [];
+                groups[specimenType].push({
+                    test: item.test,
+                    index: item.index,
+                    container: specInfo.container || specimenDefaultContainer(specimenType)
+                });
+            });
+
+            var now = new Date();
+            var dateValue = now.toISOString().slice(0, 10);
+            var timeValue = now.toTimeString().slice(0, 5);
+
+            Object.keys(groups).forEach(function (specimenType) {
+                var items = groups[specimenType];
+                var defaultContainer = items[0].container || specimenDefaultContainer(specimenType);
+                var specimenId = generateSpecimenId();
+
+                var group = document.createElement("div");
+                group.className = "specimen-group";
+                group.dataset.specimenType = specimenType;
+                group.dataset.specimenId = specimenId;
+
+                group.innerHTML =
+                    '<div class="specimen-group-header">' +
+                    '<div>' +
+                    '<div class="specimen-group-title">' + esc(specimenType) +
+                    ' <span style="font-weight:400;font-size:10px;color:#777;margin-left:8px;">' + esc(specimenId) + '</span></div>' +
+                    '<div class="specimen-group-subtitle">' + items.length + ' investigation' + (items.length > 1 ? "s" : "") + ' can share one specimen</div>' +
+                    '</div>' +
+                    '<span class="specimen-group-badge">ONE SPECIMEN ID</span>' +
+                    '</div>' +
+
+                    '<div class="specimen-tests">' +
+                    items.map(function (item) {
+                        return '<div class="specimen-test-row">' +
+                            '<div><input type="checkbox" class="specimen-test-checkbox" data-test-index="' + item.index + '" checked></div>' +
+                            '<div><div class="specimen-test-name">' + esc(item.test.name) + '</div></div>' +
+                            '<div class="specimen-test-status awaiting">Awaiting Specimen</div>' +
+                            '</div>';
+                    }).join("") +
+                    '</div>' +
+
+                    '<div class="specimen-receipt">' +
+                    '<div class="receipt-heading">' +
+                    '<strong>Specimen Receipt Details</strong>' +
+                    '<span class="receipt-note">These details apply to this ' + esc(specimenType) + ' specimen.</span>' +
+                    '</div>' +
+                    '<div class="receipt-form-grid">' +
+                    '<div class="form-group"><label>SPECIMEN RECEIVED DATE <span class="required-mark">*</span></label>' +
+                    '<input type="date" class="group-received-date" value="' + dateValue + '"></div>' +
+                    '<div class="form-group"><label>SPECIMEN RECEIVED TIME <span class="required-mark">*</span></label>' +
+                    '<input type="time" class="group-received-time" value="' + timeValue + '"></div>' +
+                    '<div class="form-group"><label>SPECIMEN TYPE <span class="required-mark">*</span></label>' +
+                    '<input type="text" class="group-specimen-type" value="' + esc(specimenType) + '" readonly></div>' +
+                    '<div class="form-group"><label>CONTAINER <span class="required-mark">*</span></label>' +
+                    '<select class="group-container">' +
+                    '<option value="">Select container</option>' +
+                    '<option ' + (defaultContainer === "EDTA Tube" ? "selected" : "") + '>EDTA Tube</option>' +
+                    '<option ' + (defaultContainer === "Plain Tube" ? "selected" : "") + '>Plain Tube</option>' +
+                    '<option ' + (defaultContainer === "Fluoride Oxalate Tube" ? "selected" : "") + '>Fluoride Oxalate Tube</option>' +
+                    '<option ' + (defaultContainer === "Citrate Tube" ? "selected" : "") + '>Citrate Tube</option>' +
+                    '<option ' + (defaultContainer === "Sterile Universal Container" ? "selected" : "") + '>Sterile Universal Container</option>' +
+                    '<option ' + (defaultContainer === "Swab Transport Medium" ? "selected" : "") + '>Swab Transport Medium</option>' +
+                    '<option>Other</option>' +
+                    '</select></div>' +
+                    '<div class="form-group"><label>SPECIMEN CONDITION</label>' +
+                    '<select class="group-condition">' +
+                    '<option>Acceptable</option><option>Hemolyzed</option><option>Clotted</option>' +
+                    '<option>Insufficient</option><option>Leaking</option><option>Mislabelled</option>' +
+                    '<option>Wrong container</option><option>Other</option>' +
+                    '</select></div>' +
+                    '<div class="form-group"><label>RECEIVED BY</label>' +
+                    '<input type="text" class="group-received-by" value="' + esc((window.lcCurrentUserName && window.lcCurrentUserName()) || 'Lab Scientist') + '" readonly></div>' +
+                    '<div class="form-group"><label>RECEIVED FROM</label>' +
+                    '<select class="group-received-from">' +
+                    '<option>Patient</option><option>Ward</option><option>OPD</option>' +
+                    '<option>Emergency</option><option>Other</option>' +
+                    '</select></div>' +
+                    '<div class="form-group"><label>REMARKS</label>' +
+                    '<input type="text" class="group-remarks" placeholder="Optional specimen remarks"></div>' +
+                    '</div>' +
+                    '</div>';
+
+                wrapper.appendChild(group);
+            });
+
+            container.appendChild(wrapper);
+        }
+
+        /* =========================================================
+           SAVE SPECIMENS
+        ========================================================= */
+
+        function saveSpecimens() {
+            if (selectedVisitIndex === null) {
+                window.lcToast("No visit selected.", "error");
+                return;
+            }
+
+            var visit = visits[selectedVisitIndex];
+            if (!visit) {
+                window.lcToast("Visit not found.", "error");
+                return;
+            }
+
+            var modalBody = document.querySelector('#registerModal .modal-body');
+            if (modalBody) {
+                var loading = document.createElement('div');
+                loading.className = 'lc-loading-overlay';
+                loading.id = 'saveLoading';
+                loading.innerHTML = '<div class="lc-loading-spinner"></div><div class="lc-loading-text">Saving specimen registration...</div>';
+                modalBody.style.position = 'relative';
+                modalBody.appendChild(loading);
+            }
+
+            setTimeout(async function () {
+                try {
+                    var patients;
+                    try {
+                        patients = JSON.parse(localStorage.getItem("hms_patients_v3") || "[]");
+                    } catch (error) {
+                        window.lcToast("Unable to read patient records.", "error");
+                        return;
+                    }
+
+                    var patient = patients.find(function (p) {
+                        return String(p.id || p.patientId || "") === String(visit.patientIdForStorage || visit.patientId);
+                    });
+                    if (!patient) {
+                        window.lcToast("Patient record could not be found.", "error");
+                        return;
+                    }
+
+                    var encounter = (patient.encounters || []).find(function (enc) {
+                        return String(enc.visitId || enc.id || "") === String(visit.encounterIdForStorage || visit.visitId);
+                    });
+                    if (!encounter) {
+                        window.lcToast("Encounter could not be found.", "error");
+                        return;
+                    }
+
+                    if (!encounter.orders) encounter.orders = [];
+
+                    var groups = document.querySelectorAll("#modalSpecimenGroups .specimen-group");
+                    var registeredCount = 0;
+                    var registeredSpecimens = [];
+                    var updatedOrders = [];
+
+                    for (var g = 0; g < groups.length; g++) {
+                        var group = groups[g];
+
+                        var titleEl = group.querySelector(".specimen-group-title");
+                        if (titleEl && titleEl.textContent.toLowerCase().includes("already registered")) continue;
+
+                        var selectedCheckboxes = group.querySelectorAll(".specimen-test-checkbox:checked");
+                        if (selectedCheckboxes.length === 0) continue;
+
+                        var specimenType = group.dataset.specimenType;
+                        var specimenId = group.dataset.specimenId;
+                        var receivedDate = group.querySelector(".group-received-date").value;
+                        var receivedTime = group.querySelector(".group-received-time").value;
+                        var container = group.querySelector(".group-container").value;
+                        var condition = group.querySelector(".group-condition").value;
+                        var receivedBy = group.querySelector(".group-received-by").value;
+                        var receivedFrom = group.querySelector(".group-received-from").value;
+                        var remarks = group.querySelector(".group-remarks").value.trim();
+
+                        if (!receivedDate) { window.lcToast("Please enter the specimen received date for " + specimenType + ".", "error"); return; }
+                        if (!receivedTime) { window.lcToast("Please enter the specimen received time for " + specimenType + ".", "error"); return; }
+                        if (!container) { window.lcToast("Please select the container for " + specimenType + ".", "error"); return; }
+
+                        // Collect tests in this group (one barcode per group)
+                        var groupTests = [];
+                        selectedCheckboxes.forEach(function (cb) {
+                            var ti = Number(cb.dataset.testIndex);
+                            var t = visit.tests[ti];
+                            if (t && t.name && groupTests.indexOf(t.name) === -1) groupTests.push(t.name);
+                        });
+
+                        // Update each order inside the loop
+                        selectedCheckboxes.forEach(function (checkbox) {
+                            var testIndex = Number(checkbox.dataset.testIndex);
+                            var selectedTest = visit.tests[testIndex];
+                            if (!selectedTest) return;
+
+                            var orderIndex = selectedTest.orderIndex;
+                            if (orderIndex === undefined || !encounter.orders[orderIndex]) {
+                                orderIndex = encounter.orders.findIndex(function (order) {
+                                    var orderName = order.item || order.test || order.name || "";
+                                    return String(orderName).toLowerCase() === String(selectedTest.name).toLowerCase();
+                                });
+                            }
+                            if (orderIndex < 0 || !encounter.orders[orderIndex]) return;
+
+                            var order = encounter.orders[orderIndex];
+                            var currentStatus = normalizeOrderStatus(order.status);
+                            if (currentStatus !== "Awaiting Specimen") return;
+
+                            order.status = "Specimen Received";
+                            order.specimenId = specimenId;
+                            order.specimenType = specimenType;
+                            order.specimenReceivedDate = receivedDate;
+                            order.specimenReceivedTime = receivedTime;
+                            order.container = container;
+                            order.specimenCondition = condition;
+                            order.receivedFrom = receivedFrom;
+                            order.receivedBy = receivedBy;
+                            order.remarks = remarks;
+
+                            // Attach barcode metadata to this order
+                            order.specimenBarcode = {
+                                specimenId: specimenId,
+                                tests: groupTests.slice(),
+                                container: container,
+                                specimenType: specimenType,
+                                generatedAt: new Date().toISOString(),
+                                generatedBy: receivedBy,
+                                labelPrinted: false,
+                                labelPrintedAt: null,
+                                labelPrintedBy: null
+                            };
+
+                            if (!Array.isArray(order.specimenIds)) order.specimenIds = [];
+                            var alreadyExists = order.specimenIds.some(function (s) { return s.id === specimenId; });
+                            if (!alreadyExists) {
+                                order.specimenIds.push({
+                                    id: specimenId,
+                                    type: specimenType,
+                                    container: container,
+                                    receivedAt: receivedDate + "T" + receivedTime,
+                                    condition: condition,
+                                    receivedFrom: receivedFrom,
+                                    receivedBy: receivedBy,
+                                    remarks: remarks
+                                });
+                            }
+
+                            updatedOrders.push(order);
+                            registeredCount++;
+                            registeredSpecimens.push({
+                                test: selectedTest.name,
+                                specimenId: specimenId,
+                                specimenType: specimenType
+                            });
+                        });
+
+                        // Register the whole container as ONE specimen in the global registry
+                        if (groupTests.length && window.lcSpecimenRegister) {
+                            window.lcSpecimenRegister({
+                                specimenId: specimenId,
+                                patientId: patient.id,
+                                patientName: patient.fullName,
+                                visitId: encounter.visitId,
+                                tests: groupTests,
+                                container: container,
+                                specimenType: specimenType,
+                                priority: (encounter.priority || 'Routine'),
+                                receivedAt: receivedDate + "T" + (receivedTime || "00:00"),
+                                receivedBy: receivedBy
+                            });
+                        }
+
+                        // Audit one event per group (not per test)
+                        if (groupTests.length && window.lcAudit) {
+                            window.lcAudit('specimen.received', {
+                                entity: 'specimen',
+                                entityId: specimenId,
+                                patientId: patient.id,
+                                patientName: patient.fullName,
+                                visitId: encounter.visitId,
+                                specimenId: specimenId,
+                                panel: groupTests.join(', '),
+                                note: specimenType + ' · ' + container
+                            });
+                        }
+                    }
+
+                    if (registeredCount === 0) {
+                        window.lcToast("No investigation was registered. Please select at least one awaiting specimen.", "warning");
+                        return;
+                    }
+
+                    if (window.lcApiRegisterOrderSpecimens && window.lcGetToken && window.lcGetToken()) {
+                        if (updatedOrders.some(function (order) { return !order.id; })) {
+                            throw new Error('A lab request is missing its server order ID. Refresh Sample Registration and try again.');
+                        }
+                        await window.lcApiRegisterOrderSpecimens(
+                            visit.encounterIdForStorage || visit.visitId,
+                            updatedOrders
+                        );
+                    }
+
+                    try {
+                        localStorage.setItem("hms_patients_v3", JSON.stringify(patients));
+                    } catch (error) {
+                        window.lcToast("Could not save specimen registration.", "error");
+                        return;
+                    }
+
+                    // Verify
+                    var verifyPatients = JSON.parse(localStorage.getItem("hms_patients_v3") || "[]");
+                    var verifyPatient = verifyPatients.find(function (p) {
+                        return String(p.id || p.patientId || "") === String(visit.patientIdForStorage || visit.patientId);
+                    });
+                    var verifyEncounter = verifyPatient && (verifyPatient.encounters || []).find(function (enc) {
+                        return String(enc.visitId || enc.id || "") === String(visit.encounterIdForStorage || visit.visitId);
+                    });
+                    var verificationPassed = false;
+                    if (verifyEncounter) {
+                        verificationPassed = verifyEncounter.orders.some(function (order) {
+                            return order.status === "Specimen Received";
+                        });
+                    }
+
+                    if (!verificationPassed) {
+                        window.lcToast("The specimen could not be confirmed as saved.", "error");
+                        return;
+                    }
+
+                    window.lcToast(registeredCount + " investigation(s) registered successfully.", "success");
+                    closeModal("registerModal");
+                    visits = loadVisitsFromStorage();
+                    renderTable();
+                } catch (e) {
+                    console.error('Save error:', e);
+                    window.lcToast('Error saving specimens', 'error');
+                } finally {
+                    var loadingEl = document.getElementById('saveLoading');
+                    if (loadingEl) loadingEl.remove();
+                }
+            }, 100);
+        }
+
+        /* =========================================================
+           ENTER RESULTS
+        ========================================================= */
+
+        function enterResults(index) {
+            var visit = visits[index];
+            if (!visit) return;
+            window.lcToast("Result Entry for " + visit.name + " (" + visit.visitId + ") - Redirecting...", "info");
+            setTimeout(function () {
+                window.location.href = "result-entry.html?patient=" + encodeURIComponent(visit.patientId) + "&visit=" + encodeURIComponent(visit.visitId);
+            }, 300);
+        }
+
+        /* =========================================================
+           EXPORT
+        ========================================================= */
+
+        function exportSpecimenList() {
+            const data = visits.map(v => ({
+                'Specimen ID': v.tests && v.tests.length > 0 && v.tests[0].specimenId ? v.tests[0].specimenId : '—',
+                'Patient': v.name,
+                'Patient ID': v.patientId,
+                'Visit ID': v.visitId,
+                'Doctor': v.doctor,
+                'Tests': (v.tests || []).map(t => t.name).join(', '),
+                'Status': getOverallStatus(v.tests).replace(/<[^>]*>/g, '').trim() || '—',
+                'Received': v.tests && v.tests.length > 0 && v.tests[0].specimenReceivedDate ? v.tests[0].specimenReceivedDate : '—'
+            }));
+
+            if (!data.length) {
+                window.lcToast('No specimens to export', 'warning');
+                return;
+            }
+
+            try {
+                const ws = XLSX.utils.json_to_sheet(data);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, 'Specimens');
+                XLSX.writeFile(wb, `Specimens_${new Date().toISOString().slice(0, 10)}.xlsx`);
+                window.lcToast('Exported specimen list', 'success');
+            } catch (e) {
+                window.lcToast('Error exporting data', 'error');
+            }
+        }
+
+        /* =========================================================
+           MODAL HELPERS
+        ========================================================= */
+
+        function closeModal(id) {
+            var modal = document.getElementById(id);
+            if (modal) modal.classList.remove("active");
+        }
+
+        function clearSearch() {
+            document.getElementById('searchInput').value = '';
+            renderTable();
+        }
+
+        document.querySelectorAll(".modal-overlay").forEach(function (modal) {
+            modal.addEventListener("click", function (event) {
+                if (event.target === modal) modal.classList.remove("active");
+            });
+        });
+
+        document.addEventListener("keydown", function (e) {
+            if (e.key === "Escape") closeModal("registerModal");
+        });
+
+        /* =========================================================
+           SPECIMEN REJECTION
+        ========================================================= */
+
+        function rejectSpecimen(visitIndex) {
+            var visit = visits[visitIndex];
+            if (!visit) return;
+
+            var reason = prompt('Rejection reason (e.g. Hemolyzed, Insufficient, Clotted, Mislabelled):');
+            if (!reason || !reason.trim()) {
+                window.lcToast('Rejection cancelled', 'info');
+                return;
+            }
+            reason = reason.trim();
+
+            var patients;
+            try { patients = JSON.parse(localStorage.getItem('hms_patients_v3') || '[]'); }
+            catch (e) { window.lcToast('Unable to read patient records', 'error'); return; }
+
+            var patient = patients.find(function (p) {
+                return String(p.id || p.patientId || '') === String(visit.patientIdForStorage || visit.patientId);
+            });
+            if (!patient) { window.lcToast('Patient not found', 'error'); return; }
+
+            var encounter = (patient.encounters || []).find(function (enc) {
+                return String(enc.visitId || enc.id || '') === String(visit.encounterIdForStorage || visit.visitId);
+            });
+            if (!encounter) { window.lcToast('Encounter not found', 'error'); return; }
+
+            var count = 0;
+            (encounter.orders || []).forEach(function (order) {
+                if (order.type !== 'Laboratory') return;
+                var st = String(order.status || '').toLowerCase();
+                if (st.indexOf('valid') >= 0 || st.indexOf('prelim') >= 0 || st.indexOf('completed') >= 0) return;
+                order.status = 'Specimen Rejected';
+                order.rejectionReason = reason;
+                order.rejectedAt = new Date().toISOString();
+                order.rejectedBy = (window.lcCurrentUserName && window.lcCurrentUserName()) || 'Lab Scientist';
+                if (!Array.isArray(order.auditTrail)) order.auditTrail = [];
+                order.auditTrail.push({
+                    event: 'Specimen rejected',
+                    by: order.rejectedBy,
+                    at: order.rejectedAt,
+                    note: reason
+                });
+                count++;
+            });
+
+            if (!count) {
+                window.lcToast('No eligible orders to reject on this visit', 'warning');
+                return;
+            }
+
+            try { localStorage.setItem('hms_patients_v3', JSON.stringify(patients)); }
+            catch (e) { window.lcToast('Could not save rejection', 'error'); return; }
+
+            if (window.lcAudit) {
+                window.lcAudit('specimen.rejected', {
+                    entity: 'visit',
+                    entityId: visit.visitId,
+                    patientId: visit.patientId,
+                    patientName: visit.name,
+                    visitId: visit.visitId,
+                    note: reason
+                });
+            }
+
+            window.lcToast(count + ' order(s) marked Specimen Rejected', 'success');
+            visits = loadVisitsFromStorage();
+            renderTable();
+        }
+
+        /* =========================================================
+           LABEL PRINTING → redirect to Label Designer
+        ========================================================= */
+
+        function printSpecimenIds(ids, patientName) {
+            if (!ids || !ids.length) {
+                window.lcToast('No specimen IDs to print', 'warning');
+                return;
+            }
+            try { sessionStorage.setItem('labcore_label_preselect', JSON.stringify(ids)); } catch (e) {}
+            window.location.href = 'label-designer.html';
+        }
+
+        function printLabelForVisit(visitIndex) {
+            var v = visits[visitIndex];
+            if (!v) return;
+            var ids = [];
+            (v.tests || []).forEach(function (t) {
+                if (t.specimenId && ids.indexOf(t.specimenId) === -1) ids.push(t.specimenId);
+            });
+            if (!ids.length) {
+                window.lcToast('No specimen ID on this row — register specimen first', 'warning');
+                return;
+            }
+            printSpecimenIds(ids, v.name || '');
+        }
+
+        /* =========================================================
+           ENHANCE TABLE: checkboxes + Reject + Print label per row
+        ========================================================= */
+
+        (function enhanceReceptionTableUI() {
+            var _origRenderTable = window.renderTable;
+            if (typeof _origRenderTable !== 'function') return;
+
+            window.renderTable = function () {
+                _origRenderTable.apply(this, arguments);
+
+                var table = document.querySelector('.table-wrapper table') || document.querySelector('.table-card table');
+                if (!table) return;
+
+                // Header checkbox column
+                var theadRow = table.querySelector('thead tr');
+                if (theadRow && !theadRow.querySelector('.batch-th')) {
+                    var th = document.createElement('th');
+                    th.className = 'batch-th';
+                    th.innerHTML = '<input type="checkbox" id="batchCheckAll" title="Select all">';
+                    theadRow.insertBefore(th, theadRow.firstChild);
+                    var allBox = document.getElementById('batchCheckAll');
+                    if (allBox) {
+                        allBox.addEventListener('change', function () {
+                            var on = allBox.checked;
+                            document.querySelectorAll('.batch-visit-check').forEach(function (c) { c.checked = on; });
+                        });
+                    }
+                }
+
+                var bodyRows = table.querySelectorAll('tbody tr');
+                bodyRows.forEach(function (tr, i) {
+                    if (tr.querySelector('.empty')) return;
+
+                    if (!tr.querySelector('.batch-visit-check')) {
+                        var td = document.createElement('td');
+                        td.innerHTML = '<input type="checkbox" class="batch-visit-check" data-index="' + i + '">';
+                        tr.insertBefore(td, tr.firstChild);
+                    }
+
+                    var actions = tr.querySelector('.actions');
+                    if (actions && !actions.querySelector('.reject-btn')) {
+                        var rb = document.createElement('button');
+                        rb.type = 'button';
+                        rb.className = 'action-btn reject-btn';
+                        rb.textContent = 'Reject';
+                        rb.style.color = '#B3261E';
+                        rb.onclick = function (ev) { ev.stopPropagation(); rejectSpecimen(i); };
+                        actions.appendChild(rb);
+                    }
+                    if (actions && !actions.querySelector('.label-btn')) {
+                        var lb = document.createElement('button');
+                        lb.type = 'button';
+                        lb.className = 'action-btn label-btn';
+                        lb.textContent = 'Print label';
+                        lb.title = 'Open Label Designer for this specimen';
+                        lb.onclick = function (ev) { ev.stopPropagation(); printLabelForVisit(i); };
+                        actions.appendChild(lb);
+                    }
+                });
+            };
+        })();
+
+        /* =========================================================
+           INIT
+        ========================================================= */
+        /* --------------------------------------------------
+           Pull fresh specimens from the server on page load
+        -------------------------------------------------- */
+        (async function refreshSpecimensFromServer() {
+            if (!window.lcApiGetSpecimens || !window.lcGetToken || !window.lcGetToken()) return;
+            try {
+                var serverSpecimens = await window.lcApiGetSpecimens();
+                if (!Array.isArray(serverSpecimens)) return;
+
+                var localRegistry = [];
+                try { localRegistry = JSON.parse(localStorage.getItem('labcore_specimens') || '[]'); } catch (e) {}
+
+                var byId = {};
+                serverSpecimens.forEach(function (s) { byId[s.specimenId] = s; });
+                localRegistry.forEach(function (s) { if (!byId[s.specimenId]) byId[s.specimenId] = s; });
+
+                localStorage.setItem('labcore_specimens', JSON.stringify(Object.values(byId)));
+                console.log('[specimens] refreshed from server:', serverSpecimens.length, 'records');
+
+                if (typeof renderTable === 'function') {
+                    try { renderTable(); } catch (e) {}
+                }
+            } catch (e) {
+                console.warn('[specimens] could not load from server:', e.message);
+            }
+        })();
+        renderTable();
+        refreshPatientsFromServer();
+        setInterval(function () {
+            var modal = document.getElementById("registerModal");
+            if (!modal.classList.contains("active")) renderTable();
+        }, 30000);
+
+        document.addEventListener("visibilitychange", function () {
+            if (!document.hidden) {
+                var modal = document.getElementById("registerModal");
+                if (!modal.classList.contains("active")) renderTable();
+            }
+        });
+
+                /* =========================================================
+           BARCODE SCAN MODE
+           User scans a specimen ID → we find it in the specimen
+           registry → highlight / open the corresponding visit row.
+        ========================================================= */
+        function openScanMode() {
+            if (typeof window.lcScanStart !== 'function') {
+                window.lcToast('Scan module not loaded', 'error');
+                return;
+            }
+            window.lcScanStart({
+                title: 'Scan specimen label',
+                hint: 'The specimen is looked up and its visit row is highlighted.',
+                onScan: function (code) {
+                    handleScannedSpecimen(code);
+                }
+            });
+        }
+
+        function handleScannedSpecimen(code) {
+            var clean = String(code || '').trim();
+            if (!clean) return;
+
+            // Try to find the specimen in the registry first
+            var specimens = (window.lcSpecimenAll && window.lcSpecimenAll()) || [];
+            var hit = specimens.find(function (s) { return s.specimenId === clean; });
+
+            if (!hit) {
+                // Fallback: maybe they scanned a visit ID or patient ID
+                var foundVisitIdx = visits.findIndex(function (v) {
+                    return v.visitId === clean || v.patientId === clean ||
+                           (v.tests || []).some(function (t) { return t.specimenId === clean; });
+                });
+                if (foundVisitIdx < 0) {
+                    window.lcToast('No specimen, visit, or patient matches "' + clean + '"', 'warning');
+                    return;
+                }
+                highlightVisitRow(foundVisitIdx);
+                window.lcToast('Matched visit ' + visits[foundVisitIdx].visitId, 'success');
+                return;
+            }
+
+            // Find the visit that contains this specimen ID
+            var visitIdx = visits.findIndex(function (v) {
+                return (v.tests || []).some(function (t) { return t.specimenId === clean; });
+            });
+            if (visitIdx < 0) {
+                window.lcToast('Specimen ' + clean + ' is not attached to any visit yet', 'warning');
+                return;
+            }
+            highlightVisitRow(visitIdx);
+            window.lcToast('Specimen ' + clean + ' → visit ' + visits[visitIdx].visitId, 'success');
+        }
+
+        function highlightVisitRow(visitIdx) {
+            // Scroll the row into view and flash it
+            var tbody = document.getElementById('patientTable');
+            if (!tbody) return;
+            var rows = tbody.querySelectorAll('tr');
+            if (visitIdx < 0 || visitIdx >= rows.length) return;
+            var row = rows[visitIdx];
+            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            row.style.transition = 'background 0.4s ease';
+            row.style.background = '#fff3df';
+            setTimeout(function () { row.style.background = ''; }, 2200);
+        }
+
+        console.log('🧪 LabCore Sample Registration loaded — barcodes handled by Label Designer');
+    </script>
+<script src="shared/labcore-connectivity.js"></script>
+</body>
+</html>

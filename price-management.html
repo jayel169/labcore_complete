@@ -1,0 +1,1407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Price Management | LabCore</title>
+    <link rel="stylesheet" href="shared/labcore-nav.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        
+
+        body {
+            font-family: var(--lc-font);
+            background: var(--lc-bg);
+            color: var(--lc-text);
+            line-height: 1.5;
+        }
+
+        .main { margin-left: 245px; min-height: 100vh; padding: 24px 28px; }
+
+        .topbar {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 20px; flex-wrap: wrap; gap: 12px;
+        }
+        .topbar h1 { font-size: 22px; }
+        .topbar p { font-size: 13px; color: var(--lc-muted); margin-top: 4px; }
+        .topbar-right { display: flex; gap: 8px; flex-wrap: wrap; }
+
+        .stats {
+            display: grid; grid-template-columns: repeat(4, 1fr);
+            gap: 12px; margin-bottom: 20px;
+        }
+        .stat-card {
+            background: #fff; border: 1px solid var(--lc-border);
+            border-radius: 8px; padding: 14px; text-align: center;
+            transition: var(--lc-transition);
+        }
+        .stat-card:hover { box-shadow: var(--lc-shadow); transform: translateY(-2px); }
+        .stat-card .number { font-size: 24px; font-weight: 700; }
+        .stat-card .label { font-size: 10px; color: var(--lc-muted);  }
+        .stat-card .icon { font-size: 20px; margin-bottom: 4px; }
+
+        .card {
+            background: #fff; border: 1px solid var(--lc-border);
+            border-radius: 9px; overflow: hidden;
+        }
+        .card-header {
+            padding: 14px 18px; border-bottom: 1px solid var(--lc-border);
+            display: flex; justify-content: space-between; align-items: center;
+            flex-wrap: wrap; gap: 10px;
+        }
+        .card-header h2 { font-size: 15px; }
+        .card-header .count { font-size: 12px; color: var(--lc-muted); }
+
+        .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+        .btn {
+            border: 1px solid var(--lc-border); background: #fff;
+            border-radius: 6px; padding: 7px 14px;
+            font-size: 12px; font-weight: 600; cursor: pointer;
+            transition: var(--lc-transition);
+            display: inline-flex; align-items: center; gap: 5px;
+            color: var(--lc-text);
+        }
+        .btn:hover { background: var(--lc-bg); transform: translateY(-1px); box-shadow: var(--lc-shadow); }
+        .btn-primary { background: var(--lc-blue); border-color: var(--lc-blue); color: #fff; }
+        .btn-primary:hover { background: #2A2656; border-color: #2A2656; }
+        .btn-success { background: var(--lc-green); border-color: var(--lc-green); color: #fff; }
+        .btn-success:hover { background: #206038; border-color: #206038; }
+        .btn-danger { background: var(--lc-red); border-color: var(--lc-red); color: #fff; }
+        .btn-danger:hover { background: #8C1C16; border-color: #8C1C16; }
+        .btn-sm { padding: 4px 10px; font-size: 10px; }
+        .btn-warning { background: var(--lc-warning); border-color: var(--lc-warning); color: #fff; }
+        .btn-warning:hover { background: #9a7a28; border-color: #9a7a28; }
+        .btn-outline { background: transparent; border-color: var(--lc-border); }
+        .btn-outline:hover { background: var(--lc-bg); }
+
+        .search-input {
+            padding: 7px 12px; border: 1px solid var(--lc-border);
+            border-radius: 6px; font-size: 12px;
+            background: #fff; color: var(--lc-text);
+            min-width: 200px; transition: var(--lc-transition);
+        }
+        .search-input:focus {
+            outline: none; border-color: var(--lc-blue);
+            box-shadow: 0 0 0 3px rgba(36, 91, 134, 0.15);
+        }
+
+        .table-wrapper { overflow-x: auto; padding: 0; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+
+        th {
+            background: #F8F7FB; text-align: left; padding: 10px 14px;
+            font-size: 10px;  color: #5F5B75;
+            border-bottom: 2px solid var(--lc-border);
+            position: sticky; top: 0; z-index: 10;
+        }
+        td {
+            padding: 10px 14px; border-bottom: 1px solid #EFEDF4;
+            vertical-align: middle;
+        }
+        tr:hover { background: #F8F7FB; }
+
+        .category-badge {
+            display: inline-block; padding: 2px 10px;
+            border-radius: 12px; font-size: 10px; font-weight: 600;
+        }
+        .category-badge.consultation { background: #E4EFF7; color: #3A3577; }
+        .category-badge.lab { background: #f3e5f5; color: #7b1fa2; }
+        .category-badge.imaging { background: #FBF0DA; color: #e65100; }
+        .category-badge.pharmacy { background: #e8f5e9; color: #2e7d32; }
+        .category-badge.custom { background: #f5f5f5; color: #616161; }
+
+        .price-input {
+            width: 100px; padding: 5px 8px;
+            border: 1px solid var(--lc-border); border-radius: 4px;
+            font-size: 13px; text-align: right; font-weight: 600;
+            transition: var(--lc-transition);
+            background: #fff; color: var(--lc-text);
+        }
+        .price-input:focus {
+            outline: none; border-color: var(--lc-blue);
+            box-shadow: 0 0 0 3px rgba(36, 91, 134, 0.15);
+        }
+        .price-input.changed { background: #fffde7; border-color: #fdd835; }
+        .price-input.saved { background: #e8f5e9; border-color: #66bb6a; }
+        .price-input.missing { border-color: #ff9800; background: #fff8e1; }
+
+        .code-cell { font-size: 11px; color: var(--lc-muted); font-family: monospace; }
+
+        .empty-state { text-align: center; padding: 40px; color: var(--lc-muted); }
+        .empty-state .icon { font-size: 48px; margin-bottom: 10px; }
+        .empty-state h3 { font-size: 16px; color: #4A4660; margin-bottom: 5px; }
+
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(22, 25, 23, 0.52);
+            display: none; align-items: center; justify-content: center;
+            z-index: 1000; padding: 20px; 
+        }
+        .modal-overlay.active { display: flex; }
+
+        .modal {
+            width: 700px; max-width: 100%; max-height: 90vh;
+            background: white; border-radius: var(--lc-radius);
+            overflow-y: auto; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        }
+        .modal-header {
+            padding: 18px 20px; border-bottom: 1px solid var(--lc-border);
+            display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; background: white; z-index: 10;
+        }
+        .modal-header h2 { font-size: 17px; font-weight: 600; }
+        .modal-header p { color: #8A869C; font-size: 11px; margin-top: 4px; }
+
+        .close-btn {
+            border: none; background: none; font-size: 22px;
+            color: #777; cursor: pointer; transition: var(--lc-transition);
+        }
+        .close-btn:hover { color: var(--lc-red); transform: scale(1.1); }
+
+        .modal-body { padding: 20px; }
+        .modal-footer {
+            border-top: 1px solid var(--lc-border); padding: 14px 20px;
+            display: flex; justify-content: flex-end; gap: 8px;
+            flex-wrap: wrap; position: sticky; bottom: 0;
+            background: white; z-index: 10;
+        }
+
+        .form-group { margin-bottom: 16px; }
+        .form-group label {
+            display: block; font-size: 11px; font-weight: 600;
+            margin-bottom: 5px; color: #4A4660;
+        }
+        .form-group label .required { color: #B3261E; }
+        .form-group input, .form-group select {
+            width: 100%; padding: 8px 12px;
+            border: 1px solid var(--lc-border); border-radius: 6px;
+            font-size: 12px; background: white; color: var(--lc-text);
+            outline: none; transition: var(--lc-transition);
+        }
+        .form-group input:focus, .form-group select:focus {
+            border-color: var(--lc-blue);
+            box-shadow: 0 0 0 3px rgba(36, 91, 134, 0.15);
+        }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+
+        .filter-tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 12px; }
+        .filter-tab {
+            padding: 6px 14px; border: 1px solid var(--lc-border);
+            border-radius: 4px; background: #fff; cursor: pointer;
+            font-size: 11px; font-weight: 600;
+            transition: var(--lc-transition); color: var(--lc-muted);
+        }
+        .filter-tab:hover { background: var(--lc-bg); }
+        .filter-tab.active {
+            background: var(--lc-blue); color: #fff; border-color: var(--lc-blue);
+        }
+        .filter-tab .count { font-weight: 400; font-size: 10px; opacity: 0.7; }
+        
+
+        .bulk-toolbar {
+            display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+            background: #fff; border: 1px solid var(--lc-border);
+            border-radius: 6px; padding: 10px 14px; margin-bottom: 12px;
+            font-size: 12px;
+        }
+        .bulk-toolbar .bulk-label { font-weight: 600; color: var(--lc-text-muted); }
+        .bulk-toolbar .bulk-input {
+            width: 70px; padding: 5px 8px;
+            border: 1px solid var(--lc-border); border-radius: 4px;
+            font-size: 12px; text-align: right; font-weight: 600;
+        }
+        .bulk-toolbar .bulk-suffix { color: var(--lc-text-muted); margin-left: -4px; }
+        .bulk-toolbar .bulk-hint { color: var(--lc-text-subtle); margin-left: auto; font-size: 11px; }
+
+        .sync-banner {
+            background: #E4EFF7; border: 1px solid #90caf9;
+            border-radius: 6px; padding: 10px 14px;
+            margin-bottom: 15px; font-size: 12px; color: #3A3577;
+            display: flex; justify-content: space-between; align-items: center;
+            flex-wrap: wrap; gap: 8px;
+        }
+        .sync-banner strong { font-weight: 700; }
+        .sync-banner .btn { background: #3A3577; color: #fff; border-color: #3A3577; }
+        .sync-banner .btn:hover { background: #0d47a1; border-color: #0d47a1; }
+
+        @media (max-width: 900px) {
+            .main { margin-left: 0; padding-top: 60px; }
+            .stats { grid-template-columns: 1fr 1fr; }
+            .form-row { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 600px) {
+            .stats { grid-template-columns: 1fr; }
+            .topbar { flex-direction: column; align-items: stretch; }
+            .topbar-right { flex-wrap: wrap; }
+            .search-input { min-width: unset; width: 100%; }
+            .table-wrapper { font-size: 11px; }
+            .price-input { width: 70px; font-size: 11px; }
+            td, th { padding: 6px 8px; }
+            .sync-banner { flex-direction: column; align-items: stretch; text-align: center; }
+        }
+    </style>
+</head>
+<body>
+
+    <aside class="sidebar"></aside>
+    <button class="lc-mobile-toggle" aria-label="Menu">☰</button>
+    <div class="lc-sidebar-overlay"></div>
+
+    <div class="main">
+        <div class="topbar">
+            <div>
+                <h1>💰 Price Management</h1>
+                <p>Configure prices for all services, lab tests, imaging, and pharmacy items</p>
+            </div>
+            <div class="topbar-right">
+                <button class="btn btn-sm btn-warning" onclick="refreshPrices()">🔄 Refresh</button>
+                <button class="btn btn-sm btn-success" onclick="saveAllPrices()">💾 Save All</button>
+                <button class="btn btn-sm btn-primary" onclick="exportPrices()">📤 Export</button>
+                <button class="btn btn-sm" onclick="importPrices()">📥 Import</button>
+                <button class="btn btn-sm btn-danger" onclick="resetAllPrices()">↺ Reset</button>
+                <button class="btn btn-sm btn-primary" onclick="openAddModal()">+ Add New</button>
+            </div>
+        </div>
+
+        <div class="stats">
+            <div class="stat-card">
+                <div class="number" id="statServices">0</div>
+                <div class="label">Consultation Services</div>
+            </div>
+            <div class="stat-card">
+                <div class="number" id="statLabTests">0</div>
+                <div class="label">Laboratory Tests</div>
+            </div>
+            <div class="stat-card">
+                <div class="number" id="statImaging">0</div>
+                <div class="label">Imaging / Radiology</div>
+            </div>
+            <div class="stat-card">
+                <div class="number" id="statPharmacy">0</div>
+                <div class="label">Pharmacy Items</div>
+            </div>
+        </div>
+
+        <div class="sync-banner">
+            <div>
+                <strong>🔄 Auto-sync from Test Configuration:</strong>
+                Laboratory tests are automatically pulled from your configured panels.
+                <span id="syncInfo">Loading tests...</span>
+            </div>
+            <button class="btn btn-sm" onclick="syncFromTestConfig()">🔄 Sync Now</button>
+        </div>
+
+               <div class="filter-tabs">
+            <button class="filter-tab active" data-filter="all" onclick="setFilter('all')">📋 All <span class="count" id="countAll">0</span></button>
+            <button class="filter-tab" data-filter="consultation" onclick="setFilter('consultation')">🏥 Consultation <span class="count" id="countConsultation">0</span></button>
+            <button class="filter-tab" data-filter="lab" onclick="setFilter('lab')">🧪 Lab Tests <span class="count" id="countLab">0</span></button>
+            <button class="filter-tab" data-filter="imaging" onclick="setFilter('imaging')">🩻 Imaging <span class="count" id="countImaging">0</span></button>
+            <button class="filter-tab" data-filter="pharmacy" onclick="setFilter('pharmacy')">💊 Pharmacy <span class="count" id="countPharmacy">0</span></button>
+            <button class="filter-tab" data-filter="missing" onclick="setFilter('missing')">⚠️ Missing Prices <span class="count" id="countMissing">0</span></button>
+        </div>
+
+        <div class="bulk-toolbar">
+            <span class="bulk-label">Bulk update current view:</span>
+            <input type="number" id="bulkPercent" value="10" min="0.1" max="500" step="0.1" class="bulk-input" title="Percent">
+            <span class="bulk-suffix">%</span>
+            <button class="btn btn-sm btn-success" onclick="applyBulkIncrease()">▲ Increase</button>
+            <button class="btn btn-sm btn-warning" onclick="applyBulkDecrease()">▼ Decrease</button>
+            <button class="btn btn-sm" onclick="applyBulkRound()">⏺ Round to nearest 1</button>
+            <button class="btn btn-sm btn-outline" onclick="applyBulkSet()">✎ Set fixed price</button>
+            <span class="bulk-hint" id="bulkCount"></span>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <div>
+                    <h2>Price List</h2>
+                    <span class="count" id="totalItems">0 items</span>
+                </div>
+                <div class="toolbar">
+                    <input class="search-input" id="searchInput" placeholder="Search by name, code, or category..." oninput="filterTable()">
+                    <button class="btn btn-sm" onclick="clearSearch()">Clear</button>
+                </div>
+            </div>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width:5%;">#</th>
+                            <th style="width:28%;">Item Name</th>
+                            <th style="width:12%;">Category</th>
+                            <th style="width:12%;">Source</th>
+                            <th style="width:10%;">Code</th>
+                            <th style="width:12%;">Price (GHS)</th>
+                            <th style="width:10%;">Status</th>
+                            <th style="width:11%;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="priceTableBody">
+                        <tr>
+                            <td colspan="8">
+                                <div class="empty-state">
+                                    <h3>Loading prices...</h3>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="priceModal">
+        <div class="modal">
+            <div class="modal-header">
+                <div>
+                    <h2 id="modalTitle">Add New Price</h2>
+                    <p id="modalSub">Add a new item with its price</p>
+                </div>
+                <button class="close-btn" onclick="closeModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Category <span class="required">*</span></label>
+                    <select id="modalCategory" onchange="toggleModalFields()">
+                        <option value="consultation">🏥 Consultation Services</option>
+                        <option value="lab">🧪 Laboratory Tests</option>
+                        <option value="imaging">🩻 Imaging / Radiology</option>
+                        <option value="pharmacy">💊 Pharmacy / Medications</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Item Name <span class="required">*</span></label>
+                    <input type="text" id="modalName" placeholder="e.g., Full Blood Count, Chest X-Ray, Paracetamol">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Code <span class="required">*</span></label>
+                        <input type="text" id="modalCode" placeholder="e.g., LAB-FBC, IMG-CXR">
+                    </div>
+                    <div class="form-group">
+                        <label>Price (GHS) <span class="required">*</span></label>
+                        <input type="number" id="modalPrice" step="0.01" min="0" placeholder="0.00">
+                    </div>
+                </div>
+                <div class="form-group" id="modalSubCategoryGroup" style="display:none;">
+                    <label>Sub-Category (optional)</label>
+                    <input type="text" id="modalSubCategory" placeholder="e.g., Hematology, Radiology, Antibiotics">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveModalItem()">Save Item</button>
+            </div>
+        </div>
+    </div>
+<script src="shared/labcore-api.js"></script>
+    <script src="shared/labcore-utils.js"></script>
+    <script src="shared/labcore-ward.js"></script>
+    <script src="shared/labcore-audit.js"></script>
+<script src="shared/labcore-auth.js"></script>
+<script src="shared/labcore-staff.js"></script>   <!-- NEW -->    <script src="shared/labcore-icons.js"></script>
+    <script src="shared/labcore-nav.js"></script>
+    <script src="shared/labcore-search.js"></script>
+<script src="shared/labcore-notifications.js"></script>
+
+<script src="shared/labcore-timeline.js"></script>
+    <script src="shared/labcore-pricing.js"></script>
+
+    <script>
+        // FIX #21: enforce auth + role gate.
+        // Requires 'price-management.html' in the role's pages[] array.
+        (function () {
+            const user = window.lcRequireAuth ? window.lcRequireAuth() : null;
+            if (!user) return;
+
+            // Belt-and-braces: require canConfig OR canBill
+            const allowed = window.lcCan('canConfig') || window.lcCan('canBill');
+            if (!allowed) {
+                if (window.lcToast) window.lcToast('Your role cannot edit prices', 'warning');
+                window.location.href = 'dashboard.html';
+            }
+        })();
+
+        // =========================================================
+        // STATE
+        // =========================================================
+        let currentFilter = 'all';
+        let currentSearch = '';
+        let allItems = [];
+        let editingKey = null;
+        let editingCategory = null;
+        let testConfigPanels = [];
+        let priceChangeTimeout = null;
+
+        const CATEGORY_MAP = {
+            'consultation': 'services',
+            'lab': 'labTests',
+            'imaging': 'imaging',
+            'pharmacy': 'pharmacy'
+        };
+
+        // =========================================================
+        // LOAD TEST CONFIGURATION
+        // =========================================================
+        function loadTestConfiguration() {
+            try {
+                const panels = JSON.parse(localStorage.getItem('labcore_panels') || 'null');
+                if (Array.isArray(panels) && panels.length) {
+                    testConfigPanels = panels;
+                    return panels;
+                }
+                const fallback = JSON.parse(localStorage.getItem('lc_panels') || '[]');
+                if (Array.isArray(fallback) && fallback.length) {
+                    testConfigPanels = fallback;
+                    return fallback;
+                }
+                testConfigPanels = [];
+                return [];
+            } catch (e) {
+                console.warn('Could not load test configuration:', e);
+                testConfigPanels = [];
+                return [];
+            }
+        }
+
+        // =========================================================
+        // SEED DEFAULT IMAGING + PHARMACY ENTRIES
+        // =========================================================
+        function ensureDefaultEntries() {
+            if (!window.lcAddPriceEntry || !window.lcGetPrice) return;
+
+            const defaultImaging = {
+                'Chest X-Ray': { code: 'IMG-CXR', category: 'Radiology' },
+                'Abdominal Ultrasound': { code: 'IMG-AUS', category: 'Ultrasound' },
+                'Pelvic Ultrasound': { code: 'IMG-PUS', category: 'Ultrasound' },
+                'Obstetric Ultrasound': { code: 'IMG-OUS', category: 'Ultrasound' },
+                'Transvaginal Ultrasound': { code: 'IMG-TVUS', category: 'Ultrasound' },
+                'Thyroid Ultrasound': { code: 'IMG-TUS', category: 'Ultrasound' },
+                'Breast Ultrasound': { code: 'IMG-BUS', category: 'Ultrasound' },
+                'Scrotal Ultrasound': { code: 'IMG-SUS', category: 'Ultrasound' },
+                'Doppler Ultrasound': { code: 'IMG-DOPPLER', category: 'Ultrasound' },
+                'Echocardiogram': { code: 'IMG-ECHO', category: 'Ultrasound' },
+                'Mammogram': { code: 'IMG-MAMMO', category: 'Radiology' },
+                'CT Scan Head': { code: 'IMG-CTH', category: 'CT Scan' },
+                'CT Scan Abdomen': { code: 'IMG-CTA', category: 'CT Scan' },
+                'MRI Brain': { code: 'IMG-MRIB', category: 'MRI' },
+                'MRI Spine': { code: 'IMG-MRIS', category: 'MRI' },
+                'Limb X-Ray': { code: 'IMG-LXR', category: 'Radiology' },
+                'Skull X-Ray': { code: 'IMG-SXR', category: 'Radiology' },
+                'Spine X-Ray': { code: 'IMG-SPX', category: 'Radiology' }
+            };
+
+            Object.keys(defaultImaging).forEach(function(name) {
+                if (!window.lcGetPrice('imaging', name)) {
+                    window.lcAddPriceEntry('imaging', name, {
+                        price: 0,
+                        code: defaultImaging[name].code,
+                        category: defaultImaging[name].category,
+                        name: name
+                    });
+                }
+            });
+
+            const defaultPharmacy = {
+                'Paracetamol 500mg': { code: 'RX-PAR' },
+                'Ibuprofen 400mg': { code: 'RX-IBU' },
+                'Amoxicillin 500mg': { code: 'RX-AMOX' },
+                'Ciprofloxacin 500mg': { code: 'RX-CIP' },
+                'Metronidazole 400mg': { code: 'RX-MET' },
+                'Artemether-Lumefantrine': { code: 'RX-AL' },
+                'Amlodipine 5mg': { code: 'RX-AML' },
+                'Lisinopril 10mg': { code: 'RX-LIS' },
+                'Metformin 500mg': { code: 'RX-METF' },
+                'Omeprazole 20mg': { code: 'RX-OME' },
+                'Cetirizine 10mg': { code: 'RX-CET' },
+                'ORS Sachet': { code: 'RX-ORS' },
+                'Normal Saline 500ml': { code: 'RX-NS' },
+                "Ringer's Lactate 500ml": { code: 'RX-RL' },
+                'Diclofenac 50mg': { code: 'RX-DIC' },
+                'Tramadol 50mg': { code: 'RX-TRA' },
+                'Azithromycin 500mg': { code: 'RX-AZI' },
+                'Doxycycline 100mg': { code: 'RX-DOX' },
+                'Ceftriaxone 1g': { code: 'RX-CEF' },
+                'Gentamicin 80mg': { code: 'RX-GEN' }
+            };
+
+            Object.keys(defaultPharmacy).forEach(function(name) {
+                if (!window.lcGetPrice('pharmacy', name)) {
+                    window.lcAddPriceEntry('pharmacy', name, {
+                        price: 0,
+                        code: defaultPharmacy[name].code,
+                        category: 'General',
+                        name: name
+                    });
+                }
+            });
+        }
+
+        // =========================================================
+        // BUILD ITEMS FROM ALL SOURCES
+        // =========================================================
+        function buildAllItems() {
+            allItems = [];
+
+            const panels = loadTestConfiguration();
+
+            const labPrices = window.lcGetAllLabTests ? window.lcGetAllLabTests() : {};
+            const servicePrices = window.lcGetAllServices ? window.lcGetAllServices() : {};
+            const imagingPrices = window.lcGetAllImaging ? window.lcGetAllImaging() : {};
+            const pharmacyPrices = window.lcGetAllPharmacy ? window.lcGetAllPharmacy() : {};
+
+            // ---------- Consultation Services ----------
+            const defaultServices = {
+                'OPD': { name: 'OPD Consultation', code: 'SVC-OPD', category: 'consultation' },
+                'ER': { name: 'Emergency Consultation', code: 'SVC-ER', category: 'consultation' },
+                'Consultation': { name: 'Specialist Consultation', code: 'SVC-CONS', category: 'consultation' },
+                'Review': { name: 'Review / Follow-up', code: 'SVC-REV', category: 'consultation' },
+                'Nursing': { name: 'Nursing Procedure', code: 'SVC-NRS', category: 'consultation' },
+                'Pharmacy': { name: 'Pharmacy Service', code: 'SVC-PHARM', category: 'consultation' },
+                'Radiology': { name: 'Radiology Service', code: 'SVC-RAD', category: 'consultation' },
+                'Laboratory': { name: 'Laboratory Service', code: 'SVC-LAB', category: 'consultation' },
+                'Other': { name: 'Other Service', code: 'SVC-OTHER', category: 'consultation' }
+            };
+
+            const serviceKeys = new Set();
+            Object.keys(defaultServices).forEach(k => serviceKeys.add(k));
+            Object.keys(servicePrices).forEach(k => serviceKeys.add(k));
+
+            serviceKeys.forEach(function(key) {
+                const defaultSvc = defaultServices[key];
+                const pricedSvc = servicePrices[key];
+                allItems.push({
+                    key: key,
+                    name: (pricedSvc && pricedSvc.name) || (defaultSvc && defaultSvc.name) || key,
+                    category: 'consultation',
+                    categoryLabel: 'Consultation',
+                    categoryClass: 'consultation',
+                    code: (pricedSvc && pricedSvc.code) || (defaultSvc && defaultSvc.code) || '',
+                    price: (pricedSvc && pricedSvc.price != null) ? pricedSvc.price : 0,
+                    subCategory: (pricedSvc && pricedSvc.category) || '',
+                    source: 'system',
+                    fromConfig: false
+                });
+            });
+
+            // ---------- Laboratory Tests ----------
+            const testNames = new Set();
+            const panelTests = [];
+
+            panels.forEach(function(panel) {
+                const panelName = panel.name || panel.code || 'Panel';
+                const panelCode = panel.code || '';
+
+                if (panelName && !testNames.has(panelName)) {
+                    testNames.add(panelName);
+                    panelTests.push({
+                        name: panelName,
+                        code: panelCode,
+                        category: panel.category || panel.department || 'Laboratory',
+                        source: 'panel',
+                        panel: panelName
+                    });
+                }
+
+                (panel.tests || []).forEach(function(test) {
+                    const testName = test.name || test.code || 'Test';
+                    if (testName && !testNames.has(testName)) {
+                        testNames.add(testName);
+                        panelTests.push({
+                            name: testName,
+                            code: test.code || '',
+                            category: panel.category || panel.department || 'Laboratory',
+                            source: 'test',
+                            panel: panelName
+                        });
+                    }
+                });
+            });
+
+            try {
+                const standaloneTests = JSON.parse(localStorage.getItem('labcore_tests') || '[]');
+                standaloneTests.forEach(function(test) {
+                    const testName = test.name || test.code || 'Test';
+                    if (testName && !testNames.has(testName)) {
+                        testNames.add(testName);
+                        panelTests.push({
+                            name: testName,
+                            code: test.code || '',
+                            category: test.department || 'Laboratory',
+                            source: 'standalone',
+                            panel: ''
+                        });
+                    }
+                });
+            } catch (e) {}
+
+            Object.keys(labPrices).forEach(function(name) {
+                if (!testNames.has(name)) {
+                    testNames.add(name);
+                    panelTests.push({
+                        name: name,
+                        code: labPrices[name].code || '',
+                        category: labPrices[name].category || 'Laboratory',
+                        source: 'pricing',
+                        panel: ''
+                    });
+                }
+            });
+
+            panelTests.forEach(function(test) {
+                const priced = labPrices[test.name];
+                allItems.push({
+                    key: test.name,
+                    name: test.name,
+                    category: 'lab',
+                    categoryLabel: 'Laboratory',
+                    categoryClass: 'lab',
+                    code: test.code || (priced && priced.code) || '',
+                    price: (priced && priced.price != null) ? priced.price : 0,
+                    subCategory: test.category || (priced && priced.category) || '',
+                    source: test.source || (priced ? 'pricing' : 'config'),
+                    fromConfig: true,
+                    panel: test.panel || ''
+                });
+            });
+
+            // ---------- Imaging ----------
+            Object.keys(imagingPrices).forEach(function(key) {
+                const pricedImg = imagingPrices[key];
+                allItems.push({
+                    key: key,
+                    name: key,
+                    category: 'imaging',
+                    categoryLabel: 'Imaging',
+                    categoryClass: 'imaging',
+                    code: (pricedImg && pricedImg.code) || '',
+                    price: (pricedImg && pricedImg.price != null) ? pricedImg.price : 0,
+                    subCategory: (pricedImg && pricedImg.category) || '',
+                    source: 'pricing',
+                    fromConfig: false
+                });
+            });
+
+            // ---------- Pharmacy ----------
+            Object.keys(pharmacyPrices).forEach(function(key) {
+                const pricedRx = pharmacyPrices[key];
+                allItems.push({
+                    key: key,
+                    name: key,
+                    category: 'pharmacy',
+                    categoryLabel: 'Pharmacy',
+                    categoryClass: 'pharmacy',
+                    code: (pricedRx && pricedRx.code) || '',
+                    price: (pricedRx && pricedRx.price != null) ? pricedRx.price : 0,
+                    subCategory: '',
+                    source: 'pricing',
+                    fromConfig: false
+                });
+            });
+
+            allItems.sort(function(a, b) {
+                if (a.category !== b.category) return a.category.localeCompare(b.category);
+                return a.name.localeCompare(b.name);
+            });
+
+            updateStats();
+            renderTable();
+        }
+
+        // =========================================================
+        // SYNC FROM TEST CONFIGURATION
+        // =========================================================
+        function syncFromTestConfig() {
+            if (typeof window.lcAddPriceEntry !== 'function') {
+                console.warn('syncFromTestConfig: pricing module not loaded');
+                return;
+            }
+
+            const panels = loadTestConfiguration();
+            let addedCount = 0;
+
+            function addIfMissing(name, code, category) {
+                if (!name) return;
+                let existing = null;
+                try {
+                    existing = window.lcGetLabTestPriceObject
+                        ? window.lcGetLabTestPriceObject(name)
+                        : null;
+                } catch (e) { existing = null; }
+
+                if (!existing) {
+                    window.lcAddPriceEntry('labTests', name, {
+                        price: 0,
+                        code: code || String(name).toUpperCase().replace(/\s+/g, '-'),
+                        category: category || 'Laboratory',
+                        name: name
+                    });
+                    addedCount++;
+                }
+            }
+
+            panels.forEach(function(panel) {
+                const panelName = panel.name || panel.code || 'Panel';
+                addIfMissing(panelName, panel.code, panel.category || panel.department);
+                (panel.tests || []).forEach(function(test) {
+                    const testName = test.name || test.code || 'Test';
+                    addIfMissing(testName, test.code, panel.category || panel.department);
+                });
+            });
+
+            try {
+                const standaloneTests = JSON.parse(localStorage.getItem('labcore_tests') || '[]');
+                standaloneTests.forEach(function(test) {
+                    const testName = test.name || test.code || 'Test';
+                    addIfMissing(testName, test.code, test.department);
+                });
+            } catch (e) {}
+
+            if (window.lcReloadPrices) window.lcReloadPrices();
+            buildAllItems();
+
+            const syncInfo = document.getElementById('syncInfo');
+            if (syncInfo) {
+                syncInfo.textContent = '✅ Synced! Added ' + addedCount + ' new test(s).';
+            }
+            window.lcToast('Synced from Test Configuration: ' + addedCount + ' tests added', 'success');
+        }
+
+        // =========================================================
+        // UPDATE STATS
+        // =========================================================
+        function updateStats() {
+            const services = allItems.filter(function(i) { return i.category === 'consultation'; });
+            const lab = allItems.filter(function(i) { return i.category === 'lab'; });
+            const imaging = allItems.filter(function(i) { return i.category === 'imaging'; });
+            const pharmacy = allItems.filter(function(i) { return i.category === 'pharmacy'; });
+            const missing = allItems.filter(function(i) {
+                return i.price === 0 || i.price === null || i.price === undefined;
+            });
+
+            document.getElementById('statServices').textContent = services.length;
+            document.getElementById('statLabTests').textContent = lab.length;
+            document.getElementById('statImaging').textContent = imaging.length;
+            document.getElementById('statPharmacy').textContent = pharmacy.length;
+
+            document.getElementById('countAll').textContent = allItems.length;
+            document.getElementById('countConsultation').textContent = services.length;
+            document.getElementById('countLab').textContent = lab.length;
+            document.getElementById('countImaging').textContent = imaging.length;
+            document.getElementById('countPharmacy').textContent = pharmacy.length;
+            document.getElementById('countMissing').textContent = missing.length;
+            document.getElementById('totalItems').textContent = allItems.length + ' items';
+
+            const fromConfig = allItems.filter(function(i) { return i.fromConfig === true; });
+            document.getElementById('syncInfo').textContent =
+                fromConfig.length + ' tests loaded from Test Configuration, ' +
+                (allItems.length - fromConfig.length) + ' system items.';
+        }
+
+        // =========================================================
+        // FILTER & RENDER
+        // =========================================================
+        function setFilter(filter) {
+            currentFilter = filter;
+            document.querySelectorAll('.filter-tab').forEach(function(tab) {
+                tab.classList.toggle('active', tab.dataset.filter === filter);
+            });
+            renderTable();
+        }
+
+        function filterTable() {
+            currentSearch = document.getElementById('searchInput').value.toLowerCase().trim();
+            renderTable();
+        }
+
+        function clearSearch() {
+            document.getElementById('searchInput').value = '';
+            currentSearch = '';
+            renderTable();
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('priceTableBody');
+            let filtered = allItems;
+
+            if (currentFilter === 'missing') {
+                filtered = filtered.filter(function(item) {
+                    return item.price === 0 || item.price === null || item.price === undefined;
+                });
+            } else if (currentFilter !== 'all') {
+                filtered = filtered.filter(function(item) {
+                    return item.category === currentFilter;
+                });
+            }
+
+            if (currentSearch) {
+                filtered = filtered.filter(function(item) {
+                    return item.name.toLowerCase().includes(currentSearch) ||
+                        (item.code || '').toLowerCase().includes(currentSearch) ||
+                        (item.categoryLabel || '').toLowerCase().includes(currentSearch) ||
+                        (item.subCategory || '').toLowerCase().includes(currentSearch);
+                });
+            }
+
+            if (filtered.length === 0) {
+                tbody.innerHTML =
+                    '<tr><td colspan="8"><div class="empty-state">' +
+                    '<h3>No items found</h3>' +
+                    '<p>Try adjusting your search or filter criteria</p>' +
+                    (currentFilter === 'missing' ? '<p style="margin-top:8px;">💡 All items have prices set.</p>' : '') +
+                    (currentFilter === 'lab' ? '<p style="margin-top:8px;">💡 Go to Test Configuration to create tests, then sync here.</p>' : '') +
+                    '</div></td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = filtered.map(function(item, index) {
+                const hasPrice = item.price > 0 && item.price !== null && item.price !== undefined;
+                const fromConfigLabel = item.fromConfig
+                    ? '📋 Config'
+                    : (item.source === 'pricing' ? '💰 Pricing' : '⚙️ System');
+                const missingClass = !hasPrice ? 'missing' : '';
+
+                return (
+                    '<tr>' +
+                    '<td>' + (index + 1) + '</td>' +
+                    '<td><strong>' + esc(item.name) + '</strong>' +
+                    (item.subCategory ? '<div style="font-size:10px;color:var(--lc-muted);">' + esc(item.subCategory) + '</div>' : '') +
+                    (item.panel ? '<div style="font-size:9px;color:var(--lc-muted);">Panel: ' + esc(item.panel) + '</div>' : '') +
+                    '</td>' +
+                    '<td><span class="category-badge ' + item.categoryClass + '">' + item.categoryLabel + '</span></td>' +
+                    '<td style="font-size:10px;color:var(--lc-muted);">' + fromConfigLabel + '</td>' +
+                    '<td class="code-cell">' + esc(item.code) + '</td>' +
+                    '<td><input type="number" step="0.01" min="0" class="price-input ' + missingClass + '" ' +
+                    'value="' + (hasPrice ? Number(item.price).toFixed(2) : '') + '" ' +
+                    'data-category="' + item.category + '" data-key="' + esc(item.key) + '" ' +
+                    'placeholder="Set price" onchange="onPriceChange(this)" onfocus="this.select()"></td>' +
+                    '<td><span style="font-size:10px;color:' + (hasPrice ? 'var(--lc-green)' : 'var(--lc-warning)') + ';">' +
+                    (hasPrice ? '✅ Active' : '⚠️ No price') + '</span></td>' +
+                    '<td>' +
+                    '<button class="btn btn-sm btn-primary" onclick="editItem(\'' + esc(item.category) + '\',\'' + esc(item.key) + '\')">✏️</button> ' +
+                    (!item.fromConfig
+                        ? '<button class="btn btn-sm btn-danger" onclick="deleteItem(\'' + esc(item.category) + '\',\'' + esc(item.key) + '\')">🗑️</button>'
+                        : '<span style="font-size:9px;color:var(--lc-muted);">🔒</span>') +
+                    '</td></tr>'
+                );
+                      }).join('');
+
+            // Update the bulk toolbar count
+            const bulkCount = document.getElementById('bulkCount');
+            if (bulkCount) {
+                bulkCount.textContent = filtered.length + ' item(s) in view';
+            }
+        }
+
+                /* =========================================================
+           BULK UPDATE
+        ========================================================= */
+        function bulkTargets() {
+            // Same filter logic used by renderTable — reuse currentFilter + currentSearch
+            let filtered = allItems.slice();
+            if (currentFilter === 'missing') {
+                filtered = filtered.filter(function(item) {
+                    return item.price === 0 || item.price === null || item.price === undefined;
+                });
+            } else if (currentFilter !== 'all') {
+                filtered = filtered.filter(function(item) { return item.category === currentFilter; });
+            }
+            if (currentSearch) {
+                filtered = filtered.filter(function(item) {
+                    return item.name.toLowerCase().includes(currentSearch) ||
+                        (item.code || '').toLowerCase().includes(currentSearch) ||
+                        (item.categoryLabel || '').toLowerCase().includes(currentSearch) ||
+                        (item.subCategory || '').toLowerCase().includes(currentSearch);
+                });
+            }
+            return filtered;
+        }
+
+        function writeBulkPrice(item, newPrice) {
+            if (newPrice < 0 || isNaN(newPrice)) return false;
+            const storageCategory = CATEGORY_MAP[item.category];
+            if (!storageCategory) return false;
+            let ok = false;
+            if (window.lcUpdatePrice) {
+                ok = window.lcUpdatePrice(storageCategory, item.key, newPrice);
+            }
+            if (!ok && window.lcAddPriceEntry) {
+                window.lcAddPriceEntry(storageCategory, item.key, {
+                    price: newPrice,
+                    code: item.code || item.key.toUpperCase().replace(/\s+/g, '-'),
+                    category: item.subCategory || 'General',
+                    name: item.name
+                });
+                ok = true;
+            }
+            return ok;
+        }
+
+        function confirmBulk(message) {
+            const targets = bulkTargets();
+            if (!targets.length) {
+                window.lcToast('No items in the current view to update.', 'warning');
+                return null;
+            }
+            if (!confirm(message + '\n\n' + targets.length + ' item(s) will be affected. Continue?')) {
+                return null;
+            }
+            return targets;
+        }
+
+        function finishBulk(targets, changedCount, description) {
+            if (window.lcReloadPrices) window.lcReloadPrices();
+            buildAllItems();
+            if (window.auditLog) {
+                auditLog('price.changed', {
+                    entity: 'price-bulk',
+                    note: description + ' · ' + changedCount + '/' + targets.length + ' item(s)'
+                });
+            }
+            window.lcToast(changedCount + ' of ' + targets.length + ' prices updated', 'success');
+        }
+
+        function applyBulkIncrease() {
+            const pct = parseFloat(document.getElementById('bulkPercent').value);
+            if (isNaN(pct) || pct <= 0) { window.lcToast('Enter a positive percent', 'error'); return; }
+            const targets = confirmBulk('Increase prices by ' + pct + '%?');
+            if (!targets) return;
+            let n = 0;
+            targets.forEach(function(item) {
+                const current = Number(item.price) || 0;
+                if (current <= 0) return;      // don't inflate zero-price items
+                const next = Math.round(current * (1 + pct / 100) * 100) / 100;
+                if (writeBulkPrice(item, next)) n++;
+            });
+            finishBulk(targets, n, 'Increase by ' + pct + '%');
+        }
+
+        function applyBulkDecrease() {
+            const pct = parseFloat(document.getElementById('bulkPercent').value);
+            if (isNaN(pct) || pct <= 0) { window.lcToast('Enter a positive percent', 'error'); return; }
+            if (pct >= 100) { window.lcToast('Decrease must be less than 100%', 'error'); return; }
+            const targets = confirmBulk('Decrease prices by ' + pct + '%?');
+            if (!targets) return;
+            let n = 0;
+            targets.forEach(function(item) {
+                const current = Number(item.price) || 0;
+                if (current <= 0) return;
+                const next = Math.round(current * (1 - pct / 100) * 100) / 100;
+                if (writeBulkPrice(item, next)) n++;
+            });
+            finishBulk(targets, n, 'Decrease by ' + pct + '%');
+        }
+
+        function applyBulkRound() {
+            const targets = confirmBulk('Round all prices to the nearest whole unit?');
+            if (!targets) return;
+            let n = 0;
+            targets.forEach(function(item) {
+                const current = Number(item.price) || 0;
+                if (current <= 0) return;
+                const next = Math.round(current);
+                if (writeBulkPrice(item, next)) n++;
+            });
+            finishBulk(targets, n, 'Round to nearest whole');
+        }
+
+        function applyBulkSet() {
+            const input = prompt('Set all prices in the current view to (GHS):');
+            if (input === null) return;
+            const value = parseFloat(input);
+            if (isNaN(value) || value < 0) { window.lcToast('Enter a valid non-negative number', 'error'); return; }
+            const targets = confirmBulk('Set all prices to GHS ' + value.toFixed(2) + '?');
+            if (!targets) return;
+            let n = 0;
+            targets.forEach(function(item) {
+                if (writeBulkPrice(item, value)) n++;
+            });
+            finishBulk(targets, n, 'Set to ' + value.toFixed(2));
+        }
+
+        function esc(str) {
+            return String(str || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        // =========================================================
+        // PRICE CHANGE HANDLER (with audit)
+        // =========================================================
+        function onPriceChange(input) {
+            const category = input.dataset.category;
+            const key = input.dataset.key;
+            const price = parseFloat(input.value);
+
+            if (isNaN(price) || price < 0) {
+                input.classList.add('changed');
+                window.lcToast('Please enter a valid price', 'error');
+                return;
+            }
+
+            input.classList.add('changed');
+
+            clearTimeout(priceChangeTimeout);
+            priceChangeTimeout = setTimeout(function() {
+                const storageCategory = CATEGORY_MAP[category];
+                if (!storageCategory) {
+                    window.lcToast('Unknown category', 'error');
+                    input.classList.remove('changed');
+                    return;
+                }
+
+                // Capture previous price for audit "before" field
+                let beforePrice = null;
+                try {
+                    const existing = window.lcGetPrice ? window.lcGetPrice(storageCategory, key) : null;
+                    if (existing && typeof existing.price === 'number') beforePrice = existing.price;
+                } catch (e) {}
+
+                let success = false;
+                if (window.lcUpdatePrice) {
+                    success = window.lcUpdatePrice(storageCategory, key, price);
+                }
+
+                if (!success && window.lcAddPriceEntry) {
+                    const existing = allItems.find(function(i) {
+                        return i.category === category && i.key === key;
+                    });
+                    window.lcAddPriceEntry(storageCategory, key, {
+                        price: price,
+                        code: (existing && existing.code) || key.toUpperCase().replace(/\s+/g, '-'),
+                        category: (existing && existing.subCategory) || 'General',
+                        name: (existing && existing.name) || key
+                    });
+                    success = true;
+                }
+
+                if (success) {
+                    input.classList.remove('changed');
+                    input.classList.add('saved');
+                    setTimeout(function() { input.classList.remove('saved'); }, 1500);
+
+                    if (window.lcReloadPrices) window.lcReloadPrices();
+
+                    if (window.auditLog) {
+                        auditLog('price.changed', {
+                            entity: 'price',
+                            entityId: storageCategory + ':' + key,
+                            before: beforePrice != null ? { price: beforePrice } : null,
+                            after: { price: price },
+                            note: key + ' → GHS ' + price.toFixed(2)
+                        });
+                    }
+
+                    window.lcToast('Price saved: ' + key + ' → GHS ' + price.toFixed(2), 'success');
+
+                    const row = input.closest('tr');
+                    if (row) {
+                        const statusCell = row.querySelector('td:nth-child(7) span');
+                        if (statusCell) {
+                            statusCell.textContent = price > 0 ? '✅ Active' : '⚠️ No price';
+                            statusCell.style.color = price > 0 ? 'var(--lc-green)' : 'var(--lc-warning)';
+                        }
+                    }
+
+                    buildAllItems();
+                } else {
+                    window.lcToast('Failed to save price. Check that labcore-pricing.js is loaded.', 'error');
+                    input.classList.remove('changed');
+                }
+            }, 400);
+        }
+
+        // =========================================================
+        // SAVE ALL
+        // =========================================================
+        function saveAllPrices() {
+            const inputs = document.querySelectorAll('.price-input');
+            let count = 0;
+
+            inputs.forEach(function(input) {
+                const category = input.dataset.category;
+                const key = input.dataset.key;
+                const price = parseFloat(input.value);
+                if (isNaN(price) || price < 0) return;
+
+                const storageCategory = CATEGORY_MAP[category];
+                if (!storageCategory) return;
+
+                let ok = false;
+                if (window.lcUpdatePrice) {
+                    ok = window.lcUpdatePrice(storageCategory, key, price);
+                }
+                if (!ok && window.lcAddPriceEntry) {
+                    const existing = allItems.find(function(i) {
+                        return i.category === category && i.key === key;
+                    });
+                    window.lcAddPriceEntry(storageCategory, key, {
+                        price: price,
+                        code: (existing && existing.code) || key.toUpperCase().replace(/\s+/g, '-'),
+                        category: (existing && existing.subCategory) || 'General',
+                        name: (existing && existing.name) || key
+                    });
+                    ok = true;
+                }
+                if (ok) count++;
+            });
+
+            if (window.lcReloadPrices) window.lcReloadPrices();
+            buildAllItems();
+
+            if (window.auditLog && count > 0) {
+                auditLog('price.changed', {
+                    entity: 'price-batch',
+                    note: 'Batch save: ' + count + ' price(s)'
+                });
+            }
+
+            window.lcToast('Saved ' + count + ' prices', 'success');
+        }
+
+        // =========================================================
+        // REFRESH / EXPORT / IMPORT / RESET
+        // =========================================================
+        function refreshPrices() {
+            if (window.lcReloadPrices) window.lcReloadPrices();
+            buildAllItems();
+            window.lcToast('Prices refreshed', 'info');
+        }
+
+        function exportPrices() {
+            if (window.lcExportPrices) {
+                const data = window.lcExportPrices();
+                const blob = new Blob([data], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'LabCore_Prices_' + new Date().toISOString().slice(0, 10) + '.json';
+                a.click();
+                URL.revokeObjectURL(url);
+                window.lcToast('Prices exported', 'success');
+            } else {
+                window.lcToast('Export function not available', 'error');
+            }
+        }
+
+        function importPrices() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    try {
+                        if (window.lcImportPrices) {
+                            window.lcImportPrices(ev.target.result);
+                            if (window.lcReloadPrices) window.lcReloadPrices();
+                            buildAllItems();
+                            if (window.auditLog) {
+                                auditLog('price.changed', {
+                                    entity: 'price-import',
+                                    note: 'Imported prices from ' + file.name
+                                });
+                            }
+                            window.lcToast('Prices imported successfully', 'success');
+                        }
+                    } catch (err) {
+                        window.lcToast('Error importing prices: ' + err.message, 'error');
+                    }
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        }
+
+        function resetAllPrices() {
+            if (!confirm('⚠️ Reset all prices to default values? This cannot be undone.')) return;
+            if (window.lcResetPrices) {
+                window.lcResetPrices();
+                ensureDefaultEntries();
+                if (window.lcReloadPrices) window.lcReloadPrices();
+                buildAllItems();
+                if (window.auditLog) {
+                    auditLog('price.changed', {
+                        entity: 'price-reset',
+                        note: 'All prices reset to defaults'
+                    });
+                }
+                window.lcToast('Prices reset to defaults', 'info');
+            }
+        }
+
+        // =========================================================
+        // ADD / EDIT MODAL
+        // =========================================================
+        function openAddModal() {
+            editingKey = null;
+            editingCategory = null;
+            document.getElementById('modalTitle').textContent = 'Add New Price';
+            document.getElementById('modalSub').textContent = 'Add a new item with its price';
+            document.getElementById('modalName').value = '';
+            document.getElementById('modalCode').value = '';
+            document.getElementById('modalPrice').value = '';
+            document.getElementById('modalSubCategory').value = '';
+            document.getElementById('modalCategory').value = 'consultation';
+            toggleModalFields();
+            document.getElementById('priceModal').classList.add('active');
+            setTimeout(function() { document.getElementById('modalName').focus(); }, 100);
+        }
+
+        function editItem(category, key) {
+            const item = allItems.find(function(i) {
+                return i.category === category && i.key === key;
+            });
+            if (!item) {
+                window.lcToast('Item not found', 'error');
+                return;
+            }
+
+            editingKey = key;
+            editingCategory = category;
+            document.getElementById('modalTitle').textContent = 'Edit Price';
+            document.getElementById('modalSub').textContent = 'Update price for: ' + item.name;
+            document.getElementById('modalName').value = item.name;
+            document.getElementById('modalCode').value = item.code;
+            document.getElementById('modalPrice').value = item.price || '';
+            document.getElementById('modalSubCategory').value = item.subCategory || '';
+            document.getElementById('modalCategory').value = category;
+            toggleModalFields();
+            document.getElementById('priceModal').classList.add('active');
+        }
+
+        function toggleModalFields() {
+            const category = document.getElementById('modalCategory').value;
+            const subGroup = document.getElementById('modalSubCategoryGroup');
+            subGroup.style.display = (category === 'lab' || category === 'imaging') ? 'block' : 'none';
+        }
+
+        function saveModalItem() {
+            const category = document.getElementById('modalCategory').value;
+            const name = document.getElementById('modalName').value.trim();
+            const code = document.getElementById('modalCode').value.trim().toUpperCase();
+            const price = parseFloat(document.getElementById('modalPrice').value);
+            const subCategory = document.getElementById('modalSubCategory').value.trim();
+
+            if (!name) {
+                window.lcToast('Item name is required', 'error');
+                document.getElementById('modalName').focus();
+                return;
+            }
+            if (!code) {
+                window.lcToast('Code is required', 'error');
+                document.getElementById('modalCode').focus();
+                return;
+            }
+            if (isNaN(price) || price < 0) {
+                window.lcToast('Please enter a valid price', 'error');
+                document.getElementById('modalPrice').focus();
+                return;
+            }
+
+            const storageCategory = CATEGORY_MAP[category];
+            const data = {
+                price: price,
+                code: code,
+                category: subCategory || 'General',
+                name: name
+            };
+
+            let beforePrice = null;
+            try {
+                const existing = window.lcGetPrice ? window.lcGetPrice(storageCategory, editingKey || name) : null;
+                if (existing && typeof existing.price === 'number') beforePrice = existing.price;
+            } catch (e) {}
+
+            if (editingKey && editingCategory === category) {
+                if (window.lcUpdatePrice) {
+                    window.lcUpdatePrice(storageCategory, editingKey, price);
+                }
+                if (window.lcAddPriceEntry) {
+                    window.lcAddPriceEntry(storageCategory, editingKey, data);
+                }
+                if (window.auditLog) {
+                    auditLog('price.changed', {
+                        entity: 'price',
+                        entityId: storageCategory + ':' + editingKey,
+                        before: beforePrice != null ? { price: beforePrice } : null,
+                        after: { price: price },
+                        note: 'Updated ' + name
+                    });
+                }
+                window.lcToast('Updated ' + name + ' to GHS ' + price.toFixed(2), 'success');
+            } else {
+                if (window.lcAddPriceEntry) {
+                    window.lcAddPriceEntry(storageCategory, name, data);
+                    if (window.auditLog) {
+                        auditLog('price.changed', {
+                            entity: 'price',
+                            entityId: storageCategory + ':' + name,
+                            after: { price: price },
+                            note: 'Added ' + name
+                        });
+                    }
+                    window.lcToast('Added ' + name + ' with price GHS ' + price.toFixed(2), 'success');
+                }
+            }
+
+            closeModal();
+            if (window.lcReloadPrices) window.lcReloadPrices();
+            buildAllItems();
+        }
+
+        function deleteItem(category, key) {
+            if (!confirm('Delete "' + key + '" from pricing? This cannot be undone.')) return;
+            const storageCategory = CATEGORY_MAP[category];
+            if (window.lcRemovePriceEntry) {
+                window.lcRemovePriceEntry(storageCategory, key);
+                if (window.lcReloadPrices) window.lcReloadPrices();
+                buildAllItems();
+                if (window.auditLog) {
+                    auditLog('price.changed', {
+                        entity: 'price',
+                        entityId: storageCategory + ':' + key,
+                        note: 'Deleted ' + key
+                    });
+                }
+                window.lcToast('Deleted ' + key, 'info');
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('priceModal').classList.remove('active');
+        }
+
+        document.getElementById('priceModal').addEventListener('click', function(e) {
+            if (e.target === this) closeModal();
+        });
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeModal();
+        });
+
+        // =========================================================
+        // INIT
+        // =========================================================
+        setTimeout(function() {
+            ensureDefaultEntries();
+            if (window.lcReloadPrices) window.lcReloadPrices();
+            buildAllItems();
+
+            setTimeout(function() {
+                syncFromTestConfig();
+            }, 400);
+        }, 120);
+
+        console.log('💰 Price Management loaded — auth-gated, audit-logged');
+    </script>
+    <script src="shared/labcore-connectivity.js"></script>
+</body>
+</html>

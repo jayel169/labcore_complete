@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reports & Analytics | LabCore</title>
+<link rel="stylesheet" href="shared/labcore-nav.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family: var(--lc-font);background:var(--lc-bg);color:var(--lc-text)}
+.main{margin-left:245px;min-height:100vh;padding:24px 28px}
+.topbar{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;flex-wrap:wrap;gap:12px}
+.topbar h1{font-size:22px}
+.topbar p{font-size:13px;color:var(--lc-muted);margin-top:4px}
+.controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.controls select,.controls input{padding:7px 12px;border:1px solid var(--lc-border);border-radius:6px;font-size:12px;background:#fff;color:var(--lc-text)}
+.btn{padding:7px 14px;border-radius:6px;border:1px solid var(--lc-border);background:#fff;cursor:pointer;font-size:12px;font-weight:600;transition:.2s}
+.btn:hover{background:var(--lc-bg);transform:translateY(-1px)}
+.btn-primary{background:var(--lc-blue);border-color:var(--lc-blue);color:#fff}
+.btn-primary:hover{background:#2A2656}
+.btn-success{background:var(--lc-green);border-color:var(--lc-green);color:#fff}
+.btn-sm{padding:4px 10px;font-size:11px}
+.tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:16px;border-bottom:2px solid var(--lc-border)}
+.tab{padding:10px 16px;font-size:13px;font-weight:600;color:var(--lc-muted);cursor:pointer;border-bottom:3px solid transparent;background:none;border-top:none;border-left:none;border-right:none;transition:.2s;white-space:nowrap}
+.tab:hover{color:var(--lc-text)}
+.tab.active{color:var(--lc-blue);border-bottom-color:var(--lc-blue)}
+.pane{display:none}
+.pane.active{display:block}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.kpi{background:#fff;border:1px solid var(--lc-border);border-radius:10px;padding:16px;transition:.2s}
+.kpi:hover{box-shadow:0 2px 8px rgba(0,0,0,.08);transform:translateY(-2px)}
+.kpi .label{font-size:11px;color:var(--lc-muted);}
+.kpi .value{font-size:26px;font-weight:700;margin-top:6px}
+.kpi .sub{font-size:11px;color:var(--lc-muted);margin-top:4px}
+.kpi.green .value{color:var(--lc-green)}
+.kpi.red .value{color:var(--lc-red)}
+.kpi.warn .value{color:var(--lc-warning)}
+.kpi.blue .value{color:var(--lc-blue)}
+.card{background:#fff;border:1px solid var(--lc-border);border-radius:10px;overflow:hidden;margin-bottom:16px}
+.card-head{padding:14px 18px;border-bottom:1px solid var(--lc-border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+.card-head h2{font-size:15px}
+.card-body{padding:16px 18px}
+.chart-wrap{height:260px;position:relative}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{background:#F8F7FB;text-align:left;padding:10px 12px;font-size:10px;color:#5F5B75;border-bottom:1px solid var(--lc-border);white-space:nowrap}
+td{padding:10px 12px;border-bottom:1px solid #eee;vertical-align:middle}
+tr:hover{background:#F8F7FB}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.badge{display:inline-block;padding:3px 8px;border-radius:10px;font-size:10px;font-weight:700}
+.badge-green{background:#E5F1EA;color:#2B7A4B}
+.badge-red{background:#FBE9E7;color:#8C1C16}
+.badge-warn{background:#f1e3c2;color:#775d18}
+.badge-blue{background:#E4EFF7;color:#1F5F8B}
+.badge-grey{background:#EFEDF4;color:#5F5B75}
+.empty{text-align:center;padding:40px;color:var(--lc-muted);font-size:13px}
+.user-pill{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;background:#fff;border:1px solid var(--lc-border);border-radius:20px;font-size:12px;font-weight:600}
+.user-pill .dot{width:8px;height:8px;border-radius:50%;background:var(--lc-green)}
+@media (max-width:1000px){.cards{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:900px){.main{margin-left:0;padding-top:70px}}
+@media (max-width:600px){.cards{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<aside class="sidebar"></aside>
+<button class="lc-mobile-toggle" aria-label="Menu">☰</button>
+<div class="lc-sidebar-overlay"></div>
+
+<div class="main">
+  <div class="topbar">
+    <div>
+      <h1>Reports &amp; Analytics</h1>
+      <p id="welcomeLine">Loading…</p>
+    </div>
+    <div class="controls">
+      <span class="user-pill"><span class="dot"></span><span id="actorLabel">—</span></span>
+      <select id="rangeSelect">
+        <option value="week">This week (Mon–Sun)</option>
+        <option value="today">Today</option>
+        <option value="last7">Last 7 days</option>
+        <option value="month">This month</option>
+        <option value="last30">Last 30 days</option>
+      </select>
+      <button class="btn btn-sm" onclick="refreshAll()">🔄 Refresh</button>
+      <button class="btn btn-sm btn-primary" onclick="exportCurrentTab()">📊 Export</button>
+    </div>
+  </div>
+
+  <div class="tabs" id="tabBar">
+    <button class="tab active" data-tab="mine">My Analytics</button>
+    <button class="tab" data-tab="tests" data-admin="1">Test Register</button>
+    <button class="tab" data-tab="users" data-admin="1">Per-User</button>
+    <button class="tab" data-tab="tat" data-admin="1">TAT Breakdown</button>
+    <button class="tab" data-tab="criticals" data-admin="1">Criticals</button>
+    <button class="tab" data-tab="rejections" data-admin="1">Rejections</button>
+    <button class="tab" data-tab="amendments" data-admin="1">Amendments</button>
+    <button class="tab" data-tab="overview" data-admin="1">Overview</button>
+  </div>
+
+  <!-- MINE -->
+  <div class="pane active" id="pane-mine">
+    <div class="cards" id="mineCards"></div>
+    <div class="card">
+      <div class="card-head"><h2>Your activity (last 14 days)</h2></div>
+      <div class="card-body"><div class="chart-wrap"><canvas id="mineChart"></canvas></div></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h2>Your tests this period</h2></div>
+      <div class="card-body" style="padding:0;overflow:auto">
+        <table><thead><tr><th>Panel</th><th class="num">Cases</th><th class="num">Criticals</th><th class="num">Avg TAT (h)</th></tr></thead>
+        <tbody id="mineTestsBody"></tbody></table>
+      </div>
+    </div>
+  </div>
+
+  <!-- TESTS (admin) -->
+  <div class="pane" id="pane-tests">
+    <div class="cards" id="testsCards"></div>
+    <div class="card">
+      <div class="card-head"><h2>Test Register — all panels</h2><span id="testsCount" style="font-size:12px;color:var(--lc-muted)"></span></div>
+      <div class="card-body" style="padding:0;overflow:auto">
+        <table><thead><tr>
+          <th>Panel</th><th>Code</th><th class="num">Performed</th><th class="num">Validated</th>
+          <th class="num">Rejected</th><th class="num">Amended</th><th class="num">% Abn</th>
+          <th class="num">% Crit</th><th class="num">Avg TAT (h)</th><th class="num">Median TAT (h)</th>
+        </tr></thead><tbody id="testsBody"></tbody></table>
+      </div>
+    </div>
+  </div>
+
+  <!-- USERS (admin) -->
+  <div class="pane" id="pane-users">
+    <div class="card">
+      <div class="card-head"><h2>Per-user activity this period</h2></div>
+      <div class="card-body" style="padding:0;overflow:auto">
+        <table><thead><tr><th>User</th><th>Role</th><th class="num">Events</th><th class="num">Entered</th><th class="num">Validated</th><th class="num">Amended</th><th class="num">Rejected</th></tr></thead>
+        <tbody id="usersBody"></tbody></table>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAT -->
+  <div class="pane" id="pane-tat">
+    <div class="cards" id="tatCards"></div>
+    <div class="card">
+      <div class="card-head"><h2>Turnaround time slices</h2></div>
+      <div class="card-body"><div class="chart-wrap"><canvas id="tatChart"></canvas></div></div>
+    </div>
+  </div>
+
+  <!-- CRITICALS -->
+  <div class="pane" id="pane-criticals">
+    <div class="cards" id="critCards"></div>
+    <div class="card">
+      <div class="card-head"><h2>Critical results this period</h2></div>
+      <div class="card-body" style="padding:0;overflow:auto">
+        <table><thead><tr><th>Date</th><th>Patient</th><th>Panel</th><th>Param</th><th>Value</th><th>Flag</th><th>Validated by</th><th>Ack delay</th></tr></thead>
+        <tbody id="critBody"></tbody></table>
+      </div>
+    </div>
+  </div>
+
+  <!-- REJECTIONS -->
+  <div class="pane" id="pane-rejections">
+    <div class="cards" id="rejCards"></div>
+    <div class="card">
+      <div class="card-head"><h2>Specimen rejections</h2></div>
+      <div class="card-body" style="padding:0;overflow:auto">
+        <table><thead><tr><th>Date</th><th>By</th><th>Patient</th><th>Panel</th><th>Reason</th></tr></thead>
+        <tbody id="rejBody"></tbody></table>
+      </div>
+    </div>
+  </div>
+
+  <!-- AMENDMENTS -->
+  <div class="pane" id="pane-amendments">
+    <div class="cards" id="amendCards"></div>
+    <div class="card">
+      <div class="card-head"><h2>Result amendments</h2></div>
+      <div class="card-body" style="padding:0;overflow:auto">
+        <table><thead><tr><th>Date</th><th>By</th><th>Patient</th><th>Panel</th><th>Reason</th></tr></thead>
+        <tbody id="amendBody"></tbody></table>
+      </div>
+    </div>
+  </div>
+
+  <!-- OVERVIEW -->
+  <div class="pane" id="pane-overview">
+    <div class="cards" id="ovCards"></div>
+    <div class="card">
+      <div class="card-head"><h2>Top 10 tests by volume</h2></div>
+      <div class="card-body"><div class="chart-wrap"><canvas id="ovChart"></canvas></div></div>
+    </div>
+  </div>
+</div>
+<script src="shared/labcore-api.js"></script>
+<script src="shared/labcore-utils.js"></script>
+<script src="shared/labcore-ward.js"></script>
+<script src="shared/labcore-auth.js"></script>
+<script src="shared/labcore-staff.js"></script>
+<script src="shared/labcore-audit.js"></script>
+<script src="shared/labcore-analytics.js"></script>
+<script src="shared/labcore-icons.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var user = (window.lcRequireAuth && window.lcRequireAuth()) || window.lcGetUser();
+  var currentTab = 'mine';
+  var charts = {};
+
+  // ---------- ROLE GATE ----------
+  function isAdmin() {
+    var u = window.lcGetUser();
+    return u && (u.id === 'admin' || u.id === 'scientist');
+  }
+
+  function applyRoleVisibility() {
+    document.querySelectorAll('[data-admin="1"]').forEach(function (el) {
+      el.style.display = isAdmin() ? '' : 'none';
+    });
+  }
+
+  // ---------- RANGE ----------
+  function getRange() {
+    var sel = document.getElementById('rangeSelect').value;
+    return window.lcRangePreset(sel);
+  }
+
+  // ---------- FORMATTERS ----------
+  function fmtHours(h) {
+    if (h == null || isNaN(h)) return '—';
+    if (h < 1) return Math.round(h * 60) + 'm';
+    return h.toFixed(1) + 'h';
+  }
+  function fmtPct(p) { return (p || 0).toFixed(1) + '%'; }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  // ---------- RENDER: MINE ----------
+  function renderMine() {
+    var u = window.lcGetUser();
+    var range = getRange();
+    var a = window.lcAnalytics.forUser(u.name, range);
+
+    document.getElementById('welcomeLine').textContent =
+      'Welcome, ' + u.name + ' · ' + u.label + ' · ' + range.label;
+    document.getElementById('actorLabel').textContent = u.name + ' (' + u.label + ')';
+
+    var cards = [
+      { label: 'Cases entered', value: a.entered, cls: 'blue' },
+      { label: 'Cases validated', value: a.validated, cls: 'green' },
+      { label: 'Avg TAT (validate)', value: fmtHours(a.avgTatValidatedHours), cls: 'warn' },
+      { label: 'Criticals handled', value: a.criticalsAcked, cls: 'red' }
+    ];
+    document.getElementById('mineCards').innerHTML = cards.map(function (c) {
+      return '<div class="kpi ' + c.cls + '"><div class="label">' + c.label + '</div><div class="value">' + c.value + '</div></div>';
+    }).join('');
+
+    // 14-day chart
+    var labels = [], entered = [], validated = [];
+    for (var i = 13; i >= 0; i--) {
+      var d = new Date(); d.setDate(d.getDate() - i);
+      var key = d.toISOString().slice(0, 10);
+      labels.push(d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }));
+      entered.push((a.perDay[key] && a.perDay[key].entered) || 0);
+      validated.push((a.perDay[key] && a.perDay[key].validated) || 0);
+    }
+    drawChart('mineChart', 'line', labels, [
+      { label: 'Entered', data: entered, borderColor: '#3A3577', backgroundColor: 'rgba(58,53,119,0.1)', tension: 0.3, fill: true },
+      { label: 'Validated', data: validated, borderColor: '#2B7A4B', backgroundColor: 'rgba(45,122,70,0.1)', tension: 0.3, fill: true }
+    ]);
+
+    var tests = Object.entries(a.perTest).sort((x, y) => y[1].count - x[1].count);
+    var body = document.getElementById('mineTestsBody');
+    if (!tests.length) {
+      body.innerHTML = '<tr><td colspan="4" class="empty">No cases attributed to you in this period.</td></tr>';
+    } else {
+      body.innerHTML = tests.map(function (kv) {
+        return '<tr><td><strong>' + esc(kv[0]) + '</strong></td>' +
+          '<td class="num">' + kv[1].count + '</td>' +
+          '<td class="num">' + kv[1].criticals + '</td>' +
+          '<td class="num">' + fmtHours(kv[1].avgTat) + '</td></tr>';
+      }).join('');
+    }
+  }
+
+  // ---------- RENDER: TESTS (admin) ----------
+  function renderTests() {
+    var range = getRange();
+    var r = window.lcAnalytics.byTest(range);
+
+    var totPerf = r.tests.reduce((s, t) => s + t.performed, 0);
+    var totCrit = r.tests.reduce((s, t) => s + t.criticals, 0);
+    var allTat = r.tests.map(t => t.avgTatHours).filter(v => v != null);
+    var avgTat = allTat.length ? (allTat.reduce((a, b) => a + b, 0) / allTat.length) : null;
+
+    document.getElementById('testsCards').innerHTML =
+      kpi('Unique tests', r.tests.length, 'blue') +
+      kpi('Total performed', totPerf, 'green') +
+      kpi('Criticals', totCrit, 'red') +
+      kpi('Avg TAT (all tests)', fmtHours(avgTat), 'warn');
+
+    document.getElementById('testsCount').textContent = r.tests.length + ' tests';
+
+    var body = document.getElementById('testsBody');
+    if (!r.tests.length) {
+      body.innerHTML = '<tr><td colspan="10" class="empty">No tests performed in this period.</td></tr>';
+      return;
+    }
+    body.innerHTML = r.tests.map(function (t) {
+      return '<tr>' +
+        '<td><strong>' + esc(t.panel) + '</strong></td>' +
+        '<td>' + esc(t.code || '—') + '</td>' +
+        '<td class="num">' + t.performed + '</td>' +
+        '<td class="num">' + t.validated + '</td>' +
+        '<td class="num">' + (t.rejected || 0) + '</td>' +
+        '<td class="num">' + (t.amended || 0) + '</td>' +
+        '<td class="num">' + fmtPct(t.pctAbnormal) + '</td>' +
+        '<td class="num">' + fmtPct(t.pctCritical) + '</td>' +
+        '<td class="num">' + fmtHours(t.avgTatHours) + '</td>' +
+        '<td class="num">' + (t.avgTatHours == null ? '—' : t.avgTatHours.toFixed(1)) + '</td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  // ---------- RENDER: USERS ----------
+  function renderUsers() {
+    var range = getRange();
+    var r = window.lcAnalytics.allUsers(range);
+    var body = document.getElementById('usersBody');
+    if (!r.users.length) {
+      body.innerHTML = '<tr><td colspan="7" class="empty">No activity in this period.</td></tr>';
+      return;
+    }
+    body.innerHTML = r.users.sort((a, b) => b.events - a.events).map(function (u) {
+      return '<tr><td><strong>' + esc(u.user) + '</strong></td>' +
+        '<td>' + esc(u.roleLabel || u.role) + '</td>' +
+        '<td class="num">' + u.events + '</td>' +
+        '<td class="num">' + u.entered + '</td>' +
+        '<td class="num">' + u.validated + '</td>' +
+        '<td class="num">' + u.amended + '</td>' +
+        '<td class="num">' + u.rejected + '</td></tr>';
+    }).join('');
+  }
+
+  // ---------- RENDER: TAT ----------
+  function renderTat() {
+    var range = getRange();
+    var t = window.lcAnalytics.tatBreakdown(range);
+
+    document.getElementById('tatCards').innerHTML =
+      kpi('Receive → Entry', fmtHours(t.receiveToEntry.avg), 'blue', 'n=' + t.receiveToEntry.n) +
+      kpi('Entry → Validated', fmtHours(t.entryToValidated.avg), 'warn', 'n=' + t.entryToValidated.n) +
+      kpi('Receive → Validated', fmtHours(t.receiveToValidated.avg), 'green', 'n=' + t.receiveToValidated.n) +
+      kpi('Validated → Reported', fmtHours(t.validatedToReported.avg), 'blue', 'n=' + t.validatedToReported.n);
+
+    drawChart('tatChart', 'bar',
+      ['Receive → Entry', 'Entry → Validated', 'Receive → Validated', 'Validated → Reported'],
+      [{
+        label: 'Avg hours',
+        data: [
+          t.receiveToEntry.avg || 0,
+          t.entryToValidated.avg || 0,
+          t.receiveToValidated.avg || 0,
+          t.validatedToReported.avg || 0
+        ],
+        backgroundColor: ['#3A3577', '#9A6200', '#2B7A4B', '#8fa0af']
+      }]);
+  }
+
+  // ---------- RENDER: CRITICALS ----------
+  function renderCriticals() {
+    var range = getRange();
+    var c = window.lcAnalytics.criticals(range);
+    var acked = c.criticals.filter(x => x.ackedAt).length;
+    var avgAck = (function () {
+      var v = c.criticals.map(x => x.ackDelayMin).filter(n => n != null);
+      return v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length) : null;
+    })();
+
+    document.getElementById('critCards').innerHTML =
+      kpi('Total criticals', c.criticals.length, 'red') +
+      kpi('Acknowledged', acked, 'green') +
+      kpi('Pending ack', c.criticals.length - acked, 'warn') +
+      kpi('Avg ack delay', avgAck == null ? '—' : avgAck + ' min', 'blue');
+
+    var body = document.getElementById('critBody');
+    if (!c.criticals.length) {
+      body.innerHTML = '<tr><td colspan="8" class="empty">No criticals in this period.</td></tr>';
+      return;
+    }
+    body.innerHTML = c.criticals.map(function (x) {
+      return '<tr>' +
+        '<td>' + (x.validatedAt ? new Date(x.validatedAt).toLocaleString() : '—') + '</td>' +
+        '<td><strong>' + esc(x.patientName) + '</strong></td>' +
+        '<td>' + esc(x.panel) + '</td>' +
+        '<td>' + esc(x.param) + '</td>' +
+        '<td><strong>' + esc(x.value) + '</strong> ' + esc(x.unit || '') + '</td>' +
+        '<td><span class="badge badge-red">' + esc(x.flag) + '</span></td>' +
+        '<td>' + esc(x.validatedBy || '—') + '</td>' +
+        '<td>' + (x.ackDelayMin == null ? '<span class="badge badge-warn">pending</span>' : x.ackDelayMin + ' min') + '</td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  // ---------- RENDER: REJECTIONS ----------
+  function renderRejections() {
+    var range = getRange();
+    var r = window.lcAnalytics.rejections(range);
+    document.getElementById('rejCards').innerHTML =
+      kpi('Total rejections', r.total, 'red') +
+      kpi('Distinct users', Object.keys(r.byUser).length, 'blue') +
+      kpi('Top reason', (Object.values(r.byUser)[0] && Object.keys(Object.values(r.byUser)[0].reasons)[0]) || '—', 'warn') +
+      kpi('Period', r.range.label, 'green');
+
+    var body = document.getElementById('rejBody');
+    if (!r.entries.length) {
+      body.innerHTML = '<tr><td colspan="5" class="empty">No rejections this period.</td></tr>';
+      return;
+    }
+    body.innerHTML = r.entries.sort((a, b) => String(b.at).localeCompare(String(a.at))).map(function (e) {
+      return '<tr><td>' + new Date(e.at).toLocaleString() + '</td>' +
+        '<td>' + esc(e.by) + '</td>' +
+        '<td>' + esc(e.patientName || e.patientId || '—') + '</td>' +
+        '<td>' + esc(e.panel || '—') + '</td>' +
+        '<td>' + esc(e.note || '—') + '</td></tr>';
+    }).join('');
+  }
+
+  // ---------- RENDER: AMENDMENTS ----------
+  function renderAmendments() {
+    var range = getRange();
+    var r = window.lcAnalytics.amendments(range);
+    document.getElementById('amendCards').innerHTML =
+      kpi('Total amendments', r.total, 'warn') +
+      kpi('Distinct users', Object.keys(r.byUser).length, 'blue') +
+      kpi('Period', r.range.label, 'green') +
+      kpi('Reasons logged', r.entries.filter(e => e.note).length, 'blue');
+
+    var body = document.getElementById('amendBody');
+    if (!r.entries.length) {
+      body.innerHTML = '<tr><td colspan="5" class="empty">No amendments this period.</td></tr>';
+      return;
+    }
+    body.innerHTML = r.entries.sort((a, b) => String(b.at).localeCompare(String(a.at))).map(function (e) {
+      return '<tr><td>' + new Date(e.at).toLocaleString() + '</td>' +
+        '<td>' + esc(e.by) + '</td>' +
+        '<td>' + esc(e.patientName || e.patientId || '—') + '</td>' +
+        '<td>' + esc(e.panel || '—') + '</td>' +
+        '<td>' + esc(e.note || '—') + '</td></tr>';
+    }).join('');
+  }
+
+  // ---------- RENDER: OVERVIEW ----------
+  function renderOverview() {
+    var range = getRange();
+    var o = window.lcAnalytics.overview(range);
+    document.getElementById('ovCards').innerHTML =
+      kpi('Tests performed', o.totalPerformed, 'blue') +
+      kpi('Tests validated', o.totalValidated, 'green') +
+      kpi('Criticals', o.totalCriticals, 'red') +
+      kpi('Avg TAT', fmtHours(o.avgTatHours), 'warn') +
+      kpi('Unique tests', o.uniqueTests, 'blue') +
+      kpi('Active users', o.activeUsers, 'green') +
+      kpi('Rejected', o.totalRejected, 'red') +
+      kpi('Amended', o.totalAmended, 'warn');
+
+    drawChart('ovChart', 'bar',
+      o.topTests.map(t => t.panel),
+      [{
+        label: 'Performed',
+        data: o.topTests.map(t => t.performed),
+        backgroundColor: '#3A3577'
+      }], true);
+  }
+
+  // ---------- HELPERS ----------
+  function kpi(label, value, cls, sub) {
+    return '<div class="kpi ' + (cls || '') + '"><div class="label">' + label + '</div>' +
+      '<div class="value">' + value + '</div>' +
+      (sub ? '<div class="sub">' + sub + '</div>' : '') + '</div>';
+  }
+
+  function drawChart(canvasId, type, labels, datasets, horizontal) {
+    if (charts[canvasId]) { charts[canvasId].destroy(); }
+    var ctx = document.getElementById(canvasId).getContext('2d');
+    charts[canvasId] = new Chart(ctx, {
+      type: type,
+      data: { labels: labels, datasets: datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        indexAxis: horizontal ? 'y' : 'x',
+        plugins: { legend: { display: datasets.length > 1 } },
+        scales: {
+          y: { beginAtZero: true, ticks: { precision: 0 } },
+          x: { beginAtZero: true }
+        }
+      }
+    });
+  }
+
+  // ---------- TAB SWITCHING ----------
+  document.getElementById('tabBar').addEventListener('click', function (e) {
+    var t = e.target.closest('.tab');
+    if (!t) return;
+    if (t.dataset.admin === '1' && !isAdmin()) return;
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.pane').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    currentTab = t.dataset.tab;
+    document.getElementById('pane-' + currentTab).classList.add('active');
+    refreshAll();
+  });
+
+  // ---------- EXPORT ----------
+  function exportCurrentTab() {
+    var range = getRange();
+    var wb = XLSX.utils.book_new();
+    if (currentTab === 'mine') {
+      var a = window.lcAnalytics.forUser(window.lcGetUser().name, range);
+      var rows = Object.entries(a.perTest).map(([p, v]) => ({
+        Panel: p, Cases: v.count, Criticals: v.criticals, 'Avg TAT (h)': v.avgTat
+      }));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows.length ? rows : [{ Info: 'No data' }]), 'MyTests');
+    } else if (currentTab === 'tests') {
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(window.lcAnalytics.byTest(range).tests), 'Tests');
+    } else if (currentTab === 'users') {
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(window.lcAnalytics.allUsers(range).users), 'Users');
+    } else if (currentTab === 'criticals') {
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(window.lcAnalytics.criticals(range).criticals), 'Criticals');
+    } else if (currentTab === 'rejections') {
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(window.lcAnalytics.rejections(range).entries), 'Rejections');
+    } else if (currentTab === 'amendments') {
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(window.lcAnalytics.amendments(range).entries), 'Amendments');
+    } else if (currentTab === 'overview') {
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([window.lcAnalytics.overview(range)]), 'Overview');
+    }
+    var name = 'LabCore_' + currentTab + '_' + new Date().toISOString().slice(0, 10) + '.xlsx';
+    XLSX.writeFile(wb, name);
+    if (window.lcToast) window.lcToast('Exported ' + name, 'success');
+  }
+
+  // ---------- REFRESH ALL ----------
+  function refreshAll() {
+    try {
+      if (currentTab === 'mine') renderMine();
+      else if (currentTab === 'tests') renderTests();
+      else if (currentTab === 'users') renderUsers();
+      else if (currentTab === 'tat') renderTat();
+      else if (currentTab === 'criticals') renderCriticals();
+      else if (currentTab === 'rejections') renderRejections();
+      else if (currentTab === 'amendments') renderAmendments();
+      else if (currentTab === 'overview') renderOverview();
+    } catch (err) {
+      console.error('Render error:', err);
+      if (window.lcToast) window.lcToast('Failed to render report: ' + err.message, 'error');
+    }
+  }
+  window.refreshAll = refreshAll;
+  window.exportCurrentTab = exportCurrentTab;
+
+  document.getElementById('rangeSelect').addEventListener('change', refreshAll);
+
+  // ---------- INIT ----------
+  applyRoleVisibility();
+  // Set the range select default text
+  refreshAll();
+  setInterval(refreshAll, 60000); // auto refresh every 60s
+
+  console.log('📈 Reports & Analytics ready for', user && user.name);
+})();
+</script>
+</body>
+</html>

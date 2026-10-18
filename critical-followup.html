@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Critical Result Follow-up | LabCore</title>
+  <link rel="stylesheet" href="shared/labcore-nav.css">
+  <style>
+    * { box-sizing:border-box; } body { margin:0; font-family:var(--lc-font); background:var(--lc-bg); color:var(--lc-text); }
+    .main { margin-left:var(--lc-sidebar-w); padding:28px; }
+    .head { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; margin-bottom:18px; }
+    h1 { margin:0 0 5px; font-size:25px; } p { margin:0; color:var(--lc-muted); font-size:13px; line-height:1.5; }
+    .safety { padding:12px 14px; margin-bottom:14px; border-left:4px solid var(--lc-danger); background:#fff; font-size:13px; }
+    .cards { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-bottom:14px; }
+    .card,.panel { background:#fff; border:1px solid var(--lc-border); border-radius:7px; }
+    .card { padding:12px 14px; } .card span { display:block; color:var(--lc-muted); font-size:12px; } .card strong { display:block; font-size:23px; margin-top:4px; }
+    .panel { overflow:hidden; } .table-wrap { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; min-width:1000px; }
+    th,td { padding:10px 9px; border-bottom:1px solid var(--lc-border); text-align:left; vertical-align:top; font-size:12px; }
+    th { color:var(--lc-muted); text-transform:uppercase; font-size:10px; }
+    .sub { display:block; color:var(--lc-muted); margin-top:3px; font-size:11px; }
+    .badge { display:inline-block; padding:3px 8px; border-radius:12px; background:var(--lc-danger-bg); color:var(--lc-danger); font-weight:700; white-space:nowrap; }
+    .badge.done { background:var(--lc-success-bg); color:var(--lc-success); } .badge.unassigned { background:var(--lc-warning-bg); color:var(--lc-warning); }
+    .btn { border:1px solid var(--lc-border); border-radius:5px; padding:6px 8px; margin:2px; background:#fff; color:var(--lc-text); cursor:pointer; font:inherit; font-size:12px; }
+    .btn-primary { color:#fff; background:var(--lc-brand-primary); border-color:var(--lc-brand-primary); }
+    select { max-width:180px; border:1px solid var(--lc-border); border-radius:5px; padding:6px; font:inherit; font-size:12px; }
+    .notice { display:none; padding:10px 12px; margin-bottom:12px; border-radius:5px; background:var(--lc-info-bg); color:var(--lc-info); font-size:13px; }
+    .notice.error { background:var(--lc-danger-bg); color:var(--lc-danger); }
+    .empty { padding:22px; color:var(--lc-muted); text-align:center; }
+    @media(max-width:900px) { .main { margin-left:0; padding:76px 15px 20px; } }
+    @media(max-width:560px) { .head { flex-direction:column; } .cards { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <aside class="sidebar"></aside><div class="lc-sidebar-overlay"></div>
+  <main class="main">
+    <header class="head"><div><h1>Critical Result Follow-up</h1><p>Clinicians acknowledge critical findings assigned to them. Lab staff record how the clinician was contacted; contact alone does not count as clinical acknowledgment.</p></div><button class="btn" id="refresh">Refresh</button></header>
+    <div class="safety"><strong>Urgent:</strong> This queue supplements direct clinical communication and is not a substitute for following your facility's critical-result protocol. Unacknowledged alerts are marked overdue after 15 minutes for operational escalation.</div>
+    <div id="notice" class="notice" role="status"></div>
+    <section class="cards" aria-label="Critical follow-up totals">
+      <div class="card"><span>Awaiting clinician acknowledgment</span><strong id="pendingCount">0</strong></div>
+      <div class="card"><span>Operationally overdue (&gt;15 min)</span><strong id="overdueCount">0</strong></div>
+      <div class="card"><span>Unassigned</span><strong id="unassignedCount">0</strong></div>
+    </section>
+    <section class="panel"><div class="table-wrap"><table><thead><tr><th>Alert / result</th><th>Patient / visit</th><th>Requesting clinician</th><th>Raised</th><th>Follow-up</th><th>Action</th></tr></thead><tbody id="alertRows"></tbody></table></div></section>
+  </main>
+  <script src="shared/labcore-api.js"></script><script src="shared/labcore-auth.js"></script><script src="shared/labcore-icons.js"></script><script src="shared/labcore-nav.js"></script>
+  <script>
+    (function () {
+      'use strict';
+      var alerts = [], clinicians = [];
+      var user = window.lcGetUser && window.lcGetUser();
+      var isLab = !!user && ['admin', 'scientist'].includes(user.role);
+      var $ = function (id) { return document.getElementById(id); };
+      function notice(message, error) { var el=$('notice'); el.textContent=message||''; el.classList.toggle('error',!!error); el.style.display=message?'block':'none'; }
+      function textCell(row, value, sub) {
+        var td=document.createElement('td'); td.textContent=value||'—';
+        if(sub){var span=document.createElement('span');span.className='sub';span.textContent=sub;td.appendChild(span);}
+        row.appendChild(td); return td;
+      }
+      function render() {
+        var pending=alerts.filter(function(a){return a.status!=='acknowledged';});
+        $('pendingCount').textContent=pending.length;
+        $('overdueCount').textContent=pending.filter(function(a){return a.overdue;}).length;
+        $('unassignedCount').textContent=alerts.filter(function(a){return a.status==='unassigned';}).length;
+        var body=$('alertRows'); body.replaceChildren();
+        alerts.forEach(function(a){
+          var row=document.createElement('tr');
+          textCell(row,a.test+' · '+a.value+' '+(a.unit||''),a.panel+' · '+a.flag+(a.specimenId?' · '+a.specimenId:''));
+          textCell(row,a.patientName,a.patientId+' · '+a.visitId);
+          textCell(row,a.requestingName||'Unassigned');
+          var raised=new Date(a.createdAt).toLocaleString();
+          textCell(row,raised,a.ageMinutes+' min ago'+(a.overdue?' · overdue':'')); 
+          var status=document.createElement('td'), badge=document.createElement('span');
+          badge.className='badge'+(a.status==='acknowledged'?' done':a.status==='unassigned'?' unassigned':'');
+          badge.textContent=a.status==='acknowledged'?'Acknowledged':a.status==='unassigned'?'Unassigned':a.overdue?'Overdue':'Pending';
+          status.appendChild(badge);
+          if(a.contactedAt){var contact=document.createElement('span');contact.className='sub';contact.textContent='Contacted '+a.contactedBy+' · '+a.contactMethod+(a.contactNote?' · '+a.contactNote:'');status.appendChild(contact);}
+          if(a.acknowledgedAt){var ack=document.createElement('span');ack.className='sub';ack.textContent='Acknowledged by '+a.acknowledgedBy+' · '+new Date(a.acknowledgedAt).toLocaleString();status.appendChild(ack);}
+          row.appendChild(status);
+          var action=document.createElement('td');
+          if(a.status!=='acknowledged' && isLab && a.status==='unassigned'){
+            var select=document.createElement('select');select.setAttribute('aria-label','Assign requesting clinician');
+            var placeholder=document.createElement('option');placeholder.value='';placeholder.textContent='Assign clinician';select.appendChild(placeholder);
+            clinicians.forEach(function(c){var option=document.createElement('option');option.value=c.id;option.textContent=c.name+(c.department?' · '+c.department:'');select.appendChild(option);});
+            var assign=document.createElement('button');assign.type='button';assign.className='btn';assign.textContent='Assign';
+            assign.addEventListener('click',function(){if(!select.value){notice('Select a clinician before assigning.',true);return;}run(function(){return window.lcApiAssignCriticalAlert(a.id,select.value);},'Alert assigned.');});
+            action.append(select,assign);
+          }
+          if(a.status!=='acknowledged' && isLab){
+            var contactButton=document.createElement('button');contactButton.type='button';contactButton.className='btn';contactButton.textContent='Record contact';
+            contactButton.addEventListener('click',function(){
+              var method=window.prompt('Contact method: enter phone, in_person or other');
+              if(!method)return;
+              method=method.trim().toLowerCase();
+              var note=window.prompt('Record who was reached, when, and what was communicated:')||'';
+              if(!note.trim()){notice('Contact note is required.',true);return;}
+              run(function(){return window.lcApiContactCriticalClinician(a.id,method,note);},'Clinician contact recorded; acknowledgement remains pending.');
+            });
+            action.appendChild(contactButton);
+          }
+          if(a.status!=='acknowledged' && user && user.role==='doctor' && a.requestingStaffId===user.id){
+            var ack=document.createElement('button');ack.type='button';ack.className='btn btn-primary';ack.textContent='Acknowledge';
+            ack.addEventListener('click',function(){
+              if(!window.confirm('Confirm you have received and reviewed this critical result?'))return;
+              var note=window.prompt('Optional clinical follow-up note:')||'';
+              run(function(){return window.lcApiAcknowledgeCriticalAlert(a.id,note);},'Critical result acknowledged.');
+            });
+            action.appendChild(ack);
+          }
+          if(!action.childNodes.length){var empty=document.createElement('span');empty.className='sub';empty.textContent='No action available';action.appendChild(empty);}
+          row.appendChild(action);body.appendChild(row);
+        });
+        if(!alerts.length)body.innerHTML='<tr><td colspan="6" class="empty">No critical follow-up alerts found for your account.</td></tr>';
+      }
+      async function load(){
+        try{
+          var response=await Promise.all([window.lcApiGetCriticalAlerts(),isLab?window.lcApiGetCriticalClinicians():Promise.resolve([])]);
+          alerts=response[0];clinicians=response[1];render();notice('',false);
+        }catch(error){notice('Could not load critical alerts: '+error.message,true);}
+      }
+      async function run(action,success){
+        try{await action();notice(success,false);await load();}
+        catch(error){notice('Follow-up action failed: '+error.message,true);}
+      }
+      $('refresh').addEventListener('click',load);
+      load();
+    }());
+  </script>
+</body>
+</html>

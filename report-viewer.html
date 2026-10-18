@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Secure Report Viewer | LabCore</title>
+<link rel="stylesheet" href="shared/labcore-report.css">
+<style>
+:root {
+  --lc-viewer-bg: #0f1a24;
+  --lc-viewer-card: #1a2a38;
+  --lc-viewer-border: #2a4055;
+  --lc-viewer-text: #e8eef4;
+  --lc-viewer-muted: #8fa8c0;
+  --lc-viewer-gold: #d5b36a;
+  --lc-viewer-blue: #3d8ec9;
+  --lc-viewer-green: #2d9a5e;
+  --lc-viewer-red: #c0392b;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--lc-font);
+  background: var(--lc-viewer-bg);
+  color: var(--lc-viewer-text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 16px;
+}
+
+.viewer-header {
+  width: 100%;
+  max-width: 820px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.viewer-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 18px;
+}
+.viewer-brand-mark {
+  width: 38px; height: 38px;
+  background: var(--lc-viewer-gold);
+  color: #0f1a24;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800;
+  font-size: 16px;
+}
+.viewer-badge {
+  font-size: 11px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  background: rgba(255,255,255,0.08);
+  color: var(--lc-viewer-muted);
+  border: 1px solid var(--lc-viewer-border);
+}
+
+.viewer-card {
+  width: 100%;
+  max-width: 820px;
+  background: var(--lc-viewer-card);
+  border: 1px solid var(--lc-viewer-border);
+  border-radius: 14px;
+  padding: 36px 32px;
+  box-shadow: 0 12px 48px rgba(0,0,0,0.4);
+  margin-bottom: 20px;
+}
+
+.pin-gate {
+  text-align: center;
+  max-width: 440px;
+  margin: 0 auto;
+}
+.pin-gate .lock-icon {
+  font-size: 52px;
+  margin-bottom: 16px;
+  display: block;
+  opacity: 0.9;
+}
+.pin-gate h1 {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: #fff;
+}
+.pin-gate p {
+  font-size: 13px;
+  color: var(--lc-viewer-muted);
+  margin-bottom: 24px;
+  line-height: 1.6;
+}
+.pin-input-group {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.pin-digit {
+  width: 52px;
+  height: 62px;
+  text-align: center;
+  font-size: 24px;
+  font-weight: 700;
+  border-radius: 10px;
+  border: 2px solid var(--lc-viewer-border);
+  background: #0f1a24;
+  color: #fff;
+  caret-color: var(--lc-viewer-gold);
+  transition: border-color 0.2s;
+}
+.pin-digit:focus {
+  outline: none;
+  border-color: var(--lc-viewer-gold);
+  box-shadow: 0 0 0 4px rgba(213,179,106,0.2);
+}
+.pin-digit.filled { border-color: var(--lc-viewer-blue); }
+
+.btn-viewer {
+  padding: 11px 28px;
+  border-radius: 8px;
+  border: none;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.btn-viewer-primary {
+  background: var(--lc-viewer-gold);
+  color: #0f1a24;
+}
+.btn-viewer-primary:hover {
+  background: #e0c37a;
+  transform: translateY(-1px);
+}
+.btn-viewer-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+.btn-viewer-ghost {
+  background: transparent;
+  color: var(--lc-viewer-muted);
+  border: 1px solid var(--lc-viewer-border);
+}
+.btn-viewer-ghost:hover {
+  background: rgba(255,255,255,0.06);
+  color: #fff;
+}
+
+.pin-error {
+  background: rgba(192,57,43,0.15);
+  border: 1px solid rgba(192,57,43,0.4);
+  color: #f5a9a0;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 12px;
+  margin-bottom: 16px;
+  display: none;
+}
+.pin-error.show { display: block; }
+
+.viewer-doc {
+  background: #fff;
+  color: #1a1a2e;
+  border-radius: 8px;
+  padding: 28px 32px;
+  margin-bottom: 18px;
+}
+
+.viewer-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 18px;
+  padding: 12px 16px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--lc-viewer-border);
+  border-radius: 8px;
+  font-size: 11px;
+  color: var(--lc-viewer-muted);
+}
+.viewer-meta strong { color: #fff; }
+
+.viewer-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.expired-state, .revoked-state, .limit-state {
+  text-align: center;
+  padding: 40px 20px;
+}
+.expired-state .icon, .revoked-state .icon, .limit-state .icon {
+  font-size: 56px;
+  margin-bottom: 16px;
+  display: block;
+}
+.expired-state h2, .revoked-state h2, .limit-state h2 {
+  font-size: 18px;
+  color: #fff;
+  margin-bottom: 10px;
+}
+.expired-state p, .revoked-state p, .limit-state p {
+  font-size: 13px;
+  color: var(--lc-viewer-muted);
+  line-height: 1.6;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.watermark {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.04;
+  font-size: 72px;
+  font-weight: 900;
+  color: #fff;
+  transform: rotate(-30deg);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.viewer-footer {
+  font-size: 11px;
+  color: var(--lc-viewer-muted);
+  text-align: center;
+  max-width: 820px;
+  width: 100%;
+  padding: 16px 0;
+  line-height: 1.7;
+}
+
+@media print {
+  body { background: #fff; padding: 0; }
+  .viewer-header, .viewer-meta, .viewer-actions, .viewer-footer,
+  .watermark, .pin-gate { display: none !important; }
+  .viewer-card { box-shadow: none; border: none; padding: 0; background: #fff; }
+  .viewer-doc { padding: 0; border-radius: 0; }
+}
+
+@media (max-width: 600px) {
+  .viewer-card { padding: 24px 18px; }
+  .pin-digit { width: 42px; height: 52px; font-size: 20px; }
+  .viewer-doc { padding: 18px 16px; }
+}
+</style>
+</head>
+<body>
+
+<div class="watermark" id="watermark">LABCORE · CONFIDENTIAL</div>
+
+<div class="viewer-header">
+  <div class="viewer-brand">
+    <div class="viewer-brand-mark">LC</div>
+    <div>LabCore</div>
+  </div>
+  <div class="viewer-badge" id="viewerBadge">Secure Report Viewer</div>
+</div>
+
+<div class="viewer-card" id="viewerCard">
+  <!-- PIN GATE -->
+  <div class="pin-gate" id="pinGate">
+    <span class="lock-icon">🔐</span>
+    <h1>Enter Access PIN</h1>
+    <p>
+      A 6-digit PIN was sent to you <strong>separately</strong> by the laboratory.
+      Enter it below to view the report.
+    </p>
+    <div class="pin-error" id="pinError"></div>
+    <div class="pin-input-group">
+      <input class="pin-digit" type="password" inputmode="numeric" maxlength="1" data-index="0" autofocus>
+      <input class="pin-digit" type="password" inputmode="numeric" maxlength="1" data-index="1">
+      <input class="pin-digit" type="password" inputmode="numeric" maxlength="1" data-index="2">
+      <input class="pin-digit" type="password" inputmode="numeric" maxlength="1" data-index="3">
+      <input class="pin-digit" type="password" inputmode="numeric" maxlength="1" data-index="4">
+      <input class="pin-digit" type="password" inputmode="numeric" maxlength="1" data-index="5">
+    </div>
+    <button class="btn-viewer btn-viewer-primary" id="btnVerifyPin" disabled>
+      🔓 Unlock Report
+    </button>
+  </div>
+
+  <!-- REPORT CONTENT (hidden until PIN verified) -->
+  <div id="reportContent" style="display:none">
+    <div class="viewer-meta" id="viewerMeta"></div>
+    <div class="viewer-doc" id="viewerDoc"></div>
+    <div class="viewer-actions">
+      <button class="btn-viewer btn-viewer-primary" onclick="viewerDownload()">
+        📄 Download / Print
+      </button>
+      <button class="btn-viewer btn-viewer-ghost" onclick="viewerClose()">
+        ✕ Close
+      </button>
+    </div>
+  </div>
+
+  <!-- EXPIRED STATE -->
+  <div class="expired-state" id="expiredState" style="display:none">
+    <span class="icon">⏰</span>
+    <h2>This link has expired</h2>
+    <p>
+      Secure report links are valid for a limited time only.
+      Please contact the laboratory to request a new link.
+    </p>
+  </div>
+
+  <!-- REVOKED STATE -->
+  <div class="revoked-state" id="revokedState" style="display:none">
+    <span class="icon">🚫</span>
+    <h2>This link has been revoked</h2>
+    <p>
+      The laboratory has revoked access to this report.
+      If you believe this is an error, please contact the laboratory directly.
+    </p>
+  </div>
+
+  <!-- LIMIT STATE -->
+  <div class="limit-state" id="limitState" style="display:none">
+    <span class="icon">✅</span>
+    <h2>This link has already been used</h2>
+    <p>
+      For security, each secure link can only be opened once.
+      Please contact the laboratory if you need to view the report again.
+    </p>
+  </div>
+
+  <!-- NOT FOUND STATE -->
+  <div class="revoked-state" id="notFoundState" style="display:none">
+    <span class="icon">❓</span>
+    <h2>Report not found</h2>
+    <p>
+      This link is invalid or has been removed.
+      Please check the link and try again, or contact the laboratory.
+    </p>
+  </div>
+</div>
+
+<div class="viewer-footer">
+  <strong>LabCore Diagnostic Laboratory</strong> · Accra, Ghana<br>
+  This is a secure, single-use link. Do not forward this URL to anyone.<br>
+  All access is logged for compliance (ISO 15189).
+</div>
+
+<script src="shared/labcore-api.js"></script>
+<script src="shared/labcore-utils.js"></script>
+<script src="shared/labcore-audit.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var deliveryId = null;
+  var delivery = null;
+  var pinVerified = false;
+
+  function getQueryParam(name) {
+    var params = new URLSearchParams(window.location.search);
+    return params.get(name);
+  }
+
+  function showState(stateId) {
+    ['pinGate','reportContent','expiredState','revokedState','limitState','notFoundState']
+      .forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) el.style.display = (id === stateId) ? 'block' : 'none';
+      });
+  }
+
+  function showPinError(msg) {
+    var el = document.getElementById('pinError');
+    el.textContent = msg;
+    el.classList.add('show');
+    setTimeout(function () { el.classList.remove('show'); }, 5000);
+  }
+
+  function clearPinInputs() {
+    document.querySelectorAll('.pin-digit').forEach(function (inp) {
+      inp.value = '';
+      inp.classList.remove('filled');
+    });
+    var first = document.querySelector('.pin-digit');
+    if (first) first.focus();
+    updateVerifyButton();
+  }
+
+  function updateVerifyButton() {
+    var digits = document.querySelectorAll('.pin-digit');
+    var allFilled = Array.from(digits).every(function (d) { return d.value.length === 1; });
+    document.getElementById('btnVerifyPin').disabled = !allFilled;
+  }
+
+  function getEnteredPin() {
+    return Array.from(document.querySelectorAll('.pin-digit'))
+      .map(function (d) { return d.value; })
+      .join('');
+  }
+
+  document.querySelectorAll('.pin-digit').forEach(function (input, idx, arr) {
+    input.addEventListener('input', function () {
+      var v = this.value.replace(/\D/g, '');
+      this.value = v.slice(-1);
+      this.classList.toggle('filled', this.value.length === 1);
+      if (this.value && idx < arr.length - 1) arr[idx + 1].focus();
+      updateVerifyButton();
+    });
+
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Backspace' && !this.value && idx > 0) {
+        arr[idx - 1].focus();
+      }
+      if (e.key === 'Enter') {
+        var btn = document.getElementById('btnVerifyPin');
+        if (!btn.disabled) btn.click();
+      }
+    });
+
+    input.addEventListener('paste', function (e) {
+      e.preventDefault();
+      var paste = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '');
+      if (!paste) return;
+      for (var i = 0; i < arr.length; i++) {
+        arr[i].value = paste[i] || '';
+        arr[i].classList.toggle('filled', !!arr[i].value);
+      }
+      updateVerifyButton();
+    });
+  });
+
+  document.getElementById('btnVerifyPin').addEventListener('click', async function () {
+    if (!delivery) return;
+    var pin = getEnteredPin();
+    if (pin.length !== 6) {
+      showPinError('Please enter all 6 digits.');
+      return;
+    }
+
+    try {
+      var verified = await window.lcApiVerifyPublicDelivery(delivery.id, pin);
+      delivery.report = verified.report;
+      pinVerified = true;
+      renderReport();
+    } catch (error) {
+      var reason = error.data && error.data.error;
+      var messages = {
+        not_found: 'This report link is invalid.',
+        revoked: 'This link has been revoked.',
+        expired: 'This link has expired.',
+        limit: 'This link has already been used.',
+        wrong_pin: 'Incorrect PIN. Please check and try again.',
+        report_not_found: 'The report data is no longer available.'
+      };
+      showPinError(messages[reason] || 'Could not verify the report. Please try again.');
+
+      if (reason === 'expired') showState('expiredState');
+      else if (reason === 'revoked') showState('revokedState');
+      else if (reason === 'limit') showState('limitState');
+      else if (reason === 'not_found' || reason === 'report_not_found') showState('notFoundState');
+      else clearPinInputs();
+    }
+  });
+
+  function renderReport() {
+    showState('reportContent');
+
+    var meta = document.getElementById('viewerMeta');
+    meta.innerHTML =
+      '<div>Report: <strong>' + escapeHtml(delivery.reportRef) + '</strong></div>' +
+      '<div>Opened: <strong>' + new Date().toLocaleString() + '</strong></div>' +
+      '<div>Expires: <strong>' + new Date(delivery.expiresAt).toLocaleString() + '</strong></div>';
+
+    var doc = document.getElementById('viewerDoc');
+
+    var report = delivery.report || {};
+    var patient = report.patient;
+    var encounter = report.encounter;
+
+    if (!patient || !encounter) {
+      doc.innerHTML =
+        '<div style="text-align:center;padding:40px;color:#6b7a8a;">' +
+        '<div style="font-size:40px;margin-bottom:12px;">📋</div>' +
+        '<h2 style="font-size:16px;margin-bottom:8px;">Report data unavailable</h2>' +
+        '<p style="font-size:12px;">The original report data could not be found. ' +
+        'This may occur if the patient record was removed.</p></div>';
+      return;
+    }
+
+    var age = window.lcAgeFromDob ? window.lcAgeFromDob(patient.dob) : '—';
+    var html = '';
+    html += '<h1 style="font-size:20px;font-weight:800;color:#1a3a5c;margin:0 0 4px;">LABCORE LABORATORY</h1>';
+    html += '<div style="font-size:10px;color:#6b7a8a;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:10px;">Diagnostic Report · Secure Viewer</div>';
+    html += '<div style="height:2px;background:#1a3a5c;margin:8px 0 14px;"></div>';
+
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px 16px;' +
+      'background:#f8fafc;border:1px solid #e2e8f0;border-radius:4px;padding:12px 14px;margin-bottom:16px;font-size:12px;">';
+    html += '<div><span style="display:block;font-size:8px;text-transform:uppercase;letter-spacing:0.6px;color:#6b7a8a;font-weight:700;">Patient</span>' + escapeHtml(patient.fullName) + '</div>';
+    html += '<div><span style="display:block;font-size:8px;text-transform:uppercase;letter-spacing:0.6px;color:#6b7a8a;font-weight:700;">Patient ID</span>' + escapeHtml(patient.id) + '</div>';
+    html += '<div><span style="display:block;font-size:8px;text-transform:uppercase;letter-spacing:0.6px;color:#6b7a8a;font-weight:700;">DOB / Age</span>' + escapeHtml(patient.dob || '—') + ' (' + age + ' yrs)</div>';
+    html += '<div><span style="display:block;font-size:8px;text-transform:uppercase;letter-spacing:0.6px;color:#6b7a8a;font-weight:700;">Sex</span>' + escapeHtml(patient.sex || '—') + '</div>';
+    html += '<div><span style="display:block;font-size:8px;text-transform:uppercase;letter-spacing:0.6px;color:#6b7a8a;font-weight:700;">Encounter</span>' + escapeHtml(encounter.visitId) + '</div>';
+    html += '<div><span style="display:block;font-size:8px;text-transform:uppercase;letter-spacing:0.6px;color:#6b7a8a;font-weight:700;">Requesting doctor</span>' + escapeHtml(encounter.consultant || '—') + '</div>';
+    html += '</div>';
+
+    var orders = report.orders || [];
+
+    if (!orders.length) {
+      html += '<p style="font-size:12px;color:#6b7a8a;padding:20px;text-align:center;">No validated results on this encounter.</p>';
+    } else {
+      orders.forEach(function (o) {
+        html += '<div style="background:#1a3a5c;color:#fff;padding:6px 12px;font-size:11px;font-weight:700;' +
+          'text-transform:uppercase;letter-spacing:0.6px;border-radius:3px 3px 0 0;margin-top:14px;">' +
+          escapeHtml(o.item) + '</div>';
+        html += '<table style="width:100%;border-collapse:collapse;font-size:11px;border:1px solid #e2e8f0;border-top:none;margin-bottom:8px;">';
+        html += '<thead><tr>' +
+          '<th style="background:#f1f4f8;padding:6px 10px;text-align:left;font-size:9px;text-transform:uppercase;color:#5a6a7a;border-bottom:1px solid #e2e8f0;">Parameter</th>' +
+          '<th style="background:#f1f4f8;padding:6px 10px;text-align:left;font-size:9px;text-transform:uppercase;color:#5a6a7a;border-bottom:1px solid #e2e8f0;">Result</th>' +
+          '<th style="background:#f1f4f8;padding:6px 10px;text-align:left;font-size:9px;text-transform:uppercase;color:#5a6a7a;border-bottom:1px solid #e2e8f0;">Unit</th>' +
+          '<th style="background:#f1f4f8;padding:6px 10px;text-align:left;font-size:9px;text-transform:uppercase;color:#5a6a7a;border-bottom:1px solid #e2e8f0;">Reference</th>' +
+          '</tr></thead><tbody>';
+
+        var results = o.results || {};
+        var keys = Object.keys(results);
+        if (!keys.length) {
+          html += '<tr><td colspan="4" style="padding:10px;color:#6b7a8a;font-style:italic;">Values not stored</td></tr>';
+        } else {
+          keys.forEach(function (param) {
+            var r = results[param] || {};
+            var flagBadge = '';
+            if (r.flag === 'LL' || r.flag === 'HH') {
+              flagBadge = ' <span style="background:#fde8e8;color:#b74b43;font-weight:700;padding:1px 5px;border-radius:8px;font-size:9px;">' + escapeHtml(r.flag) + '</span>';
+            } else if (r.flag === 'L' || r.flag === 'H') {
+              flagBadge = ' <span style="background:#fff3df;color:#9a5b00;font-weight:700;padding:1px 5px;border-radius:8px;font-size:9px;">' + escapeHtml(r.flag) + '</span>';
+            }
+            html += '<tr>' +
+              '<td style="padding:6px 10px;border-bottom:1px solid #edf0f2;">' + escapeHtml(param) + '</td>' +
+              '<td style="padding:6px 10px;border-bottom:1px solid #edf0f2;font-weight:700;">' + escapeHtml(r.value || '—') + flagBadge + '</td>' +
+              '<td style="padding:6px 10px;border-bottom:1px solid #edf0f2;">' + escapeHtml(r.unit || '—') + '</td>' +
+              '<td style="padding:6px 10px;border-bottom:1px solid #edf0f2;color:#6b7a8a;">' + escapeHtml(r.refText || '—') + '</td>' +
+              '</tr>';
+          });
+        }
+
+        html += '</tbody></table>';
+
+        if (o.panelComment) {
+          html += '<div style="background:#f8fafc;padding:8px 12px;border-radius:4px;font-size:11px;' +
+            'border:1px solid #e2e8f0;margin-bottom:10px;"><strong>Comment:</strong> ' +
+            escapeHtml(o.panelComment) + '</div>';
+        }
+
+        html += '<div style="display:flex;justify-content:space-between;font-size:10px;' +
+          'color:#6b7a8a;margin:6px 0 12px;padding:0 4px;">' +
+          '<span>Validated by: ' + escapeHtml(o.validatedBy || '—') + '</span>' +
+          '<span>' + (o.validatedAt ? new Date(o.validatedAt).toLocaleString() : '—') + '</span></div>';
+      });
+    }
+
+    html += '<p style="margin-top:16px;font-size:10px;color:#6b7a8a;text-align:center;">' +
+      '[LABORATORY REPORT — FOR CLINICAL USE · SECURE VIEWER · DO NOT EDIT]</p>';
+
+    doc.innerHTML = html;
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  window.viewerDownload = function () {
+    if (!delivery || !pinVerified) return;
+    if (window.lcAudit) {
+      window.lcAudit('report.link_opened', {
+        entity: 'delivery',
+        entityId: delivery.id,
+        patientId: delivery.report.patient.id,
+        visitId: delivery.report.encounter.visitId,
+        note: 'Downloaded / printed from viewer'
+      });
+    }
+    window.print();
+  };
+
+  window.viewerClose = function () {
+    window.close();
+    setTimeout(function () {
+      document.body.innerHTML =
+        '<div style="display:flex;align-items:center;justify-content:center;' +
+        'min-height:100vh;font-family:Segoe UI,Arial,sans-serif;color:#8fa8c0;' +
+        'background:#0f1a24;text-align:center;padding:20px;">' +
+        '<div><div style="font-size:48px;margin-bottom:12px;">🔒</div>' +
+        '<p style="font-size:14px;">You may now close this tab.</p></div></div>';
+    }, 100);
+  };
+
+  async function init() {
+    deliveryId = getQueryParam('t');
+
+    if (!deliveryId) {
+      showState('notFoundState');
+      return;
+    }
+
+    try {
+      delivery = await window.lcApiGetPublicDelivery(deliveryId);
+    } catch (error) {
+      var reason = error.data && error.data.error;
+      if (reason === 'revoked') showState('revokedState');
+      else if (reason === 'expired') showState('expiredState');
+      else if (reason === 'limit') showState('limitState');
+      else showState('notFoundState');
+      return;
+    }
+
+    var wm = document.getElementById('watermark');
+    if (wm) {
+      wm.textContent = 'LABCORE · ' + (delivery.recipientName || 'CONFIDENTIAL').toUpperCase();
+    }
+
+    showState('pinGate');
+    setTimeout(function () {
+      var first = document.querySelector('.pin-digit');
+      if (first) first.focus();
+    }, 100);
+  }
+
+  document.addEventListener('DOMContentLoaded', init);
+
+})();
+</script>
+</body>
+</html>

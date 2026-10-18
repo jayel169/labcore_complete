@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nursing Station | LabCore</title>
+<link rel="stylesheet" href="shared/labcore-nav.css">
+<style>
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--lc-font); background: var(--lc-bg); color: var(--lc-text); }
+.main { margin-left: 245px; min-height: 100vh; padding: 24px 28px; }
+.topbar { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 18px; flex-wrap: wrap; gap: 12px; }
+.topbar h1 { font-size: 22px; }
+.topbar p { font-size: 13px; color: var(--lc-muted); margin-top: 4px; }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px; }
+.stat-card { background: #fff; border: 1px solid var(--lc-border); border-radius: 8px; padding: 14px; }
+.stat-card .label { font-size: 11px; color: var(--lc-muted);  }
+.stat-card .number { font-size: 22px; font-weight: 700; margin-top: 4px; }
+.layout { display: grid; grid-template-columns: 320px 1fr; gap: 18px; }
+.card { background: #fff; border: 1px solid var(--lc-border); border-radius: 10px; overflow: hidden; }
+.card-head { padding: 12px 16px; border-bottom: 1px solid var(--lc-border); font-weight: 600; font-size: 14px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.card-body { padding: 14px 16px; }
+.tabs { display: flex; border-bottom: 1px solid var(--lc-border); background: #F8F7FB; overflow-x: auto; }
+.tab { padding: 10px 16px; font-size: 12px; font-weight: 600; color: var(--lc-muted); cursor: pointer; border-bottom: 3px solid transparent; white-space: nowrap; }
+.tab.active { color: var(--lc-blue); border-bottom-color: var(--lc-blue); background: #fff; }
+.pane { display: none; padding: 16px; }
+.pane.active { display: block; }
+.btn { padding: 7px 12px; border-radius: 6px; border: 1px solid var(--lc-border); background: #fff; cursor: pointer; font-size: 12px; font-weight: 600; }
+.btn:hover { background: var(--lc-bg); }
+.btn-primary { background: var(--lc-blue); color: #fff; border-color: var(--lc-blue); }
+.btn-success { background: var(--lc-green); color: #fff; border-color: var(--lc-green); }
+.btn-danger { background: var(--lc-red); color: #fff; border-color: var(--lc-red); }
+.btn-warning { background: var(--lc-warning); color: #fff; border-color: var(--lc-warning); }
+.btn-sm { padding: 4px 10px; font-size: 11px; }
+.patient-item { padding: 11px 14px; border-bottom: 1px solid #EFEDF4; cursor: pointer; transition: 0.15s; }
+.patient-item:hover { background: #f8f9f7; }
+.patient-item.active { background: #E4EFF7; border-left: 4px solid var(--lc-blue); }
+.patient-item .name { font-weight: 600; font-size: 13px; }
+.patient-item .meta { font-size: 11px; color: var(--lc-muted); margin-top: 3px; }
+.patient-item .warn-tag { font-size: 10px; background: #FBE9E7; color: #B3261E; padding: 2px 6px; border-radius: 8px; font-weight: 700; }
+.vitals-history { display: flex; flex-direction: column; gap: 6px; max-height: 320px; overflow-y: auto; }
+.vitals-row { display: grid; grid-template-columns: 140px repeat(6, 1fr); gap: 6px; font-size: 12px; padding: 6px 8px; border-bottom: 1px solid #eee; align-items: center; }
+.vitals-row .time { color: var(--lc-muted); font-size: 11px; }
+.vitals-row .v { text-align: center; }
+.vitals-row .v.abnormal { color: var(--lc-red); font-weight: 700; }
+.vitals-row .v.warn { color: var(--lc-warning); font-weight: 600; }
+.vitals-row.head { font-weight: 700; background: #f5f7f9; border-bottom: 2px solid var(--lc-border); }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+.form-group label { display: block; font-size: 10px; font-weight: 600; color: #4A4660; margin-bottom: 3px; }
+.form-group input, .form-group select, .form-group textarea { width: 100%; padding: 7px 10px; border: 1px solid var(--lc-border); border-radius: 6px; font-size: 12px; background: #fff; color: var(--lc-text); font-family: inherit; }
+.form-group textarea { min-height: 60px; resize: vertical; }
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: var(--lc-blue); box-shadow: 0 0 0 3px rgba(58,53,119,.15); }
+.care-plan-card { border: 1px solid var(--lc-border); border-radius: 8px; padding: 12px; margin-bottom: 10px; }
+.care-plan-card.resolved { opacity: 0.55; background: #f8faf8; }
+.care-plan-card .title { font-size: 13px; font-weight: 700; }
+.care-plan-card .related { font-size: 11px; color: var(--lc-muted); margin-top: 2px; }
+.care-plan-card ul { margin: 8px 0 6px 18px; font-size: 12px; }
+.care-plan-card li { margin-bottom: 2px; }
+.care-plan-card .evals { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #ddd; font-size: 11px; color: #444; }
+.med-row { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr auto; gap: 8px; align-items: center; padding: 8px 10px; border: 1px solid var(--lc-border); border-radius: 6px; margin-bottom: 6px; font-size: 12px; }
+.med-row .drug { font-weight: 700; }
+.med-row .time-chip { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: #E4EFF7; color: #3A3577; font-weight: 600; }
+.note-row { padding: 8px 10px; border-bottom: 1px solid #eee; font-size: 12px; }
+.note-row .meta { font-size: 10px; color: var(--lc-muted); }
+.empty { padding: 30px; text-align: center; color: var(--lc-muted); font-size: 13px; }
+.alert { padding: 10px 14px; border-radius: 6px; font-size: 12px; margin-bottom: 12px; }
+.alert-info { background: #E4EFF7; color: #3A3577; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 700; }
+.badge-ward { background: #E5F1EA; color: #2B7A4B; }
+.badge-er { background: #FBE9E7; color: #B3261E; }
+.badge-opd { background: #E4EFF7; color: #3A3577; }
+.lc-loading-overlay { position: absolute; inset: 0; background: rgba(255,255,255,0.85); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 50; border-radius: 9px; }
+.lc-loading-spinner { width: 40px; height: 40px; border: 4px solid var(--lc-border); border-top-color: var(--lc-blue); border-radius: 50%; animation: lcSpin 0.8s linear infinite; }
+.lc-loading-text { margin-top: 12px; font-size: 13px; color: var(--lc-muted); }
+@keyframes lcSpin { to { transform: rotate(360deg); } }
+@media (max-width: 1000px) { .main { margin-left: 0; padding-top: 60px; } .layout { grid-template-columns: 1fr; } .stats { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 600px) { .stats { grid-template-columns: 1fr; } .vitals-row { grid-template-columns: 100px repeat(6, 1fr); font-size: 10px; } .med-row { grid-template-columns: 1fr; gap: 4px; } }
+</style>
+</head>
+<body>
+
+<aside class="sidebar"></aside>
+<button class="lc-mobile-toggle" aria-label="Menu">☰</button>
+<div class="lc-sidebar-overlay"></div>
+
+<div class="main">
+  <div class="topbar">
+    <div>
+      <h1>🩺 Nursing Station</h1>
+      <p>Vitals · Care plans · MAR · Fluid balance · Handover — for admitted and outpatient patients</p>
+    </div>
+    <div>
+      <button class="btn btn-sm" onclick="loadAll()">🔄 Refresh</button>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat-card"><div class="label">Admitted patients</div><div class="number" id="statAdmitted">0</div></div>
+    <div class="stat-card"><div class="label">Due for vitals</div><div class="number" id="statDueVitals" style="color:#B3261E">0</div></div>
+    <div class="stat-card"><div class="label">Today's vitals recorded</div><div class="number" id="statTodayVitals" style="color:#2B7A4B">0</div></div>
+    <div class="stat-card"><div class="label">Active care plans</div><div class="number" id="statCarePlans" style="color:#3A3577">0</div></div>
+  </div>
+
+  <div class="layout">
+    <!-- LEFT: Patient list -->
+    <div class="card" style="align-self: start;">
+      <div class="card-head">
+        <span>Patients</span>
+        <span id="listCount" style="font-size: 11px; color: var(--lc-muted);"></span>
+      </div>
+      <div style="border-bottom: 1px solid var(--lc-border); padding: 8px 12px; display: flex; gap: 6px;">
+        <button class="btn btn-sm" data-filter="all" onclick="setFilter('all')">All</button>
+        <button class="btn btn-sm" data-filter="ward" onclick="setFilter('ward')">Ward</button>
+        <button class="btn btn-sm" data-filter="er" onclick="setFilter('er')">ER</button>
+        <button class="btn btn-sm" data-filter="opd" onclick="setFilter('opd')">OPD</button>
+        <button class="btn btn-sm" data-filter="due" onclick="setFilter('due')">Due</button>
+      </div>
+      <div id="patientList" style="max-height: 620px; overflow-y: auto;"></div>
+    </div>
+
+    <!-- RIGHT: Workstation -->
+    <div class="card" id="workstation" style="position: relative;">
+      <div id="wsEmpty" class="empty">👈 Select a patient to begin nursing care</div>
+      <div id="wsContent" style="display: none;">
+        <div class="card-head" id="wsHeader">—</div>
+        <div class="tabs" id="wsTabs">
+          <div class="tab active" data-tab="vitals" onclick="switchTab('vitals')">Vitals</div>
+          <div class="tab" data-tab="careplan" onclick="switchTab('careplan')">Care Plan</div>
+          <div class="tab" data-tab="mar" onclick="switchTab('mar')">Medication (MAR)</div>
+          <div class="tab" data-tab="fluids" onclick="switchTab('fluids')">Fluid Balance</div>
+          <div class="tab" data-tab="notes" onclick="switchTab('notes')">Nursing Notes</div>
+          <div class="tab" data-tab="sbar" onclick="switchTab('sbar')">Handover (SBAR)</div>
+        </div>
+
+        <!-- VITALS PANE -->
+        <div class="pane active" id="pane-vitals">
+          <div class="alert alert-info">Record vitals every 4 hours for admitted patients, or on arrival for OPD / ER.</div>
+          <div style="font-weight: 700; font-size: 13px; margin-bottom: 8px;">Record New Vitals</div>
+          <div class="form-grid">
+            <div class="form-group"><label>BP Systolic</label><input type="number" id="vBpSys" placeholder="120"></div>
+            <div class="form-group"><label>BP Diastolic</label><input type="number" id="vBpDia" placeholder="80"></div>
+            <div class="form-group"><label>Heart Rate</label><input type="number" id="vHr" placeholder="78"></div>
+            <div class="form-group"><label>Temp (°C)</label><input type="number" step="0.1" id="vTemp" placeholder="37.0"></div>
+            <div class="form-group"><label>Resp Rate</label><input type="number" id="vRr" placeholder="16"></div>
+            <div class="form-group"><label>SpO2 (%)</label><input type="number" id="vSpo2" placeholder="98"></div>
+            <div class="form-group"><label>Pain (0-10)</label><input type="number" min="0" max="10" id="vPain" placeholder="0"></div>
+            <div class="form-group"><label>Weight (kg)</label><input type="number" step="0.1" id="vWeight" placeholder=""></div>
+            <div class="form-group" style="grid-column: 1 / -1;"><label>Notes</label><input id="vNotes" placeholder="e.g. patient drowsy"></div>
+          </div>
+          <div style="margin-top: 10px;">
+            <button class="btn btn-primary" onclick="saveVitals()">💾 Save Vitals</button>
+          </div>
+
+          <div style="margin-top: 20px;">
+            <div style="font-weight: 700; font-size: 13px; margin-bottom: 8px;">Vitals History</div>
+            <div class="vitals-history" id="vitalsHistory"></div>
+          </div>
+        </div>
+
+        <!-- CARE PLAN PANE -->
+        <div class="pane" id="pane-careplan">
+          <button class="btn btn-primary btn-sm" onclick="openCarePlanModal()">+ New Care Plan</button>
+          <div id="carePlanList" style="margin-top: 12px;"></div>
+        </div>
+
+        <!-- MAR PANE -->
+        <div class="pane" id="pane-mar">
+          <div id="marContent"></div>
+        </div>
+
+        <!-- FLUID PANE -->
+        <div class="pane" id="pane-fluids">
+          <div class="form-grid" style="margin-bottom: 12px;">
+            <div class="form-group">
+              <label>Type</label>
+              <select id="fluidType"><option>Intake</option><option>Output</option></select>
+            </div>
+            <div class="form-group"><label>Amount (mL)</label><input type="number" id="fluidAmount" placeholder="250"></div>
+            <div class="form-group" style="grid-column: span 2;"><label>Description</label><input id="fluidDesc" placeholder="e.g. oral water / urine"></div>
+            <div class="form-group"><label>&nbsp;</label><button class="btn btn-primary" style="width: 100%;" onclick="saveFluid()">Record</button></div>
+          </div>
+          <div id="fluidSummary" style="margin-bottom: 12px;"></div>
+          <div id="fluidList"></div>
+        </div>
+
+        <!-- NOTES PANE -->
+        <div class="pane" id="pane-notes">
+          <div class="form-grid" style="margin-bottom: 12px;">
+            <div class="form-group">
+              <label>Category</label>
+              <select id="noteCategory">
+                <option>General</option>
+                <option>Wound Care</option>
+                <option>Fall Risk</option>
+                <option>Nutrition</option>
+                <option>Mobility</option>
+                <option>Bowel / Bladder</option>
+                <option>Family Update</option>
+                <option>Escalation</option>
+              </select>
+            </div>
+            <div class="form-group" style="grid-column: span 3;"><label>Note</label><input id="noteText" placeholder="Free text note..."></div>
+            <div class="form-group"><label>&nbsp;</label><button class="btn btn-primary" style="width: 100%;" onclick="saveNote()">Add Note</button></div>
+          </div>
+          <div id="notesList"></div>
+        </div>
+
+        <!-- SBAR PANE -->
+        <div class="pane" id="pane-sbar">
+          <div class="form-group"><label>Situation</label><textarea id="sbarS" placeholder="What is happening now?"></textarea></div>
+          <div class="form-group"><label>Background</label><textarea id="sbarB" placeholder="Relevant history / context"></textarea></div>
+          <div class="form-group"><label>Assessment</label><textarea id="sbarA" placeholder="What you think the problem is"></textarea></div>
+          <div class="form-group"><label>Recommendation</label><textarea id="sbarR" placeholder="What you want done"></textarea></div>
+          <button class="btn btn-primary" onclick="saveSBAR()">💾 Save Handover</button>
+
+          <div style="margin-top: 20px;">
+            <div style="font-weight: 700; font-size: 13px; margin-bottom: 8px;">Previous Handovers</div>
+            <div id="sbarList"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CARE PLAN MODAL -->
+<div id="carePlanModal" style="display: none; position: fixed; inset: 0; background: rgba(20,26,31,.55); z-index: 1000; align-items: center; justify-content: center; padding: 16px; ">
+  <div style="background: #fff; border-radius: 10px; max-width: 620px; width: 100%; max-height: 92vh; overflow-y: auto;">
+    <div style="padding: 14px 20px; border-bottom: 1px solid var(--lc-border); display: flex; justify-content: space-between; align-items: center;">
+      <h3 style="font-size: 15px;">New Care Plan</h3>
+      <button class="btn btn-sm" onclick="closeCarePlanModal()">×</button>
+    </div>
+    <div style="padding: 18px 20px;">
+      <div class="form-group" style="margin-bottom: 12px;">
+        <label>Nursing Diagnosis</label>
+        <select id="cpDiagnosis" onchange="onCarePlanDiagnosisChange()">
+          <option value="">Select a diagnosis…</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom: 12px;">
+        <label>Related To</label>
+        <input id="cpRelatedTo" placeholder="e.g. tissue injury, fever">
+      </div>
+      <div class="form-group" style="margin-bottom: 12px;">
+        <label>Goal / Expected Outcome</label>
+        <textarea id="cpGoal" placeholder="e.g. Patient reports pain ≤ 3/10 within 1 hour"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Interventions</label>
+        <div id="cpInterventionsList" style="display: flex; flex-direction: column; gap: 6px;"></div>
+        <button class="btn btn-sm" style="margin-top: 8px;" onclick="addInterventionRow()">+ Add Intervention</button>
+      </div>
+    </div>
+    <div style="padding: 12px 20px; border-top: 1px solid var(--lc-border); display: flex; justify-content: flex-end; gap: 8px;">
+      <button class="btn" onclick="closeCarePlanModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveCarePlan()">Save Care Plan</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+<script src="shared/labcore-api.js"></script>
+<script src="shared/labcore-utils.js"></script>
+<script src="shared/labcore-ward.js"></script>
+<script src="shared/labcore-nursing.js"></script>
+<script src="shared/labcore-auth.js"></script>
+<script src="shared/labcore-staff.js"></script>   <!-- NEW -->
+<script src="shared/labcore-audit.js"></script>
+<script src="shared/labcore-icons.js"></script>
+<script src="shared/labcore-nav.js"></script>
+<script src="shared/labcore-search.js"></script>
+<script src="shared/labcore-notifications.js"></script>
+
+<script>
+(function () {
+  'use strict';
+
+  // Auth
+  (function () {
+    if (window.lcRequireAuth) window.lcRequireAuth();
+  })();
+
+  var currentPatient = null;
+  var currentVisitId = null;   // null if pure ward context
+  var currentFilter = 'all';
+  var currentTab = 'vitals';
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  /* =========================================================
+     LIST RENDERING
+  ========================================================= */
+  function buildPatientsList() {
+    var items = [];
+    var patients = JSON.parse(localStorage.getItem('hms_patients_v3') || '[]');
+
+    patients.forEach(function (p) {
+      // Admitted patients
+      if (p.admission && p.admission.status === 'Admitted') {
+        var lastVital = (p.admission.vitals || []).slice(-1)[0];
+        var ageHours = lastVital ? (Date.now() - new Date(lastVital.at).getTime()) / 3600000 : Infinity;
+        items.push({
+          patient: p,
+          visitId: null,
+          mode: 'ward',
+          label: 'Ward',
+          ward: p.admission.ward,
+          bed: p.admission.bed,
+          lastVitalAt: lastVital ? lastVital.at : null,
+          dueHours: ageHours,
+          due: ageHours > 4
+        });
+        return;
+      }
+
+      // Non-admitted — active encounters in the last 72h
+      (p.encounters || []).forEach(function (e) {
+        if (e.status === 'Completed') return;
+        var created = new Date(e.createdAt || e.date).getTime();
+        if (Date.now() - created > 72 * 3600000) return;
+        var lastVital = (e.vitals || []).slice(-1)[0];
+        var ageHours = lastVital ? (Date.now() - new Date(lastVital.at).getTime()) / 3600000 : Infinity;
+        var mode = e.locationType === 'Emergency' ? 'er' : 'opd';
+        items.push({
+          patient: p,
+          visitId: e.visitId,
+          mode: mode,
+          label: e.locationType || 'OPD',
+          ward: null, bed: null,
+          lastVitalAt: lastVital ? lastVital.at : null,
+          dueHours: ageHours,
+          due: ageHours > 4
+        });
+      });
+    });
+
+    // Sort: due first, then by last vitals time
+    items.sort(function (a, b) {
+      if (a.due !== b.due) return a.due ? -1 : 1;
+      var ta = a.lastVitalAt ? new Date(a.lastVitalAt).getTime() : 0;
+      var tb = b.lastVitalAt ? new Date(b.lastVitalAt).getTime() : 0;
+      return ta - tb;
+    });
+
+    return items;
+  }
+
+  function renderPatientList() {
+    var items = buildPatientsList();
+
+    // Stats
+    var admitted = items.filter(function (i) { return i.mode === 'ward'; }).length;
+    var dueVitals = items.filter(function (i) { return i.due; }).length;
+    var carePlanTotal = 0;
+    items.forEach(function (i) {
+      if (i.mode === 'ward') {
+        carePlanTotal += (i.patient.admission.carePlans || []).filter(function (c) { return c.status === 'Active'; }).length;
+      } else {
+        var enc = (i.patient.encounters || []).find(function (e) { return e.visitId === i.visitId; });
+        if (enc) carePlanTotal += (enc.carePlans || []).filter(function (c) { return c.status === 'Active'; }).length;
+      }
+    });
+    var todayVitals = 0;
+    var today = new Date().toISOString().slice(0, 10);
+    items.forEach(function (i) {
+      var v = (i.mode === 'ward'
+        ? (i.patient.admission.vitals || [])
+        : (((i.patient.encounters || []).find(function (e) { return e.visitId === i.visitId; }) || {}).vitals || []));
+      v.forEach(function (x) { if ((x.at || '').slice(0, 10) === today) todayVitals++; });
+    });
+
+    $('statAdmitted').textContent = admitted;
+    $('statDueVitals').textContent = dueVitals;
+    $('statTodayVitals').textContent = todayVitals;
+    $('statCarePlans').textContent = carePlanTotal;
+
+    // Filter
+    var filtered = items.filter(function (i) {
+      if (currentFilter === 'all') return true;
+      if (currentFilter === 'ward') return i.mode === 'ward';
+      if (currentFilter === 'er') return i.mode === 'er';
+      if (currentFilter === 'opd') return i.mode === 'opd';
+      if (currentFilter === 'due') return i.due;
+      return true;
+    });
+
+    $('listCount').textContent = filtered.length + ' patient(s)';
+
+    var list = $('patientList');
+    if (!filtered.length) {
+      list.innerHTML = '<div class="empty">No patients match this filter</div>';
+      return;
+    }
+
+    list.innerHTML = filtered.map(function (i) {
+      var p = i.patient;
+      var badge = i.mode === 'ward'
+        ? '<span class="badge badge-ward">🏥 ' + esc(i.ward || 'WARD') + ' B' + esc(i.bed || '') + '</span>'
+        : i.mode === 'er'
+          ? '<span class="badge badge-er">🚨 ER</span>'
+          : '<span class="badge badge-opd">OPD</span>';
+
+      var dueTag = i.due ? '<span class="warn-tag">VITALS DUE</span>' : '';
+      var last = i.lastVitalAt
+        ? 'Last vitals: ' + timeAgo(i.lastVitalAt)
+        : 'No vitals yet';
+
+      var active = currentPatient && currentPatient.id === p.id &&
+                   (i.visitId === currentVisitId);
+
+      return '<div class="patient-item ' + (active ? 'active' : '') + '"' +
+        ' onclick="selectPatient(\'' + esc(p.id) + '\',' + (i.visitId ? "'" + esc(i.visitId) + "'" : 'null') + ',' + "'" + i.mode + "'" + ')">' +
+        '<div class="name">' + esc(p.fullName) + ' ' + dueTag + '</div>' +
+        '<div style="margin-top: 4px;">' + badge + '</div>' +
+        '<div class="meta">' + esc(p.id) + ' · ' + last + '</div>' +
+        '</div>';
+    }).join('');
+  }
+
+  function esc(s) {
+    return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+  function timeAgo(iso) {
+    var s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+    if (s < 60) return s + 's ago';
+    if (s < 3600) return Math.floor(s / 60) + 'm ago';
+    if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+    return Math.floor(s / 86400) + 'd ago';
+  }
+  function fmtDate(iso) {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+  }
+
+  /* =========================================================
+     SELECT PATIENT
+  ========================================================= */
+  window.selectPatient = function (patientId, visitId, mode) {
+    var patients = JSON.parse(localStorage.getItem('hms_patients_v3') || '[]');
+    currentPatient = patients.find(function (p) { return p.id === patientId; });
+    currentVisitId = visitId || null;
+    if (!currentPatient) return;
+
+    $('wsEmpty').style.display = 'none';
+    $('wsContent').style.display = 'block';
+
+    var p = currentPatient;
+    var subtitle = '';
+    if (mode === 'ward' && p.admission) {
+      subtitle = '🏥 ' + esc(p.admission.ward || 'Ward') + ' · Bed ' + esc(p.admission.bed || '—') +
+        ' · Admitted ' + fmtDate(p.admission.admittedAt) +
+        ' · Dr. ' + esc(p.admission.attendingDoctor || '—');
+    } else if (visitId) {
+      var enc = (p.encounters || []).find(function (e) { return e.visitId === visitId; });
+      if (enc) {
+        subtitle = esc(enc.locationType || enc.service || 'OPD') + ' · ' + esc(enc.visitId) +
+          ' · ' + esc(enc.consultant || '');
+      }
+    }
+
+    $('wsHeader').innerHTML =
+      '<div><div style="font-size: 15px;">' + esc(p.fullName) + '</div>' +
+      '<div style="font-size: 11px; color: var(--lc-muted); font-weight: 400; margin-top: 2px;">' +
+      esc(p.id) + ' · ' + esc(p.sex || '—') + ' · ' + esc(p.mobile || '—') +
+      (p.allergies && p.allergies !== 'NKA' ? ' · <span style="color: #B3261E;">⚠ ' + esc(p.allergies) + '</span>' : '') +
+      '</div>' +
+      (subtitle ? '<div style="font-size: 11px; color: #444; margin-top: 4px;">' + subtitle + '</div>' : '') +
+      '</div>' +
+      '<div style="font-size: 11px; color: var(--lc-muted);">' + fmtDate(new Date().toISOString()) + '</div>';
+
+    renderCurrentTab();
+    renderPatientList();
+  };
+
+  /* =========================================================
+     TABS
+  ========================================================= */
+  window.switchTab = function (tab) {
+    currentTab = tab;
+    document.querySelectorAll('#wsTabs .tab').forEach(function (t) {
+      t.classList.toggle('active', t.dataset.tab === tab);
+    });
+    document.querySelectorAll('#wsContent .pane').forEach(function (p) {
+      p.classList.remove('active');
+    });
+    var pane = $('pane-' + tab);
+    if (pane) pane.classList.add('active');
+    renderCurrentTab();
+  };
+
+  function renderCurrentTab() {
+    if (!currentPatient) return;
+    if (currentTab === 'vitals') renderVitals();
+    else if (currentTab === 'careplan') renderCarePlans();
+    else if (currentTab === 'mar') renderMAR();
+    else if (currentTab === 'fluids') renderFluids();
+    else if (currentTab === 'notes') renderNotes();
+    else if (currentTab === 'sbar') renderSBAR();
+  }
+
+  /* =========================================================
+     VITALS
+  ========================================================= */
+  function renderVitals() {
+    var history = window.lcGetVitalsHistory(currentPatient.id, currentVisitId);
+    var el = $('vitalsHistory');
+    if (!history.length) {
+      el.innerHTML = '<div class="empty">No vitals recorded yet</div>';
+      return;
+    }
+    // Newest first
+    var rows = history.slice().reverse();
+    var html = '<div class="vitals-row head">' +
+      '<div class="time">When</div>' +
+      '<div class="v">BP</div>' +
+      '<div class="v">HR</div>' +
+      '<div class="v">Temp</div>' +
+      '<div class="v">RR</div>' +
+      '<div class="v">SpO2</div>' +
+      '<div class="v">Pain</div>' +
+      '</div>';
+    rows.forEach(function (v) {
+      var bpClass = (v.bpSys > 140 || v.bpDia > 90 || v.bpSys < 90) ? 'abnormal' : '';
+      var hrClass = (v.hr > 110 || v.hr < 50) ? 'abnormal' : (v.hr > 100 ? 'warn' : '');
+      var tClass = (v.temp > 38) ? 'abnormal' : (v.temp > 37.5 ? 'warn' : '');
+      var rrClass = (v.rr > 24 || v.rr < 10) ? 'abnormal' : '';
+      var spo2Class = (v.spo2 < 92) ? 'abnormal' : (v.spo2 < 95 ? 'warn' : '');
+      var painClass = (v.pain >= 7) ? 'abnormal' : (v.pain >= 4 ? 'warn' : '');
+      html += '<div class="vitals-row">' +
+        '<div class="time">' + esc(fmtDate(v.at)) + '<br><span style="font-size: 10px; color: #888;">' + esc(v.by || '') + '</span></div>' +
+        '<div class="v ' + bpClass + '">' + (v.bpSys || '—') + '/' + (v.bpDia || '—') + '</div>' +
+        '<div class="v ' + hrClass + '">' + (v.hr || '—') + '</div>' +
+        '<div class="v ' + tClass + '">' + (v.temp ? v.temp + '°' : '—') + '</div>' +
+        '<div class="v ' + rrClass + '">' + (v.rr || '—') + '</div>' +
+        '<div class="v ' + spo2Class + '">' + (v.spo2 ? v.spo2 + '%' : '—') + '</div>' +
+        '<div class="v ' + painClass + '">' + (v.pain != null ? v.pain + '/10' : '—') + '</div>' +
+        '</div>';
+    });
+    el.innerHTML = html;
+  }
+
+  window.saveVitals = function () {
+    var vitals = {
+      bpSys: $('vBpSys').value,
+      bpDia: $('vBpDia').value,
+      hr: $('vHr').value,
+      temp: $('vTemp').value,
+      rr: $('vRr').value,
+      spo2: $('vSpo2').value,
+      pain: $('vPain').value,
+      weightKg: $('vWeight').value,
+      notes: $('vNotes').value
+    };
+    if (!vitals.bpSys && !vitals.hr && !vitals.temp) {
+      window.lcToast('Please record at least one vital sign', 'warning');
+      return;
+    }
+    var res = window.lcRecordVitalsExt(currentPatient.id, currentVisitId, vitals);
+    if (!res.ok) { window.lcToast('Save failed: ' + res.error, 'error'); return; }
+
+    $('vBpSys').value = ''; $('vBpDia').value = ''; $('vHr').value = ''; $('vTemp').value = '';
+    $('vRr').value = ''; $('vSpo2').value = ''; $('vPain').value = ''; $('vWeight').value = ''; $('vNotes').value = '';
+
+    window.lcToast('Vitals recorded', 'success');
+    // Reload patient from storage
+    var fresh = JSON.parse(localStorage.getItem('hms_patients_v3') || '[]');
+    currentPatient = fresh.find(function (p) { return p.id === currentPatient.id; });
+    renderVitals();
+    renderPatientList();
+  };
+
+  /* =========================================================
+     CARE PLANS
+  ========================================================= */
+  function renderCarePlans() {
+    var plans = window.lcGetCarePlans(currentPatient.id, currentVisitId);
+    var list = $('carePlanList');
+    if (!plans.length) {
+      list.innerHTML = '<div class="empty">No care plans yet</div>';
+      return;
+    }
+    list.innerHTML = plans.map(function (cp) {
+      var isResolved = cp.status === 'Resolved';
+      return '<div class="care-plan-card ' + (isResolved ? 'resolved' : '') + '">' +
+        '<div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">' +
+          '<div>' +
+            '<div class="title">' + esc(cp.diagnosis) + (isResolved ? ' ✅' : '') + '</div>' +
+            (cp.relatedTo ? '<div class="related">Related to: ' + esc(cp.relatedTo) + '</div>' : '') +
+          '</div>' +
+          '<div style="font-size: 10px; color: var(--lc-muted); white-space: nowrap;">' +
+            fmtDate(cp.createdAt) + ' · ' + esc(cp.createdBy) +
+          '</div>' +
+        '</div>' +
+        (cp.goal ? '<div style="margin-top: 6px; font-size: 12px;"><strong>Goal:</strong> ' + esc(cp.goal) + '</div>' : '') +
+        (cp.interventions && cp.interventions.length
+          ? '<div style="font-size: 11px; color: var(--lc-muted); margin-top: 6px;"><strong>Interventions:</strong></div>' +
+            '<ul>' + cp.interventions.map(function (i) { return '<li>' + esc(i) + '</li>'; }).join('') + '</ul>'
+          : '') +
+        (cp.evaluations && cp.evaluations.length
+          ? '<div class="evals">' +
+            cp.evaluations.map(function (ev) {
+              return '<div>' + fmtDate(ev.at) + ' — ' + esc(ev.by) + ': ' + esc(ev.text) + '</div>';
+            }).join('') +
+            '</div>'
+          : '') +
+        (isResolved
+          ? '<div style="margin-top: 8px; font-size: 11px; color: #2B7A4B;">Resolved ' + fmtDate(cp.resolvedAt) + ' — ' + esc(cp.resolvedBy) + '</div>'
+          : '<div style="margin-top: 10px; display: flex; gap: 6px;">' +
+            '<button class="btn btn-sm" onclick="evaluatePlan(\'' + esc(cp.id) + '\')">📝 Evaluate</button>' +
+            '<button class="btn btn-sm btn-success" onclick="resolvePlan(\'' + esc(cp.id) + '\')">✅ Mark Resolved</button>' +
+            '</div>') +
+      '</div>';
+    }).join('');
+  }
+
+  window.openCarePlanModal = function () {
+    var sel = $('cpDiagnosis');
+    var lib = window.lcNursingDiagnoses || [];
+    sel.innerHTML = '<option value="">Select a diagnosis…</option>' +
+      lib.map(function (d) { return '<option value="' + esc(d.id) + '">' + esc(d.label) + '</option>'; }).join('');
+    $('cpRelatedTo').value = '';
+    $('cpGoal').value = '';
+    $('cpInterventionsList').innerHTML = '';
+    $('carePlanModal').style.display = 'flex';
+  };
+  window.closeCarePlanModal = function () {
+    $('carePlanModal').style.display = 'none';
+  };
+
+  window.onCarePlanDiagnosisChange = function () {
+    var sel = $('cpDiagnosis');
+    var lib = window.lcNursingDiagnoses || [];
+    var d = lib.find(function (x) { return x.id === sel.value; });
+    if (!d) return;
+    $('cpRelatedTo').value = d.relatedTo;
+    var list = $('cpInterventionsList');
+    list.innerHTML = '';
+    (d.interventions || []).forEach(function (i) { addInterventionRow(i); });
+  };
+
+  window.addInterventionRow = function (text) {
+    var list = $('cpInterventionsList');
+    var row = document.createElement('div');
+    row.style.cssText = 'display: flex; gap: 6px; align-items: center;';
+    var inp = document.createElement('input');
+    inp.type = 'text';
+    inp.value = text || '';
+    inp.placeholder = 'Intervention…';
+    inp.style.cssText = 'flex: 1; padding: 6px 10px; border: 1px solid var(--lc-border); border-radius: 5px; font-size: 12px;';
+    var rm = document.createElement('button');
+    rm.type = 'button';
+    rm.textContent = '×';
+    rm.style.cssText = 'background: none; border: none; color: #B3261E; cursor: pointer; font-size: 16px;';
+    rm.onclick = function () { row.remove(); };
+    row.appendChild(inp);
+    row.appendChild(rm);
+    list.appendChild(row);
+  };
+
+  window.saveCarePlan = function () {
+    var sel = $('cpDiagnosis');
+    var lib = window.lcNursingDiagnoses || [];
+    var d = lib.find(function (x) { return x.id === sel.value; });
+    var diagnosisText = d ? d.label : sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : '';
+    if (!diagnosisText || !d) { window.lcToast('Select a diagnosis', 'error'); return; }
+
+    var interventions = [];
+    document.querySelectorAll('#cpInterventionsList input').forEach(function (inp) {
+      if (inp.value.trim()) interventions.push(inp.value.trim());
+    });
+
+    var res = window.lcAddCarePlan(currentPatient.id, currentVisitId, {
+      diagnosisId: d.id,
+      diagnosis: diagnosisText,
+      relatedTo: $('cpRelatedTo').value.trim(),
+      goal: $('cpGoal').value.trim(),
+      interventions: interventions
+    });
+    if (!res.ok) { window.lcToast('Save failed: ' + res.error, 'error'); return; }
+
+    closeCarePlanModal();
+    window.lcToast('Care plan saved', 'success');
+    var fresh = JSON.parse(localStorage.getItem('hms_patients_v3') || '[]');
+    currentPatient = fresh.find(function (p) { return p.id === currentPatient.id; });
+    renderCarePlans();
+    renderPatientList();
+  };
+
+  window.evaluatePlan = function (planId) {
+    var text = prompt('Evaluation note (response to interventions):');
+    if (!text || !text.trim()) return;
+    window.lcEvaluateCarePlan(currentPatient.id, planId, text.trim());
+    var fresh = JSON.parse(localStorage.getItem('hms_patients_v3') || '[]');
+    currentPatient = fresh.find(function (p) { return p.id === currentPatient.id; });
+    renderCarePlans();
+    window.lcToast('Evaluation saved', 'success');
+  };
+
+  window.resolvePlan = function (planId) {
+    var reason = prompt('Reason for resolving (goal met?):') || '';
+    window.lcResolveCarePlan(currentPatient.id, planId, reason);
+    var fresh = JSON.parse(localStorage.getItem('hms_patients_v3') || '[]');
+    currentPatient = fresh.find(function (p) { return p.id === currentPatient.id; });
+    renderCarePlans();
+    renderPatientList();
+    window.lcToast('Care plan resolved', 'success');
+  };
+
+  /* =========================================================
+     MAR
+  ========================================================= */
+  function renderMAR() {
+    var el = $('marContent');
+    var p = currentPatient;
+    if (!p.admission || p.admission.status !== 'Admitted') {
+      el.innerHTML = '<div class="alert alert-info">MAR applies to admitted patients only. This patient has no active admission.</div>';
+      return;
+    }
+    var meds = (p.admission.medications || []).filter(function (m) { return m.status === 'Active'; });
+    if (!meds.length) {
+      el.innerHTML = '<div class="empty">No active medications. Doctor prescribes on the ward round.</div>';
+      return;
+    }
+    el.innerHTML = '<div style="font-weight: 700; font-size: 13px; margin-bottom: 8px;">Active Medications</div>' +
+      meds.map(function (m) {
+        var given = (m.administered || []).length;
+        return '<div class="med-row">' +
+          '<div>' +
+            '<div class="drug">' + esc(m.drug) + '</div>' +
+            '<div style="font-size: 11px; color: var(--lc-muted);">' + esc(m.dose) + ' · ' + esc(m.frequency) + ' · ' + esc(m.route) + '</div>' +
+          '</div>' +
+          '<div style="font-size: 11px;">' + esc(m.frequency || '—') + '</div>' +
+          '<div class="time-chip">' + given + ' given</div>' +
+          '<div style="font-size: 11px;">Prescribed ' + fmtDate(m.prescribedAt) + '</div>' +
+          '<div>' +
+            '<button class="btn btn-sm btn-success" onclick="administerMed(\'' + esc(m.id) + '\')">✅ Administer</button>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+  }
+
+  window.administerMed = function (medId) {
+    var note = prompt('Dose given / note (optional):') || '';
+    var res = window.lcNurseAdministerMed(currentPatient.id, medId, { note: note });
+    if (!res.ok) { window.lcToast('Failed: ' + res.error, 'error'); return; }
+    var fresh = JSON.parse(localStorage.getItem('hms_patients_v3') || '[]');
+    currentPatient = fresh.find(function (p) { return p.id === currentPatient.id; });
+    renderMAR();
+    window.lcToast('Medication administered', 'success');
+  };
+
+  /* =========================================================
+     FLUIDS
+  ========================================================= */
+  function renderFluids() {
+    var p = currentPatient;
+    if (!p.admission || p.admission.status !== 'Admitted') {
+      $('fluidSummary').innerHTML = '<div class="alert alert-info">Fluid balance charting applies to admitted patients.</div>';
+      $('fluidList').innerHTML = '';
+      return;
+    }
+    var since = new Date(); since.setHours(0, 0, 0, 0);
+    var sum = window.lcFluidBalanceSummary(currentPatient.id, since.toISOString());
+    if (sum) {
+      $('fluidSummary').innerHTML =
+        '<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px;">' +
+          '<div class="stat-card"><div class="label">Intake today</div><div class="number" style="font-size: 18px; color: #2B7A4B;">' + sum.intake + ' mL</div></div>' +
+          '<div class="stat-card"><div class="label">Output today</div><div class="number" style="font-size: 18px; color: #B3261E;">' + sum.output + ' mL</div></div>' +
+          '<div class="stat-card"><div class="label">Balance</div><div class="number" style="font-size: 18px; color: ' + (sum.balance >= 0 ? '#3A3577' : '#B3261E') + ';">' + (sum.balance >= 0 ? '+' : '') + sum.balance + ' mL</div></div>' +
+        '</div>';
+    }
+    var entries = (p.admission.fluidBalance || []).slice().reverse().slice(0, 30);
+    if (!entries.length) {
+      $('fluidList').innerHTML = '<div class="empty">No fluid entries yet</div>';
+      return;
+    }
+    $('fluidList').innerHTML = '<div style="font-weight: 700; font-size: 12px; margin-bottom: 6px;">Recent entries</div>' +
+      entries.map(function (e) {
+        var color = e.type === 'Intake' ? '#2B7A4B' : '#B3261E';
+        return '<div class="note-row">' +
+          '<span style="color: ' + color + '; font-weight: 700;">' + esc(e.type) + '</span> ' +
+          '<strong>' + e.amount + ' mL</strong> — ' + esc(e.description || '') +
+          '<div class="meta">' + fmtDate(e.at) + ' · ' + esc(e.by) + '</div>' +
+          '</div>';
+      }).join('');
+  }
+
+  window.saveFluid = function () {
+    var amount = Number($('fluidAmount').value);
+    if (!amount || amount <= 0) { window.lcToast('Enter a positive amount', 'error'); return; }
+    var res = window.lcRecordFluidBalance(currentPatient.id, {
+      type: $('fluidType').value,
+      amount: amount,
+      description: $('fluidDesc').value
+    });
+    if (!res.ok) { window.lcToast('Failed: ' + res.error, 'error'); return; }
+    $('fluidAmount').value = '';
+    $('fluidDesc').value = '';
+    var fresh = JSON.parse(localStorage.getItem('hms_patients_v3') || '[]');
+    currentPatient = fresh.find(function (p) { return p.id === currentPatient.id; });
+    renderFluids();
+    window.lcToast('Fluid recorded', 'success');
+  };
+
+  /* =========================================================
+     NOTES
+  ========================================================= */
+  function renderNotes() {
+    var notes = window.lcGetNursingNotes(currentPatient.id, currentVisitId);
+    if (!notes.length) {
+      $('notesList').innerHTML = '<div class="empty">No nursing notes yet</div>';
+      return;
+    }
+    $('notesList').innerHTML = notes.map(function (n) {
+      return '<div class="note-row">' +
+        '<div style="font-size: 11px; color: var(--lc-blue); font-weight: 700;">' + esc(n.category || 'General') + '</div>' +
+        '<div style="margin-top: 2px;">' + esc(n.text) + '</div>' +
+        '<div class="meta">' + fmtDate(n.at) + ' · ' + esc(n.by) + '</div>' +
+        '</div>';
+    }).join('');
+  }
+
+  window.saveNote = function () {
+    var text = $('noteText').value.trim();
+    if (!text) { window.lcToast('Enter a note', 'warning'); return; }
+    var res = window.lcAddNursingNote(currentPatient.id, currentVisitId, {
+      category: $('noteCategory').value,
+      text: text
+    });
+    if (!res.ok) { window.lcToast('Failed: ' + res.error, 'error'); return; }
+    $('noteText').value = '';
+    var fresh = JSON.parse(localStorage.getItem('hms_patients_v3') || '[]');
+    currentPatient = fresh.find(function (p) { return p.id === currentPatient.id; });
+    renderNotes();
+    window.lcToast('Note added', 'success');
+  };
+
+  /* =========================================================
+     SBAR
+  ========================================================= */
+  function renderSBAR() {
+    var p = currentPatient;
+    if (!p.admission || p.admission.status !== 'Admitted') {
+      $('sbarList').innerHTML = '<div class="alert alert-info">SBAR handover is for admitted patients.</div>';
+      return;
+    }
+    var handovers = window.lcGetSBARs(currentPatient.id);
+    if (!handovers.length) {
+      $('sbarList').innerHTML = '<div class="empty">No handovers recorded yet</div>';
+      return;
+    }
+    $('sbarList').innerHTML = handovers.map(function (h) {
+      return '<div class="care-plan-card">' +
+        '<div style="font-size: 11px; color: var(--lc-muted);">' + fmtDate(h.at) + ' · ' + esc(h.by) + '</div>' +
+        '<div style="margin-top: 6px; font-size: 12px;">' +
+          '<div><strong>S:</strong> ' + esc(h.situation) + '</div>' +
+          '<div><strong>B:</strong> ' + esc(h.background) + '</div>' +
+          '<div><strong>A:</strong> ' + esc(h.assessment) + '</div>' +
+          '<div><strong>R:</strong> ' + esc(h.recommendation) + '</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  window.saveSBAR = function () {
+    var sbar = {
+      situation: $('sbarS').value.trim(),
+      background: $('sbarB').value.trim(),
+      assessment: $('sbarA').value.trim(),
+      recommendation: $('sbarR').value.trim()
+    };
+    if (!sbar.situation && !sbar.background && !sbar.assessment && !sbar.recommendation) {
+      window.lcToast('Fill at least one SBAR field', 'warning');
+      return;
+    }
+    var res = window.lcSaveSBAR(currentPatient.id, sbar);
+    if (!res.ok) { window.lcToast('Failed: ' + res.error, 'error'); return; }
+    $('sbarS').value = ''; $('sbarB').value = ''; $('sbarA').value = ''; $('sbarR').value = '';
+    var fresh = JSON.parse(localStorage.getItem('hms_patients_v3') || '[]');
+    currentPatient = fresh.find(function (p) { return p.id === currentPatient.id; });
+    renderSBAR();
+    window.lcToast('Handover saved', 'success');
+  };
+
+  /* =========================================================
+     FILTER
+  ========================================================= */
+  window.setFilter = function (f) {
+    currentFilter = f;
+    document.querySelectorAll('[data-filter]').forEach(function (b) {
+      b.classList.toggle('btn-primary', b.dataset.filter === f);
+    });
+    renderPatientList();
+  };
+
+  /* =========================================================
+     INIT
+  ========================================================= */
+  function loadAll() {
+    renderPatientList();
+    if (currentPatient) {
+      var fresh = JSON.parse(localStorage.getItem('hms_patients_v3') || '[]');
+      var p = fresh.find(function (x) { return x.id === currentPatient.id; });
+      if (p) currentPatient = p;
+      renderCurrentTab();
+    }
+  }
+  window.loadAll = loadAll;
+
+  loadAll();
+  setInterval(loadAll, 30000);
+
+  console.log('🩺 Nursing Station ready');
+})();
+</script>
+<script src="shared/labcore-scan.js"></script>
+</body>
+</html>

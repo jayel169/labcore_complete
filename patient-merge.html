@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Patient Merge | LabCore</title>
+<link rel="stylesheet" href="shared/labcore-nav.css">
+<style>
+.pm-card {
+  background: #fff;
+  border: 1px solid var(--lc-border);
+  border-radius: 10px;
+  padding: 22px 24px;
+  margin-bottom: 18px;
+}
+.pm-card h2 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+.pm-card .sub { font-size: 12px; color: var(--lc-text-muted); margin-bottom: 18px; }
+
+.pm-search-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+@media (max-width: 900px) { .pm-search-grid { grid-template-columns: 1fr; } }
+
+.pm-slot {
+  border: 1px solid var(--lc-border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  background: var(--lc-surface-2);
+  min-height: 170px;
+}
+.pm-slot.target { border-left: 4px solid var(--lc-success); }
+.pm-slot.source { border-left: 4px solid var(--lc-danger); }
+.pm-slot h3 {
+  font-size: 11px;
+  font-weight: 700;
+  
+  
+  color: var(--lc-text-subtle);
+  margin-bottom: 8px;
+}
+.pm-slot .pname { font-size: 15px; font-weight: 700; }
+.pm-slot .pmeta { font-size: 12px; color: var(--lc-text-muted); margin-top: 2px; }
+.pm-slot .pempty { font-size: 12px; color: var(--lc-text-subtle); font-style: italic; padding: 20px 0; text-align: center; }
+.pm-slot .actions { margin-top: 12px; display: flex; gap: 6px; }
+
+.pm-picker { position: relative; margin-bottom: 8px; }
+.pm-picker input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--lc-border-strong);
+  border-radius: var(--lc-radius);
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--lc-text);
+  background: var(--lc-surface);
+}
+.pm-picker input:focus {
+  outline: none;
+  border-color: var(--lc-brand-accent);
+  box-shadow: 0 0 0 3px rgba(58,53,119,0.15);
+}
+.pm-picker-list {
+  position: absolute;
+  top: 100%; left: 0; right: 0;
+  background: #fff;
+  border: 1px solid var(--lc-border-strong);
+  border-top: none;
+  border-radius: 0 0 var(--lc-radius) var(--lc-radius);
+  max-height: 240px;
+  overflow-y: auto;
+  z-index: 30;
+  display: none;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+}
+.pm-picker-list.show { display: block; }
+.pm-picker-item {
+  padding: 10px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--lc-rule);
+}
+.pm-picker-item:last-child { border-bottom: none; }
+.pm-picker-item:hover { background: var(--lc-surface-2); }
+.pm-picker-item .id { font-size: 11px; color: var(--lc-text-subtle); margin-left: 6px; }
+
+.pm-preview {
+  background: #F8F7FB;
+  border: 1px solid var(--lc-border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  font-size: 12px;
+  margin-top: 12px;
+}
+.pm-preview table { width: 100%; border-collapse: collapse; }
+.pm-preview td { padding: 5px 0; border-bottom: 1px solid var(--lc-rule); vertical-align: top; }
+.pm-preview td:first-child { width: 180px; color: var(--lc-text-muted); }
+.pm-preview tr:last-child td { border-bottom: none; }
+
+.pm-merge-btn {
+  display: block;
+  width: 100%;
+  padding: 14px;
+  margin-top: 12px;
+  background: var(--lc-danger);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  
+  cursor: pointer;
+}
+.pm-merge-btn:hover { background: #8F1C1C; }
+.pm-merge-btn:disabled { background: var(--lc-border-strong); cursor: not-allowed; }
+
+.pm-history {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.pm-history th {
+  text-align: left;
+  padding: 10px 12px;
+  background: var(--lc-surface-2);
+  font-size: 10px;
+  font-weight: 700;
+  
+  
+  color: var(--lc-text-muted);
+  border-bottom: 2px solid var(--lc-border);
+}
+.pm-history td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--lc-rule);
+  vertical-align: top;
+}
+.pm-history .empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--lc-text-subtle);
+  font-size: 12px;
+}
+</style>
+</head>
+<body>
+
+<aside class="sidebar"></aside>
+<button class="lc-mobile-toggle" aria-label="Menu">☰</button>
+<div class="lc-sidebar-overlay"></div>
+
+<div class="main">
+  <div class="lc-top-header">
+    <div>
+      <div class="lc-page-eyebrow">Patients</div>
+      <h1>Merge Patient Records</h1>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <button class="btn btn-sm lc-btn-outline" onclick="window.location.href='patient-registration.html'">← Back to patients</button>
+    </div>
+  </div>
+
+  <div class="lc-content">
+
+    <div id="pageAlert"></div>
+
+    <div class="pm-card">
+      <h2>How this works</h2>
+      <div class="sub">
+        Pick a <strong>target</strong> (the record you keep) and a <strong>source</strong> (the duplicate you want to fold into it).
+        All encounters, orders, admissions, vitals, nursing notes, and handovers from the source are appended onto the target.
+        The source record is <strong>kept</strong> and marked as merged, so nothing is lost.
+        Every merge can be undone from the history section below.
+      </div>
+    </div>
+
+    <div class="pm-card">
+      <h2>Choose the two patients</h2>
+      <div class="sub">Search by name, patient ID, mobile, or national ID.</div>
+
+      <div class="pm-search-grid">
+
+        <div>
+          <div class="pm-slot target">
+            <h3>Target — kept as the surviving record</h3>
+            <div id="targetSlot"></div>
+            <div class="pm-picker">
+              <input type="text" id="targetSearch" placeholder="Search for the target patient…" oninput="searchSlot('target')">
+              <div class="pm-picker-list" id="targetList"></div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="pm-slot source">
+            <h3>Source — will be merged into target</h3>
+            <div id="sourceSlot"></div>
+            <div class="pm-picker">
+              <input type="text" id="sourceSearch" placeholder="Search for the source patient…" oninput="searchSlot('source')">
+              <div class="pm-picker-list" id="sourceList"></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div id="mergePreview"></div>
+
+      <div>
+        <label style="display:block;font-size:11px;font-weight:600;color:var(--lc-text-muted);margin:14px 0 5px;">
+          Reason (optional, logged to audit)
+        </label>
+        <input type="text" id="mergeReason" placeholder="e.g. duplicate registration on 2026-08-20"
+               style="width:100%;padding:10px 12px;border:1px solid var(--lc-border-strong);border-radius:var(--lc-radius);font-size:13px;font-family:inherit;color:var(--lc-text);background:#fff;">
+      </div>
+
+      <button class="pm-merge-btn" id="mergeBtn" disabled onclick="confirmMerge()">
+        ⚠ Merge source into target
+      </button>
+    </div>
+
+    <div class="pm-card">
+      <h2>Recent merges &amp; undo</h2>
+      <div class="sub">Every merge can be undone. Restoring reverts both records to their exact pre-merge state.</div>
+      <div style="overflow-x:auto">
+        <table class="pm-history">
+          <thead>
+            <tr>
+              <th>When</th>
+              <th>By</th>
+              <th>Source</th>
+              <th>Target</th>
+              <th>Reason</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="mergeHistory">
+            <tr><td colspan="6"><div class="empty">Loading…</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+<script src="shared/labcore-api.js"></script>
+<script src="shared/labcore-utils.js"></script>
+<script src="shared/labcore-ward.js"></script>
+<script src="shared/labcore-auth.js"></script>
+<script src="shared/labcore-staff.js"></script>
+<script src="shared/labcore-audit.js"></script>
+<script src="shared/labcore-settings.js"></script>
+<script src="shared/labcore-merge.js"></script>
+<script src="shared/labcore-icons.js"></script>
+<script src="shared/labcore-nav.js"></script>
+<script src="shared/labcore-search.js"></script>
+<script src="shared/labcore-notifications.js"></script>
+
+<script>
+(function () {
+  'use strict';
+
+  var user = window.lcRequireAuth ? window.lcRequireAuth() : null;
+  if (!user) return;
+  if (user.id !== 'admin' && user.id !== 'receptionist') {
+    if (window.lcToast) window.lcToast('You cannot access patient merge', 'warning');
+    window.location.href = 'dashboard.html';
+    return;
+  }
+
+  var targetPatient = null;
+  var sourcePatient = null;
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function showAlert(msg, type) {
+    var el = $('pageAlert');
+    var cls = type === 'error' ? 'lc-alert-danger'
+            : type === 'warning' ? 'lc-alert-warning'
+            : type === 'info' ? 'lc-alert-info'
+            : 'lc-alert-success';
+    el.innerHTML = '<div class="lc-alert ' + cls + '">' + esc(msg) + '</div>';
+    setTimeout(function () { el.innerHTML = ''; }, 6000);
+  }
+
+  function loadPatients() {
+    try { return JSON.parse(localStorage.getItem('hms_patients_v3') || '[]'); }
+    catch (e) { return []; }
+  }
+
+  function ageFromDob(dob) {
+    if (!dob) return '—';
+    var b = new Date(dob), t = new Date();
+    if (isNaN(b.getTime())) return '—';
+    var a = t.getFullYear() - b.getFullYear();
+    var m = t.getMonth() - b.getMonth();
+    if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--;
+    return a + ' yrs';
+  }
+
+  function countData(p) {
+    var encounters = (p.encounters || []).length;
+    var orders = 0;
+    (p.encounters || []).forEach(function (e) { orders += (e.orders || []).length; });
+    var vitals = p.admission && p.admission.vitals ? p.admission.vitals.length : 0;
+    return { encounters: encounters, orders: orders, vitals: vitals };
+  }
+
+  function renderSlot(side) {
+    var p = side === 'target' ? targetPatient : sourcePatient;
+    var host = $((side === 'target' ? 'target' : 'source') + 'Slot');
+    if (!p) {
+      host.innerHTML = '<div class="pempty">Not selected</div>';
+      return;
+    }
+    var c = countData(p);
+    host.innerHTML =
+      '<div class="pname">' + esc(p.fullName) + '</div>' +
+      '<div class="pmeta">' + esc(p.id) + ' · ' + esc(p.sex || '—') + ' · ' + ageFromDob(p.dob) + '</div>' +
+      '<div class="pmeta">Mobile: ' + esc(p.mobile || '—') + '</div>' +
+      '<div class="pmeta" style="margin-top:6px">' +
+        c.encounters + ' encounter(s) · ' + c.orders + ' order(s)' +
+        (c.vitals ? ' · ' + c.vitals + ' vitals' : '') +
+      '</div>' +
+      '<div class="actions">' +
+        '<button class="btn btn-sm lc-btn-outline" onclick="clearSlot(\'' + side + '\')">Clear</button>' +
+      '</div>';
+  }
+
+  window.clearSlot = function (side) {
+    if (side === 'target') targetPatient = null;
+    else sourcePatient = null;
+    renderSlot(side);
+    renderPreview();
+  };
+
+  window.searchSlot = function (side) {
+    var input = $(side + 'Search');
+    var list = $(side + 'List');
+    var q = (input.value || '').trim().toLowerCase();
+    if (q.length < 2) {
+      list.classList.remove('show');
+      return;
+    }
+    var patients = loadPatients().filter(function (p) {
+      if (p.status === 'merged') return false;
+      return (p.fullName || '').toLowerCase().indexOf(q) >= 0 ||
+             (p.id || '').toLowerCase().indexOf(q) >= 0 ||
+             (p.mobile || '').toLowerCase().indexOf(q) >= 0 ||
+             (p.nationalId || '').toLowerCase().indexOf(q) >= 0;
+    }).slice(0, 15);
+
+    if (!patients.length) {
+      list.innerHTML = '<div class="pm-picker-item" style="color:var(--lc-text-subtle);font-style:italic">No matches</div>';
+    } else {
+      list.innerHTML = patients.map(function (p) {
+        return '<div class="pm-picker-item" onclick="pickPatient(\'' + side + '\',\'' + esc(p.id) + '\')">' +
+          esc(p.fullName) + '<span class="id">' + esc(p.id) + '</span>' +
+        '</div>';
+      }).join('');
+    }
+    list.classList.add('show');
+  };
+
+  window.pickPatient = function (side, id) {
+    var p = loadPatients().find(function (x) { return x.id === id; });
+    if (!p) return;
+    if (side === 'target') targetPatient = p;
+    else sourcePatient = p;
+    $(side + 'Search').value = '';
+    $(side + 'List').classList.remove('show');
+    renderSlot(side);
+    renderPreview();
+  };
+
+  document.addEventListener('click', function (e) {
+    ['target', 'source'].forEach(function (side) {
+      var input = $(side + 'Search');
+      var list = $(side + 'List');
+      if (!input.contains(e.target) && !list.contains(e.target)) list.classList.remove('show');
+    });
+  });
+
+  function renderPreview() {
+    var host = $('mergePreview');
+    var btn = $('mergeBtn');
+
+    if (!targetPatient || !sourcePatient) {
+      host.innerHTML = '';
+      btn.disabled = true;
+      return;
+    }
+    if (targetPatient.id === sourcePatient.id) {
+      host.innerHTML = '<div class="lc-alert lc-alert-danger">Target and source cannot be the same patient.</div>';
+      btn.disabled = true;
+      return;
+    }
+
+    var t = countData(targetPatient);
+    var s = countData(sourcePatient);
+
+    host.innerHTML =
+      '<div class="pm-preview">' +
+        '<table>' +
+          '<tr><td>Target</td><td><strong>' + esc(targetPatient.fullName) + '</strong> (' + esc(targetPatient.id) + ')</td></tr>' +
+          '<tr><td>Source</td><td><strong>' + esc(sourcePatient.fullName) + '</strong> (' + esc(sourcePatient.id) + ')</td></tr>' +
+          '<tr><td>Encounters added to target</td><td>' + s.encounters + ' (target currently has ' + t.encounters + ')</td></tr>' +
+          '<tr><td>Orders added to target</td><td>' + s.orders + '</td></tr>' +
+          '<tr><td>Vitals added (if admission present)</td><td>' + s.vitals + '</td></tr>' +
+          '<tr><td>Source after merge</td><td>marked <em>merged</em>, pointing at ' + esc(targetPatient.id) + '</td></tr>' +
+        '</table>' +
+      '</div>';
+    btn.disabled = false;
+  }
+
+  window.confirmMerge = function () {
+    if (!targetPatient || !sourcePatient) return;
+    var reason = ($('mergeReason').value || '').trim();
+
+    var msg =
+      'Merge ' + sourcePatient.fullName + ' (' + sourcePatient.id + ')\n' +
+      '      into ' + targetPatient.fullName + ' (' + targetPatient.id + ')\n\n' +
+      'All encounters, orders, and admission data from the source will be appended to the target.\n' +
+      'The source record will be kept and marked as merged.\n\n' +
+      'You can undo this from the history section.\n\nContinue?';
+
+    if (!confirm(msg)) return;
+
+    var res = window.lcMergePatient(sourcePatient.id, targetPatient.id, { reason: reason });
+    if (!res.ok) {
+      showAlert('Merge failed: ' + res.error, 'error');
+      return;
+    }
+    showAlert('Merged. Undo ID: ' + res.undoId, 'success');
+    if (window.lcToast) window.lcToast('Patient merged successfully', 'success');
+
+    targetPatient = null;
+    sourcePatient = null;
+    $('targetSearch').value = '';
+    $('sourceSearch').value = '';
+    $('mergeReason').value = '';
+    renderSlot('target');
+    renderSlot('source');
+    renderPreview();
+    renderHistory();
+  };
+
+  window.undoMerge = function (undoId) {
+    if (!confirm('Undo this merge? Both records will be restored exactly as they were before.')) return;
+    var res = window.lcUnmergePatient(undoId);
+    if (!res.ok) {
+      showAlert('Undo failed: ' + res.error, 'error');
+      return;
+    }
+    if (window.lcToast) window.lcToast('Merge undone', 'success');
+    renderHistory();
+  };
+
+  function renderHistory() {
+    var list = window.lcListMerges ? window.lcListMerges() : [];
+    var tbody = $('mergeHistory');
+    if (!list.length) {
+      tbody.innerHTML = '<tr><td colspan="6"><div class="empty">No merges recorded yet.</div></td></tr>';
+      return;
+    }
+    tbody.innerHTML = list.map(function (u) {
+      var srcName = (u.sourceSnapshot && u.sourceSnapshot.fullName) || u.sourceId;
+      var tgtName = (u.targetSnapshot && u.targetSnapshot.fullName) || u.targetId;
+      return '<tr>' +
+        '<td>' + esc(new Date(u.at).toLocaleString()) + '</td>' +
+        '<td>' + esc(u.by || '—') + '</td>' +
+        '<td>' + esc(srcName) + '<div style="font-size:11px;color:var(--lc-text-subtle)">' + esc(u.sourceId) + '</div></td>' +
+        '<td>' + esc(tgtName) + '<div style="font-size:11px;color:var(--lc-text-subtle)">' + esc(u.targetId) + '</div></td>' +
+        '<td>' + esc(u.reason || '—') + '</td>' +
+        '<td><button class="btn btn-sm lc-btn-danger" onclick="undoMerge(\'' + esc(u.id) + '\')">↺ Undo</button></td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  renderSlot('target');
+  renderSlot('source');
+  renderPreview();
+  renderHistory();
+
+  console.log('🔀 Patient merge page ready');
+})();
+</script>
+</body>
+</html>

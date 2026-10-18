@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ward Board | LabCore</title>
+<link rel="stylesheet" href="shared/labcore-nav.css">
+<style>
+
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family: var(--lc-font);background:var(--lc-bg);color:var(--lc-text)}
+.main{margin-left:245px;min-height:100vh;padding:24px 28px}
+.topbar{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;flex-wrap:wrap;gap:12px}
+.topbar h1{font-size:22px}
+.topbar p{font-size:13px;color:var(--lc-muted);margin-top:4px}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap}
+.btn{padding:8px 14px;border-radius:6px;border:1px solid var(--lc-border);background:#fff;cursor:pointer;font-size:12px;font-weight:600;transition:.2s;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{background:var(--lc-bg);transform:translateY(-1px);box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.btn-primary{background:var(--lc-blue);border-color:var(--lc-blue);color:#fff}
+.btn-primary:hover{background:#2A2656}
+.btn-sm{padding:5px 10px;font-size:11px}
+
+.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+.sum-card{background:#fff;border:1px solid var(--lc-border);border-radius:10px;padding:14px}
+.sum-card .label{font-size:10px;color:var(--lc-muted);}
+.sum-card .number{font-size:24px;font-weight:700;margin-top:4px}
+
+.filter-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center}
+.filter-row input,.filter-row select{padding:7px 12px;border:1px solid var(--lc-border);border-radius:6px;font-size:12px;background:#fff;color:var(--lc-text)}
+.filter-row input[type=text]{min-width:220px}
+.filter-row input:focus,.filter-row select:focus{outline:none;border-color:var(--lc-blue);box-shadow:0 0 0 3px rgba(58,53,119,.15)}
+
+.ward-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-bottom:22px}
+.ward-card{background:#fff;border:1px solid var(--lc-border);border-left:4px solid var(--lc-blue);border-radius:10px;padding:14px;cursor:pointer;transition:.2s}
+.ward-card:hover{box-shadow:0 2px 12px rgba(0,0,0,.08);transform:translateY(-2px)}
+.ward-card.high{border-left-color:var(--lc-warning)}
+.ward-card.full{border-left-color:var(--lc-red)}
+.ward-card.empty{border-left-color:#c0c5c0;opacity:.7}
+.ward-card .ward-name{font-size:14px;font-weight:700}
+.ward-card .ward-type{font-size:11px;color:var(--lc-muted);margin-top:2px}
+.ward-card .occupancy{display:flex;justify-content:space-between;align-items:baseline;margin-top:8px;font-size:12px}
+.ward-card .bar{height:6px;background:#EFEDF4;border-radius:3px;margin-top:6px;overflow:hidden}
+.ward-card .bar-fill{height:100%;background:var(--lc-blue);transition:width .3s}
+.ward-card.high .bar-fill{background:var(--lc-warning)}
+.ward-card.full .bar-fill{background:var(--lc-red)}
+
+.card{background:#fff;border:1px solid var(--lc-border);border-radius:10px;overflow:hidden;margin-bottom:18px}
+.card-head{padding:14px 18px;border-bottom:1px solid var(--lc-border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;font-weight:600;font-size:14px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;padding:10px 12px;background:#F8F7FB;font-size:10px;color:#5F5B75;border-bottom:1px solid var(--lc-border)}
+td{padding:11px 12px;border-bottom:1px solid #eee;vertical-align:middle}
+tr:hover{background:#F8F7FB}
+
+.badge{display:inline-block;padding:3px 8px;border-radius:10px;font-size:10px;font-weight:700}
+.badge-waiting{background:#f1e3c2;color:#775d18}
+.badge-admitted{background:#E5F1EA;color:#2B7A4B}
+.badge-dis{background:#EFEDF4;color:#5F5B75}
+.badge-critical{background:#FBE9E7;color:#8C1C16}
+.triage-chip{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;color:#fff}
+
+.empty{padding:40px;text-align:center;color:var(--lc-muted);font-size:13px}
+
+@media (max-width:1000px){.summary{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:900px){.main{margin-left:0;padding-top:70px}}
+@media (max-width:600px){.summary{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<aside class="sidebar"></aside>
+<button class="lc-mobile-toggle" aria-label="Menu">☰</button>
+<div class="lc-sidebar-overlay"></div>
+
+<div class="main">
+  <div class="topbar">
+    <div>
+      <h1>🛏️ Ward Board</h1>
+      <p id="boardSub">Live occupancy · bed board · triage · admissions</p>
+    </div>
+    <div class="toolbar">
+      <button class="btn btn-sm" onclick="refreshAll()">🔄 Refresh</button>
+      <button class="btn btn-sm btn-primary" onclick="exportCensus()">📊 Export census</button>
+    </div>
+  </div>
+
+  <div class="summary">
+    <div class="sum-card"><div class="label">Total beds</div><div class="number" id="sBeds">0</div></div>
+    <div class="sum-card"><div class="label">Occupied</div><div class="number" id="sOcc" style="color:var(--lc-blue)">0</div></div>
+    <div class="sum-card"><div class="label">Available</div><div class="number" id="sAvail" style="color:var(--lc-green)">0</div></div>
+    <div class="sum-card"><div class="label">Critical / ICU</div><div class="number" id="sCrit" style="color:var(--lc-red)">0</div></div>
+  </div>
+
+  <div class="filter-row">
+    <input type="text" id="filterQ" placeholder="Search patient, ID, bed…" oninput="renderAll()">
+    <select id="filterWard" onchange="renderAll()"><option value="">All wards</option></select>
+    <select id="filterStatus" onchange="renderAll()">
+      <option value="admitted">Admitted only</option>
+      <option value="all">All admissions</option>
+      <option value="triage">Triage only</option>
+    </select>
+  </div>
+
+  <div class="ward-grid" id="wardGrid"></div>
+
+  <div class="card">
+    <div class="card-head">
+      <span>Admitted patients</span>
+      <span id="listCount" style="font-size:11px;color:var(--lc-muted)"></span>
+    </div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>Patient</th>
+            <th>Ward / Bed</th>
+            <th>Admitted</th>
+            <th>Attending</th>
+            <th>Diagnosis</th>
+            <th>Latest vitals</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="bedBody"><tr><td colspan="7" class="empty">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <span>🚨 Emergency triage</span>
+      <span id="triageCount" style="font-size:11px;color:var(--lc-muted)"></span>
+    </div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr><th>Triage</th><th>Patient</th><th>Complaint</th><th>Arrived</th><th>Wait</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="triageBody"><tr><td colspan="6" class="empty">No active triage</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<script src="shared/labcore-api.js"></script>
+<script src="shared/labcore-utils.js"></script>
+<script src="shared/labcore-ward.js"></script>
+<script src="shared/labcore-nursing.js"></script>
+<script src="shared/labcore-auth.js"></script>
+<script src="shared/labcore-staff.js"></script>   <!-- NEW -->
+<script src="shared/labcore-audit.js"></script>
+<script src="shared/labcore-icons.js"></script>
+<script src="shared/labcore-nav.js"></script>
+<script src="shared/labcore-search.js"></script>
+<script src="shared/labcore-notifications.js"></script>
+<script>
+(function(){
+  'use strict';
+  if (window.lcRequireAuth) window.lcRequireAuth();
+
+  function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+  function loadPatients(){try{return JSON.parse(localStorage.getItem('hms_patients_v3')||'[]');}catch(e){return[];}}
+  function timeAgo(iso){var s=Math.floor((Date.now()-new Date(iso).getTime())/1000);if(s<60)return s+'s ago';if(s<3600)return Math.floor(s/60)+'m ago';if(s<86400)return Math.floor(s/3600)+'h ago';return Math.floor(s/86400)+'d ago';}
+  function fmtDate(iso){if(!iso)return'—';return new Date(iso).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});}
+
+  function populateWardFilter(){
+    var sel=document.getElementById('filterWard');
+    var wards=(window.lcWardCatalogue&&window.lcWardCatalogue.wards)||[];
+    sel.innerHTML='<option value="">All wards</option>'+wards.map(function(w){return'<option value="'+w.id+'">'+esc(w.name)+'</option>';}).join('');
+  }
+
+  function renderSummary(){
+    var patients=loadPatients();
+    var wards=(window.lcWardCatalogue&&window.lcWardCatalogue.wards)||[];
+    var totalBeds=wards.reduce(function(s,w){return s+(w.beds||0);},0);
+    var occ={}; wards.forEach(function(w){occ[w.id]=0;});
+    var critCount=0;
+    patients.forEach(function(p){
+      if(!p.admission||p.admission.status!=='Admitted')return;
+      var wid=p.admission.wardId;
+      if(!wid){
+        var m=wards.find(function(w){return w.name===p.admission.ward;});
+        wid=m?m.id:null;
+      }
+      if(wid&&occ[wid]!=null)occ[wid]++;
+      if(['ICU','HDU'].indexOf(p.admission.locationType)>=0||
+         (p.admission.wardId&&['icu','hdu'].indexOf(p.admission.wardId)>=0))critCount++;
+    });
+    var occupied=Object.values(occ).reduce(function(a,b){return a+b;},0);
+    document.getElementById('sBeds').textContent=totalBeds;
+    document.getElementById('sOcc').textContent=occupied;
+    document.getElementById('sAvail').textContent=Math.max(0,totalBeds-occupied);
+    document.getElementById('sCrit').textContent=critCount;
+  }
+
+  function renderWardGrid(){
+    var patients=loadPatients();
+    var wards=(window.lcWardCatalogue&&window.lcWardCatalogue.wards)||[];
+    var occ={}; wards.forEach(function(w){occ[w.id]=0;});
+    patients.forEach(function(p){
+      if(!p.admission||p.admission.status!=='Admitted')return;
+      var wid=p.admission.wardId;
+      if(!wid){
+        var m=wards.find(function(w){return w.name===p.admission.ward;});
+        wid=m?m.id:null;
+      }
+      if(wid&&occ[wid]!=null)occ[wid]++;
+    });
+    document.getElementById('wardGrid').innerHTML=wards.map(function(w){
+      var used=occ[w.id]||0;
+      var pct=w.beds?Math.round(used*100/w.beds):0;
+      var cls=pct>=90?'full':pct>=70?'high':(used===0?'empty':'');
+      return '<div class="ward-card '+cls+'" onclick="document.getElementById(\'filterWard\').value=\''+w.id+'\';renderAll();">'+
+        '<div class="ward-name">'+esc(w.name)+'</div>'+
+        '<div class="ward-type">'+esc(w.type)+' · '+w.beds+' beds</div>'+
+        '<div class="occupancy"><span>'+used+' / '+w.beds+'</span><strong>'+pct+'%</strong></div>'+
+        '<div class="bar"><div class="bar-fill" style="width:'+pct+'%"></div></div>'+
+      '</div>';
+    }).join('');
+  }
+
+  function renderBedBoard(){
+    var patients=loadPatients();
+    var q=(document.getElementById('filterQ').value||'').toLowerCase().trim();
+    var wardF=document.getElementById('filterWard').value;
+    var statusF=document.getElementById('filterStatus').value;
+
+    var rows=[];
+    patients.forEach(function(p){
+      if(!p.admission)return;
+      if(statusF==='admitted'&&p.admission.status!=='Admitted')return;
+      if(statusF==='triage')return;
+      if(wardF){
+        var wid=p.admission.wardId;
+        if(!wid){
+          var wards=(window.lcWardCatalogue&&window.lcWardCatalogue.wards)||[];
+          var m=wards.find(function(w){return w.name===p.admission.ward;});
+          wid=m?m.id:null;
+        }
+        if(wid!==wardF)return;
+      }
+      if(q){
+        var blob=(p.fullName+' '+p.id+' '+(p.admission.bed||'')+' '+(p.admission.ward||'')).toLowerCase();
+        if(blob.indexOf(q)<0)return;
+      }
+      rows.push({patient:p,adm:p.admission});
+    });
+
+    rows.sort(function(a,b){return String(b.adm.admittedAt).localeCompare(String(a.adm.admittedAt));});
+    document.getElementById('listCount').textContent=rows.length+' patient(s)';
+
+    var body=document.getElementById('bedBody');
+    if(!rows.length){body.innerHTML='<tr><td colspan="7" class="empty">No admissions match the filter</td></tr>';return;}
+
+    body.innerHTML=rows.map(function(r){
+      var p=r.patient,adm=r.adm;
+      var latest=(adm.vitals||[]).slice(-1)[0];
+      var vitals='—';
+      if(latest){
+        vitals='BP '+(latest.bpSys||'—')+'/'+(latest.bpDia||'—')+
+          ' · HR '+(latest.hr||'—')+
+          ' · T '+(latest.temp?latest.temp+'°':'—')+
+          '<div style="font-size:10px;color:#5F5B75">'+timeAgo(latest.at)+' by '+esc(latest.by)+'</div>';
+      }
+      var statusBadge=adm.status==='Admitted'
+        ?'<span class="badge badge-admitted">Admitted</span>'
+        :'<span class="badge badge-dis">'+esc(adm.status)+'</span>';
+      return '<tr>'+
+        '<td><strong>'+esc(p.fullName)+'</strong> '+statusBadge+
+        '<div style="font-size:10px;color:#5F5B75">'+esc(p.id)+' · '+esc(p.sex||'')+'</div></td>'+
+        '<td>'+esc(adm.ward||'—')+'<div style="font-size:10px;color:#5F5B75">Bed '+esc(adm.bed||'—')+'</div></td>'+
+        '<td>'+fmtDate(adm.admittedAt)+'</td>'+
+        '<td>'+esc(adm.attendingDoctor||'—')+'</td>'+
+        '<td>'+esc(adm.admissionDiagnosis||'—')+'</td>'+
+        '<td style="font-size:11px">'+vitals+'</td>'+
+        '<td>'+
+          '<button class="btn btn-sm" onclick="window.location.href=\'nursing-station.html\'">🩺 Chart</button> '+
+          '<button class="btn btn-sm btn-primary" onclick="window.location.href=\'consultation.html\'">👨‍⚕️ Round</button>'+
+        '</td>'+
+      '</tr>';
+    }).join('');
+  }
+
+  function renderTriage(){
+    var patients=loadPatients();
+    var rows=[];
+    patients.forEach(function(p){
+      (p.encounters||[]).forEach(function(e){
+        if(e.locationType!=='Emergency')return;
+        if(e.status==='Completed')return;
+        rows.push({patient:p,enc:e});
+      });
+    });
+    rows.sort(function(a,b){
+      var la=a.enc.triageLevel||9,lb=b.enc.triageLevel||9;
+      if(la!==lb)return la-lb;
+      return String(a.enc.createdAt).localeCompare(String(b.enc.createdAt));
+    });
+    document.getElementById('triageCount').textContent=rows.length+' active';
+    var body=document.getElementById('triageBody');
+    if(!rows.length){body.innerHTML='<tr><td colspan="6" class="empty">No active triage patients</td></tr>';return;}
+
+    var levels=(window.lcWardCatalogue&&window.lcWardCatalogue.triageLevels)||[];
+    body.innerHTML=rows.map(function(r){
+      var p=r.patient,e=r.enc;
+      var t=e.triageLevel?levels.find(function(x){return x.level===e.triageLevel;}):null;
+      var chip=t
+        ?'<span class="triage-chip" style="background:'+t.color+'">T'+t.level+' · '+esc(t.label)+'</span>'
+        :'<span class="triage-chip" style="background:#8A869C">Not triaged</span>';
+      var wait=Math.floor((Date.now()-new Date(e.createdAt||e.date).getTime())/60000);
+      var waitStr=wait<60?wait+'m':Math.floor(wait/60)+'h '+ (wait%60)+'m';
+      return '<tr>'+
+        '<td>'+chip+'</td>'+
+        '<td><strong>'+esc(p.fullName)+'</strong><div style="font-size:10px;color:#5F5B75">'+esc(p.id)+'</div></td>'+
+        '<td>'+esc(e.triageNote||e.chiefComplaint||'—')+'</td>'+
+        '<td>'+fmtDate(e.createdAt||e.date)+'</td>'+
+        '<td>'+waitStr+'</td>'+
+        '<td><button class="btn btn-sm btn-primary" onclick="window.location.href=\'consultation.html\'">See</button></td>'+
+      '</tr>';
+    }).join('');
+  }
+
+  function renderAll(){
+    try{renderSummary();}catch(e){console.warn(e);}
+    try{renderWardGrid();}catch(e){console.warn(e);}
+    try{renderBedBoard();}catch(e){console.warn(e);}
+    try{renderTriage();}catch(e){console.warn(e);}
+  }
+
+  window.refreshAll=renderAll;
+  window.renderAll=renderAll;
+  window.exportCensus=function(){
+    var rows=loadPatients().filter(function(p){return p.admission&&p.admission.status==='Admitted';}).map(function(p){
+      return {
+        'Patient ID':p.id,'Name':p.fullName,'Sex':p.sex||'',
+        'Ward':p.admission.ward||'','Bed':p.admission.bed||'',
+        'Admitted':p.admission.admittedAt,'Attending':p.admission.attendingDoctor||'',
+        'Diagnosis':p.admission.admissionDiagnosis||''
+      };
+    });
+    var csv=[Object.keys(rows[0]||{'Note':'No admissions'}).join(',')]
+      .concat(rows.map(function(r){return Object.values(r).map(function(x){return'"'+String(x||'').replace(/"/g,'""')+'"';}).join(',');}))
+      .join('\n');
+    var blob=new Blob([csv],{type:'text/csv'});
+    var a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download='LabCore_Census_'+new Date().toISOString().slice(0,10)+'.csv';
+    a.click();
+    if(window.lcToast)window.lcToast('Census exported','success');
+  };
+
+  populateWardFilter();
+  renderAll();
+  setInterval(renderAll,30000);
+  console.log('🛏️ Ward Board ready');
+})();
+</script>
+</body>
+</html>

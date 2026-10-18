@@ -1,0 +1,2805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Consultation Workspace | LabCore</title>
+<link rel="stylesheet" href="shared/labcore-nav.css">
+<link rel="stylesheet" href="shared/labcore-report.css">
+
+<!-- Chart.js for Analytics -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Export Libraries -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+<!-- Fuzzy Search -->
+<script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.min.js"></script>
+
+<style>
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--lc-font);
+  background: var(--lc-bg);
+  color: var(--lc-text);
+  line-height: 1.5;
+}
+
+/* Sidebar (visual fallback — labcore-nav.js overrides) */
+.sidebar {
+  width: 245px;
+  background: var(--lc-sidebar);
+  color: #fff;
+  min-height: 100vh;
+  position: fixed;
+  left: 0; top: 0; bottom: 0;
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+  transition: transform var(--lc-transition);
+}
+
+/* Mobile Toggle */
+.lc-mobile-toggle {
+  display: none;
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 200;
+  background: var(--lc-sidebar);
+  color: #fff;
+  border: none;
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 20px;
+  cursor: pointer;
+  box-shadow: var(--lc-shadow);
+  transition: all var(--lc-transition);
+}
+.lc-mobile-toggle:hover { background: #3a3f3c; }
+.lc-sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 99;
+  opacity: 0;
+  transition: opacity var(--lc-transition);
+}
+.lc-sidebar-overlay.active { display: block; opacity: 1; }
+
+/* Main */
+.main { margin-left: 245px; min-height: 100vh; transition: margin var(--lc-transition); }
+.top-header {
+  height: 70px; background: #fff;
+  border-bottom: 1px solid var(--lc-border);
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 0 28px;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+.top-header h1 { font-size: 20px; font-weight: 600; }
+.top-header small { color: var(--lc-muted); font-size: 12px; }
+.content { padding: 24px 28px; }
+
+/* Dashboard Stats */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.dashboard-card {
+  background: #fff;
+  border: 1px solid var(--lc-border);
+  border-radius: 8px;
+  padding: 14px;
+  text-align: center;
+  transition: var(--lc-transition);
+}
+.dashboard-card:hover { box-shadow: var(--lc-shadow); transform: translateY(-2px); }
+.dashboard-card .number { font-size: 22px; font-weight: 700; }
+.dashboard-card .label { font-size: 10px; color: var(--lc-muted);  }
+.dashboard-card .icon { font-size: 18px; margin-bottom: 4px; }
+.dashboard-card.waiting .number { color: var(--lc-warning); }
+.dashboard-card.inprogress .number { color: var(--lc-blue); }
+.dashboard-card.completed .number { color: var(--lc-green); }
+.dashboard-card.orders .number { color: var(--lc-muted); }
+.dashboard-card.critical .number { color: var(--lc-red); }
+
+.workspace {
+  display: grid; grid-template-columns: 340px 1fr; gap: 20px;
+  min-height: calc(100vh - 140px);
+}
+
+/* Queue */
+.queue-panel {
+  background: #fff; border: 1px solid var(--lc-border);
+  border-radius: 9px; display: flex; flex-direction: column; overflow: hidden;
+}
+.queue-header {
+  padding: 12px 16px; border-bottom: 1px solid var(--lc-border);
+  font-weight: 600; font-size: 14px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.queue-tabs { display: flex; border-bottom: 1px solid var(--lc-border); }
+.queue-tab {
+  flex: 1; text-align: center; padding: 10px; font-size: 12px;
+  font-weight: 600; color: var(--lc-muted); cursor: pointer;
+  border-bottom: 3px solid transparent;
+  transition: var(--lc-transition);
+}
+.queue-tab:hover { background: var(--lc-bg); }
+.queue-tab.active { color: var(--lc-blue); border-bottom-color: var(--lc-blue); background: #F8F7FB; }
+.queue-list { flex: 1; overflow-y: auto; }
+.queue-item { padding: 13px 16px; border-bottom: 1px solid #EFEDF4; cursor: pointer; transition: 0.15s; }
+.queue-item:hover { background: #f8f9f7; }
+.queue-item.active { background: #E4EFF7; border-left: 4px solid var(--lc-blue); }
+.queue-item .name { font-weight: 600; font-size: 14px; }
+.queue-item .meta { font-size: 11px; color: var(--lc-muted); margin-top: 3px; }
+.queue-item .complaint {
+  font-size: 12px; color: #486581; margin-top: 3px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.badge {
+  display: inline-block; padding: 2px 8px; border-radius: 10px;
+  font-size: 10px; font-weight: 700;
+}
+.badge-waiting { background: #f1e3c2; color: #775d18; }
+.badge-progress { background: #E4EFF7; color: #1F5F8B; }
+.badge-completed { background: #E5F1EA; color: #2B7A4B; }
+.badge-critical { background: #FBE9E7; color: #B3261E; }
+.badge-validated { background: #E5F1EA; color: #23714c; }
+.badge-sent { background: #E4EFF7; color: #1F5F8B; }
+.badge-seen { background: #f3e8ff; color: #6b21a8; }
+.badge-spec { background: #E5F1EA; color: #2B7A4B; }
+.badge-pending { background: #EFEDF4; color: #5F5B75; }
+
+/* Consult Area */
+.consult-area {
+  background: #fff; border: 1px solid var(--lc-border);
+  border-radius: 9px; display: flex; flex-direction: column; overflow: hidden;
+  position: relative;
+  min-height: 500px;
+}
+.consult-empty {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  color: var(--lc-muted); font-size: 14px;
+  padding: 40px;
+}
+.consult-empty .icon { font-size: 48px; margin-bottom: 12px; }
+
+.patient-header {
+  padding: 16px 20px; border-bottom: 1px solid var(--lc-border); background: #fafbf9;
+}
+.patient-header .top-row {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;
+}
+.patient-header h2 { font-size: 18px; font-weight: 600; }
+.patient-header .sub { font-size: 12px; color: var(--lc-muted); margin-top: 3px; }
+.allergy-alert {
+  background: #FBE9E7; color: #8C1C16; padding: 6px 12px;
+  border-radius: 6px; font-size: 12px; font-weight: 600; margin-top: 10px;
+}
+.info-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.chip {
+  background: #fff; border: 1px solid var(--lc-border);
+  border-radius: 20px; padding: 4px 12px; font-size: 11px;
+}
+
+.consult-tabs {
+  display: flex; border-bottom: 1px solid var(--lc-border); background: #F8F7FB;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.consult-tab {
+  padding: 12px 18px; font-size: 13px; font-weight: 600;
+  color: var(--lc-muted); cursor: pointer; border-bottom: 3px solid transparent;
+  white-space: nowrap;
+  transition: var(--lc-transition);
+}
+.consult-tab:hover { color: var(--lc-text); background: #fff; }
+.consult-tab.active {
+  color: var(--lc-blue); border-bottom-color: var(--lc-blue); background: #fff;
+}
+.consult-body { flex: 1; overflow-y: auto; padding: 20px; }
+
+label {
+  display: block; font-size: 11px; font-weight: 600;
+  color: #4A4660; margin-bottom: 4px;
+}
+textarea, input, select {
+  width: 100%; padding: 9px 12px; border: 1px solid #BDBACB;
+  border-radius: 6px; font-size: 13px; font-family: inherit;
+  transition: var(--lc-transition);
+  background: #fff;
+  color: var(--lc-text);
+}
+textarea:focus, input:focus, select:focus {
+  outline: none; border-color: var(--lc-blue);
+  box-shadow: 0 0 0 3px rgba(36, 91, 134, 0.15);
+}
+textarea { min-height: 80px; resize: vertical; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+.form-group { margin-bottom: 14px; }
+
+.section-title {
+  font-size: 13px; font-weight: 700; color: var(--lc-blue);
+  margin: 18px 0 10px; padding-bottom: 6px;
+  border-bottom: 1px solid var(--lc-border); 
+}
+
+/* Autocomplete */
+.autocomplete-wrap { position: relative; }
+.autocomplete-list {
+  position: absolute; top: 100%; left: 0; right: 0;
+  background: #fff; border: 1px solid #BDBACB; border-top: none;
+  border-radius: 0 0 6px 6px; max-height: 220px; overflow-y: auto;
+  z-index: 50; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+.autocomplete-list.show { display: block; }
+.autocomplete-item {
+  padding: 9px 12px; font-size: 13px; cursor: pointer;
+  border-bottom: 1px solid #EFEDF4;
+  display: flex; justify-content: space-between; align-items: center; gap: 8px;
+}
+.autocomplete-item:hover, .autocomplete-item.active { background: #E4EFF7; }
+.autocomplete-item .code {
+  font-size: 10px; color: var(--lc-muted); margin-left: 6px;
+  padding: 2px 6px; border-radius: 4px; font-weight: 700; white-space: nowrap;
+}
+
+.order-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+.order-table th {
+  background: #F8F7FB; text-align: left; padding: 10px 12px;
+  font-size: 11px; color: #5F5B75; 
+  border-bottom: 1px solid var(--lc-border);
+}
+.order-table td { padding: 10px 12px; border-bottom: 1px solid #EFEDF4; vertical-align: middle; }
+
+.btn {
+  border: 1px solid #BDBACB; background: #fff; border-radius: 6px;
+  padding: 8px 14px; font-size: 12px; font-weight: 600; cursor: pointer;
+  transition: var(--lc-transition);
+}
+.btn:hover { background: var(--lc-bg); transform: translateY(-1px); box-shadow: var(--lc-shadow); }
+.btn-primary { background: #2A2656; color: #fff; border-color: #2A2656; }
+.btn-primary:hover { background: #3A3577; }
+.btn-success { background: #2B7A4B; color: #fff; border-color: #2B7A4B; }
+.btn-success:hover { background: #206038; }
+.btn-outline { background: #fff; }
+.btn-sm { padding: 5px 10px; font-size: 11px; }
+.btn-row { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+
+.consult-footer {
+  padding: 14px 20px; border-top: 1px solid var(--lc-border);
+  background: #fafbf9; display: flex; justify-content: space-between;
+  align-items: center; gap: 12px;
+  flex-wrap: wrap;
+}
+
+.alert { padding: 10px 14px; border-radius: 6px; font-size: 13px; margin-bottom: 14px; }
+.alert-success { background: #E5F1EA; color: #2B7A4B; }
+.alert-info { background: #E4EFF7; color: #1F5F8B; }
+.alert-danger { background: #FBE9E7; color: #8C1C16; }
+.alert-warning { background: #FBF0DA; color: #9a5b00; }
+
+.empty-state { text-align: center; padding: 30px; color: var(--lc-muted); font-size: 13px; }
+.read-only-banner {
+  background: #E4EFF7; color: #1F5F8B; padding: 8px 14px;
+  font-size: 12px; font-weight: 600; text-align: center;
+}
+
+/* Comment Templates */
+.comment-templates {
+  display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 12px;
+}
+.comment-template {
+  padding: 4px 10px;
+  border: 1px solid var(--lc-border);
+  border-radius: 4px;
+  font-size: 10px;
+  cursor: pointer;
+  background: #f7f9fa;
+  transition: var(--lc-transition);
+}
+.comment-template:hover { background: var(--lc-bg); border-color: var(--lc-blue); }
+
+/* Modal (shared) */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(20,26,31,.55);
+  display: none; align-items: center; justify-content: center;
+  z-index: 1000; padding: 16px;
+  
+}
+.modal-overlay.active { display: flex; }
+.modal-box {
+  width: 900px; max-width: 96vw; max-height: 92vh; background: #fff;
+  border-radius: 10px; overflow-y: auto; display: flex; flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+}
+.modal-box-head {
+  padding: 14px 18px; border-bottom: 1px solid var(--lc-border);
+  display: flex; justify-content: space-between; align-items: center;
+  position: sticky; top: 0; background: #fff; z-index: 2;
+}
+.modal-box-head h2 { font-size: 16px; }
+.modal-box-head p { font-size: 11px; color: var(--lc-muted); margin-top: 2px; }
+.modal-box-body { padding: 18px 20px; }
+.modal-box-foot {
+  padding: 12px 18px; border-top: 1px solid var(--lc-border);
+  display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap;
+  position: sticky; bottom: 0; background: #fff;
+}
+
+/* Clinical Notes - SOAP */
+.soap-section { margin-bottom: 16px; }
+.soap-section .label {
+  font-size: 11px; font-weight: 700; color: var(--lc-blue);
+  display: flex; align-items: center; gap: 6px; margin-bottom: 4px;
+}
+.soap-section .label .abbr {
+  background: var(--lc-blue); color: #fff;
+  padding: 0 6px; border-radius: 3px; font-size: 9px;
+}
+
+/* Combined Report Bar */
+.combined-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; padding: 10px 14px; margin-top: 12px;
+  background: #e8f4fc; border: 1px solid #DAD8E3;
+  border-radius: 6px; font-size: 12px;
+}
+
+/* Lab Order Status Lines */
+.lab-status-line { font-size: 10px; color: var(--lc-muted); margin-top: 2px; }
+
+/* Loading States */
+.lc-loading-overlay {
+  position: absolute; inset: 0;
+  background: rgba(255,255,255,0.85);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  z-index: 50; border-radius: 9px;
+}
+.lc-loading-spinner {
+  width: 40px; height: 40px;
+  border: 4px solid var(--lc-border);
+  border-top-color: var(--lc-blue);
+  border-radius: 50%;
+  animation: lcSpin 0.8s linear infinite;
+}
+.lc-loading-text { margin-top: 12px; font-size: 13px; color: var(--lc-muted); }
+@keyframes lcSpin { to { transform: rotate(360deg); } }
+
+/* Print */
+@media print {
+  .sidebar, .top-header, .queue-panel, .consult-tabs, .consult-footer,
+  .modal-box-foot, .modal-box-head button, .lc-mobile-toggle, .lc-sidebar-overlay {
+    display: none !important;
+  }
+  .modal-overlay { position: static; background: none; display: block !important; }
+  .modal-box { max-height: none; box-shadow: none; width: 100%; }
+  .main { margin-left: 0 !important; }
+}
+
+/* Responsive */
+@media (max-width: 1100px) {
+  .workspace { grid-template-columns: 1fr; }
+  .queue-panel { max-height: 300px; }
+  .dashboard-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (max-width: 900px) {
+  .sidebar { transform: translateX(-100%); width: 240px; }
+  .sidebar.open { transform: translateX(0); }
+  .main { margin-left: 0; padding-top: 60px; }
+  .lc-mobile-toggle { display: block; }
+  .lc-sidebar-overlay.active { display: block; }
+  .dashboard-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 600px) {
+  .top-header { height: 56px; padding: 0 16px; flex-wrap: wrap; }
+  .top-header h1 { font-size: 16px; }
+  .content { padding: 12px; }
+  .consult-body { padding: 12px; }
+  .form-row { grid-template-columns: 1fr; }
+  .patient-header { padding: 12px; }
+  .patient-header .top-row { flex-direction: column; }
+  .consult-footer { flex-direction: column; align-items: stretch; }
+  .consult-footer .btn-row { justify-content: center; }
+  .modal-box { max-width: 100vw; max-height: 100vh; border-radius: 0; }
+  .dashboard-grid { grid-template-columns: 1fr; }
+}
+
+/* =========================================================
+   ROUND 2 — WARD / TRIAGE / MODE BANNER
+========================================================= */
+.lc-mode-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--lc-border);
+  font-size: 12px;
+  font-weight: 600;
+}
+.lc-mode-banner.opd { background: #E4EFF7; color: #3A3577; }
+.lc-mode-banner.emergency { background: #FBE9E7; color: #8C1C16; }
+.lc-mode-banner.ward { background: #E5F1EA; color: #1a4a2a; }
+.lc-mode-banner .lc-mode-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  
+  
+}
+.lc-mode-banner .lc-mode-detail {
+  margin-left: auto;
+  font-weight: 400;
+  font-size: 11px;
+  opacity: 0.85;
+}
+
+.lc-triage-chip {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.lc-admission-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px 18px;
+  background: #F8F7FB;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 14px;
+  font-size: 12px;
+}
+.lc-admission-details .lc-ad-cell { min-width: 0; }
+.lc-admission-details .lc-ad-label {
+  display: block;
+  font-size: 9px;
+  
+  
+  color: var(--lc-muted);
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+.lc-admission-details .lc-ad-value {
+  font-weight: 600;
+  color: var(--lc-text);
+  word-break: break-word;
+}
+
+.lc-vitals-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.lc-vital-box {
+  background: #fff;
+  border: 1px solid var(--lc-border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  text-align: center;
+}
+.lc-vital-box .lc-vital-label {
+  font-size: 9px;
+  
+  color: var(--lc-muted);
+  
+}
+.lc-vital-box .lc-vital-value {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--lc-text);
+  margin-top: 3px;
+}
+.lc-vital-box .lc-vital-value.abnormal { color: var(--lc-red); }
+.lc-vital-box .lc-vital-value.warn { color: var(--lc-warning); }
+
+.lc-meds-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.lc-med-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: #fff;
+  border: 1px solid var(--lc-border);
+  border-radius: 6px;
+  font-size: 12px;
+}
+.lc-med-row .lc-med-drug { font-weight: 700; flex: 1; }
+.lc-med-row .lc-med-dose { color: var(--lc-muted); font-size: 11px; }
+.lc-med-row .lc-med-status { font-size: 10px; font-weight: 700; }
+
+.lc-section-mini-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--lc-blue);
+  
+  
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--lc-border);
+  margin: 14px 0 8px;
+}
+
+.lc-admit-btn {
+  background: var(--lc-warning);
+  color: #fff;
+  border-color: var(--lc-warning);
+}
+.lc-admit-btn:hover { background: #9a7a28; border-color: #9a7a28; }
+.lc-discharge-btn {
+  background: #2B7A4B;
+  color: #fff;
+  border-color: #2B7A4B;
+}
+.lc-discharge-btn:hover { background: #206038; border-color: #206038; }
+
+/* Modal for Admit / Discharge / Ward Round */
+.lc-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 26, 31, 0.55);
+  
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 1500;
+  padding: 16px;
+}
+.lc-modal-overlay.active { display: flex; }
+.lc-modal-box {
+  background: #fff;
+  border-radius: 10px;
+  max-width: 620px;
+  width: 100%;
+  max-height: 92vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+.lc-modal-head {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--lc-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  background: #fff;
+  z-index: 2;
+}
+.lc-modal-head h3 { font-size: 15px; }
+.lc-modal-body { padding: 18px 20px; }
+.lc-modal-foot {
+  padding: 12px 20px;
+  border-top: 1px solid var(--lc-border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  position: sticky;
+  bottom: 0;
+  background: #fff;
+  z-index: 2;
+}
+.lc-modal-close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: var(--lc-muted);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 5px;
+}
+.lc-modal-close:hover { background: #f1f5f9; color: var(--lc-red); }
+
+.lc-form-row { margin-bottom: 12px; }
+.lc-form-row label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: #4A4660;
+  margin-bottom: 4px;
+}
+.lc-form-row input,
+.lc-form-row select,
+.lc-form-row textarea {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--lc-border);
+  border-radius: 6px;
+  font-size: 13px;
+  background: #fff;
+  color: var(--lc-text);
+  font-family: inherit;
+}
+.lc-form-row textarea { min-height: 70px; resize: vertical; }
+.lc-form-row input:focus,
+.lc-form-row select:focus,
+.lc-form-row textarea:focus {
+  outline: none;
+  border-color: var(--lc-blue);
+  box-shadow: 0 0 0 3px rgba(36, 91, 134, 0.15);
+}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR (built by shared/labcore-nav.js) -->
+<aside class="sidebar"></aside>
+
+<!-- Mobile Toggle -->
+<button class="lc-mobile-toggle" aria-label="Toggle navigation">☰</button>
+<div class="lc-sidebar-overlay"></div>
+
+<main class="main">
+  <header class="top-header">
+    <div>
+      <h1>Consultation Workspace</h1>
+      <small>Waiting patients · Write notes · Place orders · View completed consultations</small>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <button class="btn btn-sm btn-outline" onclick="exportEncounterToPDF()" title="Export to PDF">📄</button>
+      <button class="btn btn-sm btn-outline" onclick="showConsultationStats()" title="Statistics">📊</button>
+      <small id="clock"></small>
+    </div>
+  </header>
+
+  <section class="content">
+    <!-- Dashboard Stats -->
+    <div class="dashboard-grid" id="dashboardStats">
+      <div class="dashboard-card waiting">
+        <div class="number" id="statWaiting">0</div>
+        <div class="label">Waiting</div>
+      </div>
+      <div class="dashboard-card inprogress">
+        <div class="number" id="statInProgress">0</div>
+        <div class="label">In Progress</div>
+      </div>
+      <div class="dashboard-card completed">
+        <div class="number" id="statCompleted">0</div>
+        <div class="label">Completed</div>
+      </div>
+      <div class="dashboard-card orders">
+        <div class="number" id="statOrders">0</div>
+        <div class="label">Lab Orders</div>
+      </div>
+      <div class="dashboard-card critical">
+        <div class="number" id="statCritical">0</div>
+        <div class="label">Critical Results</div>
+      </div>
+    </div>
+
+    <div id="pageAlert"></div>
+
+    <div class="workspace">
+      <!-- LEFT PANEL -->
+      <div class="queue-panel">
+        <div class="queue-header">
+          <span>Patients</span>
+          <span id="queueCount" style="font-size:12px;color:#5F5B75"></span>
+        </div>
+        <div class="queue-tabs">
+          <div class="queue-tab active" data-view="waiting" onclick="switchQueueView('waiting')">Waiting</div>
+          <div class="queue-tab" data-view="labready" onclick="switchQueueView('labready')">Lab results ready</div>
+          <div class="queue-tab" data-view="completed" onclick="switchQueueView('completed')">Completed</div>
+        </div>
+        <div class="queue-list" id="queueList"></div>
+      </div>
+
+      <!-- RIGHT PANEL -->
+      <div class="consult-area" id="consultArea">
+        <div class="consult-empty" id="emptyState">
+          <div>Select a patient from the list to begin or review consultation</div>
+        </div>
+
+        <div id="consultUI" style="display:none; flex-direction:column; height:100%;">
+          <div id="readOnlyBanner" class="read-only-banner" style="display:none;">
+            This encounter is completed — view only
+          </div>
+          <div class="patient-header" id="patientHeader"></div>
+          <div id="modeBanner" class="lc-mode-banner" style="display:none;"></div>
+
+          <div class="consult-tabs">
+            <div class="consult-tab active" data-tab="notes">Clinical Notes</div>
+            <div class="consult-tab" data-tab="lab">Lab Orders</div>
+            <div class="consult-tab" data-tab="pharmacy">Pharmacy</div>
+            <div class="consult-tab" data-tab="radiology">Radiology / Sono</div>
+            <div class="consult-tab" data-tab="history">History</div>
+              <div class="consult-tab" data-tab="nursing" id="nursingTab">Nursing Chart</div>
+            <div class="consult-tab" data-tab="ward" id="wardRoundTab" style="display:none;">Ward Round</div>
+          </div>
+
+          <div class="consult-body" id="consultBody">
+            <!-- NOTES -->
+            <div class="tab-pane active" id="pane-notes">
+              <div class="comment-templates">
+                <span class="comment-template" onclick="insertNoteComment('subjective', 'Patient reports feeling generally unwell with fatigue and malaise.')">🤒 General</span>
+                <span class="comment-template" onclick="insertNoteComment('subjective', 'Patient reports fever, chills, and body aches for the past 3 days.')">🌡️ Fever</span>
+                <span class="comment-template" onclick="insertNoteComment('subjective', 'Patient reports chest pain and shortness of breath on exertion.')">❤️ Chest Pain</span>
+                <span class="comment-template" onclick="insertNoteComment('objective', 'Vitals: BP 138/86, HR 78, Temp 37.2°C, RR 16, O2 98%')">📊 Vitals</span>
+                <span class="comment-template" onclick="insertNoteComment('assessment', 'Differential: Viral syndrome vs early bacterial infection.')">📋 DDx</span>
+                <span class="comment-template" onclick="insertNoteComment('plan', 'Complete blood count, Malaria RDT, HIV screening. Review in 2 days.')">📝 Plan</span>
+              </div>
+
+              <div class="soap-section">
+                <div class="label"><span class="abbr">S</span> Subjective</div>
+                <textarea id="notesSubjective" placeholder="Chief complaint, history of present illness, review of systems..." rows="3"></textarea>
+              </div>
+              <div class="soap-section">
+                <div class="label"><span class="abbr">O</span> Objective</div>
+                <textarea id="notesObjective" placeholder="Vital signs, physical examination findings..." rows="3"></textarea>
+              </div>
+              <div class="soap-section">
+                <div class="label"><span class="abbr">A</span> Assessment / Diagnosis</div>
+                <textarea id="notesAssessment" placeholder="Working diagnosis, differential diagnoses..." rows="2"></textarea>
+              </div>
+              <div class="soap-section">
+                <div class="label"><span class="abbr">P</span> Plan</div>
+                <textarea id="notesPlan" placeholder="Investigations, treatment, follow-up, referrals..." rows="2"></textarea>
+              </div>
+              <div style="font-size:11px;color:var(--lc-muted);margin-top:8px;">💡 Press Ctrl+Enter to save notes · Click templates above to insert text</div>
+            </div>
+
+            <!-- LAB -->
+            <div class="tab-pane" id="pane-lab" style="display:none">
+              <div class="section-title">Add Laboratory Test</div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Test / Panel (type to search)</label>
+                  <div class="autocomplete-wrap">
+                    <input id="labTestInput" placeholder="Type panel (e.g. LFT) or test (e.g. Albumin)..." autocomplete="off">
+                    <div class="autocomplete-list" id="labSuggestions"></div>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>Priority</label>
+                  <select id="labPriority">
+                    <option>Routine</option>
+                    <option>Urgent</option>
+                    <option>STAT</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Clinical Notes for Lab</label>
+                <input id="labNote" placeholder="e.g. Rule out malaria">
+              </div>
+              <button class="btn btn-primary btn-sm" id="btnAddLab" onclick="addLabOrder()">+ Add Lab Order</button>
+
+              <div class="section-title">Current Lab Orders &amp; Reports</div>
+              <p style="font-size:12px;color:#5F5B75;margin-bottom:8px">Validated results are available to view immediately. Use Mark as seen for audit.</p>
+              <table class="order-table">
+                <thead>
+                  <tr><th>Test</th><th>Priority</th><th>Status</th><th>Note</th><th>Report</th></tr>
+                </thead>
+                <tbody id="labOrdersBody"></tbody>
+              </table>
+              <div id="labCombinedBar" class="combined-bar" style="display:none"></div>
+            </div>
+
+            <!-- PHARMACY -->
+            <div class="tab-pane" id="pane-pharmacy" style="display:none">
+              <div class="section-title">Prescribe Medication</div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Drug Name (type to search)</label>
+                  <div class="autocomplete-wrap">
+                    <input id="rxDrugInput" placeholder="Start typing drug name..." autocomplete="off">
+                    <div class="autocomplete-list" id="rxSuggestions"></div>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>Dose / Frequency</label>
+                  <input id="rxDose" placeholder="e.g. 1 tab TDS × 5 days">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Quantity</label>
+                  <input id="rxQty" placeholder="e.g. 15 tablets">
+                </div>
+                <div class="form-group">
+                  <label>Route</label>
+                  <select id="rxRoute">
+                    <option>Oral</option><option>IV</option><option>IM</option>
+                    <option>Topical</option><option>Inhalation</option>
+                  </select>
+                </div>
+              </div>
+              <button class="btn btn-primary btn-sm" id="btnAddRx" onclick="addPharmacyOrder()">+ Add Prescription</button>
+
+              <div class="section-title">Current Prescriptions</div>
+              <table class="order-table">
+                <thead>
+                  <tr><th>Drug</th><th>Dose</th><th>Qty</th><th>Route</th><th>Status</th><th></th></tr>
+                </thead>
+                <tbody id="pharmacyOrdersBody"></tbody>
+              </table>
+            </div>
+
+            <!-- RADIOLOGY + SONOGRAPHY -->
+            <div class="tab-pane" id="pane-radiology" style="display:none">
+              <div class="section-title">Request Imaging / Sonography</div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Investigation (type to search)</label>
+                  <div class="autocomplete-wrap">
+                    <input id="radTestInput" placeholder="Start typing investigation..." autocomplete="off">
+                    <div class="autocomplete-list" id="radSuggestions"></div>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>Priority</label>
+                  <select id="radPriority">
+                    <option>Routine</option>
+                    <option>Urgent</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Clinical Indication</label>
+                <input id="radNote" placeholder="e.g. Rule out pneumonia / ?appendicitis">
+              </div>
+              <button class="btn btn-primary btn-sm" id="btnAddRad" onclick="addRadiologyOrder()">+ Add Imaging Request</button>
+
+              <div class="section-title">Current Imaging / Sono Requests</div>
+              <table class="order-table">
+                <thead>
+                  <tr><th>Investigation</th><th>Priority</th><th>Status</th><th>Indication</th><th></th></tr>
+                </thead>
+                <tbody id="radOrdersBody"></tbody>
+              </table>
+            </div>
+
+            <!-- HISTORY -->
+            <div class="tab-pane" id="pane-history" style="display:none">
+              <div id="historyContent"></div>
+            </div>
+
+<!-- NURSING CHART (read-only) -->
+<div class="tab-pane" id="pane-nursing" style="display:none">
+  <div id="nursingChartContent"></div>
+</div>
+            <!-- WARD ROUND -->
+            <div class="tab-pane" id="pane-ward" style="display:none">
+              <div id="wardRoundContent"></div>
+            </div>
+          </div>
+
+          <div class="consult-footer">
+            <div>
+              <span id="encounterStatusBadge"></span>
+              <span style="font-size:12px;color:#5F5B75;margin-left:10px" id="visitIdDisplay"></span>
+            </div>
+            <div class="btn-row" style="margin:0" id="footerActions">
+              <button class="btn btn-outline" id="btnSaveNotes" onclick="saveNotes()">Save Notes</button>
+              <button class="btn btn-success" id="btnComplete" onclick="completeEncounter()">Complete Encounter</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- ADMIT MODAL -->
+<div class="lc-modal-overlay" id="lcAdmitModal">
+  <div class="lc-modal-box">
+    <div class="lc-modal-head">
+      <h3>Admit Patient to Ward</h3>
+      <button class="lc-modal-close" onclick="closeLcModal('lcAdmitModal')">×</button>
+    </div>
+    <div class="lc-modal-body">
+      <div class="lc-form-row">
+        <label>Ward / Unit <span style="color:#B3261E">*</span></label>
+        <select id="admitWardId"></select>
+      </div>
+      <div class="lc-form-row">
+        <label>Bed Number <span style="color:#B3261E">*</span></label>
+        <input id="admitBedNumber" placeholder="e.g. B-12">
+      </div>
+      <div class="lc-form-row">
+        <label>Provisional Admission Diagnosis</label>
+        <input id="admitDiagnosis" placeholder="e.g. ?Acute MI">
+      </div>
+      <div class="lc-form-row">
+        <label>Attending Doctor</label>
+        <input id="admitAttending" placeholder="e.g. Dr. Mensah">
+      </div>
+      <div class="lc-form-row">
+        <label>Primary Nurse</label>
+        <input id="admitPrimaryNurse" placeholder="e.g. Nurse Ama">
+      </div>
+      <div class="lc-form-row">
+        <label>Expected Stay</label>
+        <select id="admitExpectedStay">
+          <option value="">Not specified</option>
+          <option value="< 24h">Less than 24 hours</option>
+          <option value="2-3 days">2–3 days</option>
+          <option value="3-5 days">3–5 days</option>
+          <option value="1 week">About 1 week</option>
+          <option value="> 1 week">More than 1 week</option>
+        </select>
+      </div>
+    </div>
+    <div class="lc-modal-foot">
+      <button class="btn" onclick="closeLcModal('lcAdmitModal')">Cancel</button>
+      <button class="btn lc-admit-btn" onclick="confirmAdmit()">Admit Patient</button>
+    </div>
+  </div>
+</div>
+
+<!-- DISCHARGE MODAL -->
+<div class="lc-modal-overlay" id="lcDischargeModal">
+  <div class="lc-modal-box">
+    <div class="lc-modal-head">
+      <h3>Discharge Patient</h3>
+      <button class="lc-modal-close" onclick="closeLcModal('lcDischargeModal')">×</button>
+    </div>
+    <div class="lc-modal-body">
+      <div class="lc-form-row">
+        <label>Final Diagnosis <span style="color:#B3261E">*</span></label>
+        <input id="dischDiagnosis" placeholder="e.g. NSTEMI — medically managed">
+      </div>
+      <div class="lc-form-row">
+        <label>Discharge Summary</label>
+        <textarea id="dischSummary" placeholder="Course in hospital, procedures, outcome…"></textarea>
+      </div>
+      <div class="lc-form-row">
+        <label>Discharge Medications</label>
+        <textarea id="dischMeds" placeholder="List medications to take home…"></textarea>
+      </div>
+      <div class="lc-form-row">
+        <label>Follow-up Date</label>
+        <input type="date" id="dischFollowUpDate">
+      </div>
+      <div class="lc-form-row">
+        <label>Follow-up Notes</label>
+        <input id="dischFollowUpNotes" placeholder="e.g. Review in cardiology clinic">
+      </div>
+    </div>
+    <div class="lc-modal-foot">
+      <button class="btn" onclick="closeLcModal('lcDischargeModal')">Cancel</button>
+      <button class="btn lc-discharge-btn" onclick="confirmDischarge()">Confirm Discharge</button>
+    </div>
+  </div>
+</div>
+
+<!-- Doctor Lab Report Modal -->
+<div class="modal-overlay" id="doctorReportModal">
+  <div class="modal-box">
+    <div class="modal-box-head">
+      <div>
+        <h2 id="doctorReportTitle">Laboratory Report</h2>
+        <p id="doctorReportSub">Read-only · from laboratory</p>
+      </div>
+      <button type="button" class="btn btn-sm" onclick="closeDoctorReport()">×</button>
+    </div>
+    <div class="modal-box-body">
+      <div id="doctorReportDoc" class="report-doc"></div>
+    </div>
+    <div class="modal-box-foot">
+      <button type="button" class="btn btn-sm" onclick="window.print()">🖨️ Print</button>
+      <button type="button" class="btn btn-sm btn-primary" id="btnMarkSeenFromReport" onclick="markOrderSeenFromReport()">✓ Mark as seen</button>
+      <button type="button" class="btn btn-sm" onclick="closeDoctorReport()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Statistics Modal -->
+<div class="modal-overlay" id="statsModal">
+  <div class="modal-box">
+    <div class="modal-box-head">
+      <div>
+        <h2>Consultation Statistics</h2>
+        <p id="statsModalSub">Overview of consultation activity</p>
+      </div>
+      <button type="button" class="btn btn-sm" onclick="document.getElementById('statsModal').classList.remove('active')">×</button>
+    </div>
+    <div class="modal-box-body">
+      <div id="statsContent"></div>
+    </div>
+    <div class="modal-box-foot">
+      <button class="btn" onclick="document.getElementById('statsModal').classList.remove('active')">Close</button>
+      <button class="btn btn-primary" onclick="exportConsultationStats()">📊 Export Stats</button>
+    </div>
+  </div>
+</div>
+
+<script src="shared/labcore-api.js"></script>
+<script src="shared/labcore-utils.js"></script>
+<script src="shared/labcore-ward.js"></script>
+<script src="shared/labcore-auth.js"></script>
+<script src="shared/labcore-staff.js"></script>
+<script src="shared/labcore-audit.js"></script>
+<script src="shared/labcore-settings.js"></script>
+<script src="shared/labcore-pricing.js"></script>
+<script src="shared/labcore-icons.js"></script>
+<script src="shared/labcore-nav.js"></script>
+<script src="shared/labcore-search.js"></script>
+<script src="shared/labcore-notifications.js"></script>
+<script src="shared/labcore-timeline.js"></script>
+<script>
+/* =========================================================
+   DATA SOURCES
+========================================================= */
+let patients = JSON.parse(localStorage.getItem("hms_patients_v3") || "[]");
+
+// Pull panels + tests from Test Configuration
+let configuredPanels = [];
+try {
+  configuredPanels = JSON.parse(localStorage.getItem("labcore_panels") || "null") || [];
+} catch (e) { configuredPanels = []; }
+if (!configuredPanels.length) {
+  try {
+    configuredPanels = JSON.parse(localStorage.getItem("lc_panels") || "[]");
+  } catch (e) { configuredPanels = []; }
+}
+
+let labCatalogue = [];
+
+configuredPanels.forEach(p => {
+  const panelName = p.name || p.code || "Panel";
+  const panelCode = p.code || "";
+
+  labCatalogue.push({
+    name: panelName,
+    code: panelCode,
+    panel: panelName,
+    kind: "panel",
+    label: panelName + (panelCode ? " (" + panelCode + ")" : "") + " · Panel",
+    source: "config"
+  });
+
+  (p.tests || []).forEach(t => {
+    if (!t || !t.name) return;
+    labCatalogue.push({
+      name: t.name,
+      code: t.code || "",
+      panel: panelName,
+      kind: "test",
+      label: t.name + " · " + panelName,
+      source: "config"
+    });
+  });
+});
+
+if (labCatalogue.length === 0) {
+  const fallback = [
+    { name: "Full Blood Count", code: "FBC", kind: "panel" },
+    { name: "Liver Function Test", code: "LFT", kind: "panel" },
+    { name: "Renal Function Test", code: "RFT", kind: "panel" },
+    { name: "Lipid Profile", code: "LIP", kind: "panel" },
+    { name: "Malaria RDT", code: "MRDT", kind: "test" },
+    { name: "Blood Glucose (RBS)", code: "RBS", kind: "test" },
+    { name: "HbA1c", code: "HBA1C", kind: "test" },
+    { name: "Urinalysis", code: "URINE", kind: "panel" },
+    { name: "HIV Screening", code: "HIV", kind: "test" },
+    { name: "HBsAg", code: "HBSAG", kind: "test" },
+    { name: "HCV", code: "HCV", kind: "test" }
+  ];
+  labCatalogue = fallback.map(f => ({
+    ...f,
+    panel: f.name,
+    label: f.name + (f.kind === "panel" ? " · Panel" : ""),
+    source: "fallback"
+  }));
+}
+
+const drugCatalogue = [
+  "Paracetamol 500mg", "Ibuprofen 400mg", "Amoxicillin 500mg", "Ciprofloxacin 500mg",
+  "Metronidazole 400mg", "Artemether-Lumefantrine", "Amlodipine 5mg", "Lisinopril 10mg",
+  "Metformin 500mg", "Omeprazole 20mg", "Cetirizine 10mg", "ORS Sachet",
+  "Normal Saline 500ml", "Ringer's Lactate 500ml", "Diclofenac 50mg", "Tramadol 50mg",
+  "Azithromycin 500mg", "Doxycycline 100mg", "Ceftriaxone 1g", "Gentamicin 80mg"
+];
+
+const imagingCatalogue = [
+  "Chest X-Ray", "Abdominal Ultrasound", "Pelvic Ultrasound", "Obstetric Ultrasound",
+  "Transvaginal Ultrasound", "Thyroid Ultrasound", "Breast Ultrasound", "Scrotal Ultrasound",
+  "Skull X-Ray", "Limb X-Ray", "Spine X-Ray", "CT Scan Head", "CT Scan Abdomen",
+  "MRI Brain", "MRI Spine", "Doppler Ultrasound", "Echocardiogram", "Mammogram"
+];
+
+let currentPatient = null;
+let currentEncounter = null;
+let isReadOnly = false;
+let currentQueueView = "waiting";
+
+const $ = id => document.getElementById(id);
+
+function savePatients() {
+  localStorage.setItem("hms_patients_v3", JSON.stringify(patients));
+}
+
+function showAlert(msg, type = "success") {
+  $("pageAlert").innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
+  setTimeout(() => $("pageAlert").innerHTML = "", 4500);
+}
+
+function statusBadge(status) {
+  const map = {
+    "Waiting": "badge-waiting",
+    "In Progress": "badge-progress",
+    "Completed": "badge-completed"
+  };
+  return `<span class="badge ${map[status] || ""}">${status}</span>`;
+}
+
+function esc(str) {
+  return String(str || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+function ageFromDob(dob) {
+  if (!dob) return "—";
+  const birth = new Date(dob);
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+  return age + " yrs";
+}
+
+/* =========================================================
+   DASHBOARD STATS
+========================================================= */
+function updateDashboardStats() {
+  let waiting = 0, inProgress = 0, completed = 0, orders = 0, critical = 0;
+
+  patients.forEach(p => {
+    (p.encounters || []).forEach(e => {
+      const isClinical = ["Consultation", "OPD", "Review", "ER", "Emergency"].includes(e.service);
+      if (!isClinical) return;
+
+      if (e.status === "Waiting") waiting++;
+      else if (e.status === "In Progress") inProgress++;
+      else if (e.status === "Completed") completed++;
+
+      (e.orders || []).forEach(o => {
+        if (o.type === "Laboratory") {
+          orders++;
+          if (o.resultStatus === "Validated" || o.status === "Validated") {
+            if (o.results) {
+              Object.values(o.results).forEach(r => {
+                if (r.flag === 'LL' || r.flag === 'HH') critical++;
+              });
+            }
+          }
+        }
+      });
+    });
+  });
+
+  document.getElementById('statWaiting').textContent = waiting;
+  document.getElementById('statInProgress').textContent = inProgress;
+  document.getElementById('statCompleted').textContent = completed;
+  document.getElementById('statOrders').textContent = orders;
+  document.getElementById('statCritical').textContent = critical;
+}
+
+/* =========================================================
+   QUEUE VIEWS
+========================================================= */
+function switchQueueView(view) {
+  currentQueueView = view;
+  document.querySelectorAll(".queue-tab").forEach(t => t.classList.remove("active"));
+  document.querySelector(`.queue-tab[data-view="${view}"]`).classList.add("active");
+  renderQueue();
+}
+
+function getQueueItems() {
+  const list = [];
+
+  patients.forEach(p => {
+    (p.encounters || []).forEach(e => {
+      const isClinical = ["Consultation", "OPD", "Review", "ER", "Emergency"].includes(e.service);
+      if (!isClinical) return;
+
+      if (currentQueueView === "waiting") {
+        if (e.status !== "Completed") list.push({ patient: p, encounter: e });
+      } else {
+        if (e.status === "Completed") list.push({ patient: p, encounter: e });
+      }
+    });
+
+    // Ward round encounters
+    if (p.admission && p.admission.status === 'Admitted') {
+      (p.admission.encounters || []).forEach(e => {
+        if (currentQueueView === "waiting") {
+          if (e.status !== "Completed") list.push({ patient: p, encounter: e });
+        }
+      });
+    }
+  });
+
+  list.sort((a, b) => new Date(b.encounter.createdAt || b.encounter.date) - new Date(a.encounter.createdAt || a.encounter.date));
+  return list;
+}
+
+function renderQueue() {
+  const list = getQueueItems();
+  $("queueCount").textContent = list.length;
+
+  if (!list.length) {
+    $("queueList").innerHTML = `<div class="empty-state">${currentQueueView === "waiting" ? "No patients waiting." : "No completed consultations yet."}</div>`;
+    updateDashboardStats();
+    return;
+  }
+
+  $("queueList").innerHTML = list.map(item => {
+    const p = item.patient;
+    const e = item.encounter;
+    const isActive = currentEncounter && currentEncounter.visitId === e.visitId;
+
+    let locBadge = '';
+    if (e.locationType === 'Emergency') {
+      const t = e.triageLevel && window.lcGetTriageLevel ? window.lcGetTriageLevel(e.triageLevel) : null;
+      locBadge = t
+        ? `<span class="lc-triage-chip" style="background:${t.color};font-size:9px;padding:1px 6px;">🚨 T${t.level}</span>`
+        : `<span class="lc-triage-chip" style="background:#8A869C;font-size:9px;padding:1px 6px;">🚨 ER</span>`;
+    } else if (p.admission && p.admission.status === 'Admitted') {
+      locBadge = `<span class="lc-triage-chip" style="background:#2B7A4B;font-size:9px;padding:1px 6px;">🏥 ${esc(p.admission.ward || 'WARD')} B${esc(p.admission.bed || '')}</span>`;
+    } else if (e.locationType === 'OPD') {
+      locBadge = `<span class="lc-triage-chip" style="background:#3A3577;font-size:9px;padding:1px 6px;">OPD</span>`;
+    }
+
+    return `
+      <div class="queue-item ${isActive ? "active" : ""}" onclick="selectPatient('${p.id}', '${e.visitId}')">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div class="name">${esc(p.fullName)}</div>
+          ${statusBadge(e.status)}
+        </div>
+        <div class="meta">${p.id} · ${e.date} · ${e.service}${e.consultant ? " · " + e.consultant : ""} ${locBadge}</div>
+        <div class="complaint">${e.chiefComplaint || "No complaint"}</div>
+      </div>
+    `;
+  }).join("");
+  updateDashboardStats();
+}
+
+/* =========================================================
+   SELECT PATIENT — WITH LOADING STATE
+========================================================= */
+function clearConsultLoading() {
+  document.querySelectorAll('#consultLoading, .lc-loading-overlay').forEach(function (el) {
+    if (el.id === 'consultLoading' || (el.parentElement && el.parentElement.id === 'consultArea')) {
+      el.remove();
+    }
+  });
+  var fixed = document.getElementById('consultLoading');
+  if (fixed) fixed.remove();
+}
+
+function selectPatient(patientId, visitId) {
+  clearConsultLoading();
+
+  const consultArea = document.getElementById('consultArea');
+  if (consultArea) {
+    consultArea.style.position = 'relative';
+    const overlay = document.createElement('div');
+    overlay.className = 'lc-loading-overlay';
+    overlay.id = 'consultLoading';
+    overlay.innerHTML =
+      '<div class="lc-loading-spinner"></div>' +
+      '<div class="lc-loading-text">Loading patient data...</div>';
+    consultArea.appendChild(overlay);
+  }
+
+  setTimeout(function () {
+    try {
+      try {
+        patients = JSON.parse(localStorage.getItem('hms_patients_v3') || '[]');
+      } catch (err) {}
+
+      currentPatient = patients.find(function (p) { return p.id === patientId; });
+      if (!currentPatient) {
+        window.lcToast('Patient not found', 'error');
+        return;
+      }
+
+      currentEncounter = (currentPatient.encounters || []).find(function (e) { return e.visitId === visitId; });
+      if (!currentEncounter && currentPatient.admission) {
+        currentEncounter = (currentPatient.admission.encounters || []).find(function (e) { return e.visitId === visitId; });
+      }
+      if (!currentEncounter) {
+        window.lcToast('Encounter not found', 'error');
+        return;
+      }
+
+      isReadOnly = currentEncounter.status === "Completed";
+
+      if (!isReadOnly && currentEncounter.status === "Waiting") {
+        currentEncounter.status = "In Progress";
+        savePatients();
+      }
+
+      var emptyState = $("emptyState");
+      var consultUI = $("consultUI");
+      var readOnlyBanner = $("readOnlyBanner");
+      if (emptyState) emptyState.style.display = "none";
+      if (consultUI) consultUI.style.display = "flex";
+      if (readOnlyBanner) readOnlyBanner.style.display = isReadOnly ? "block" : "none";
+
+      if (consultUI) {
+        var inputs = consultUI.querySelectorAll("textarea, input:not([readonly]), select");
+        inputs.forEach(function (el) { el.disabled = isReadOnly; });
+      }
+      var btnMap = [
+        ["btnAddLab", isReadOnly ? "none" : "inline-flex"],
+        ["btnAddRx", isReadOnly ? "none" : "inline-flex"],
+        ["btnAddRad", isReadOnly ? "none" : "inline-flex"],
+        ["btnSaveNotes", isReadOnly ? "none" : "inline-flex"],
+        ["btnComplete", isReadOnly ? "none" : "inline-flex"]
+      ];
+      btnMap.forEach(function (pair) {
+        var el = $(pair[0]);
+        if (el) el.style.display = pair[1];
+      });
+
+           renderPatientHeader();
+      loadNotes();
+      renderLabOrders();
+      renderPharmacyOrders();
+      renderRadiologyOrders();
+      renderHistory();
+      renderNursingChart();     // <<< add this
+      var statusBadgeEl = $("encounterStatusBadge");
+      if (statusBadgeEl) statusBadgeEl.innerHTML = statusBadge(currentEncounter.status);
+      var visitIdEl = $("visitIdDisplay");
+      if (visitIdEl) visitIdEl.textContent = currentEncounter.visitId;
+      renderQueue();
+
+      // Round 2 hooks
+      renderModeBanner();
+      renderWardRoundTab();
+
+      window.lcToast('Patient loaded: ' + currentPatient.fullName, 'success');
+    } catch (e) {
+      console.error('Error loading patient:', e);
+      window.lcToast('Error loading patient data', 'error');
+    } finally {
+      clearConsultLoading();
+    }
+  }, 100);
+}
+
+function renderPatientHeader() {
+  const p = currentPatient;
+  const e = currentEncounter;
+  const allergyHtml = (p.allergies && p.allergies !== "NKA")
+    ? `<div class="allergy-alert">⚠ Allergies: ${esc(p.allergies)}</div>` : "";
+
+  $("patientHeader").innerHTML = `
+    <div class="top-row">
+      <div>
+        <h2>${esc(p.fullName)}</h2>
+        <div class="sub">${p.id} · ${p.sex || ""} · ${ageFromDob(p.dob)} · ${p.mobile || ""}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:13px;font-weight:600">${e.service}</div>
+        <div style="font-size:11px;color:#5F5B75">${e.consultant || "—"}</div>
+      </div>
+    </div>
+    ${allergyHtml}
+    <div class="info-chips">
+      <span class="chip">Blood: ${p.bloodGroup || "Unknown"}</span>
+      <span class="chip">Payment: ${p.paymentType || "—"}</span>
+      ${p.chronic ? `<span class="chip">Chronic: ${esc(p.chronic.substring(0,40))}${p.chronic.length>40?"…":""}</span>` : ""}
+    </div>
+  `;
+}
+
+/* =========================================================
+   NOTES — SOAP Format
+========================================================= */
+function insertNoteComment(section, text) {
+  const textarea = document.getElementById('notes' + section.charAt(0).toUpperCase() + section.slice(1));
+  if (textarea) {
+    const current = textarea.value;
+    const lines = current.split('\n');
+    if (lines.length > 0 && lines[lines.length-1].trim() === '') {
+      textarea.value = current + text;
+    } else if (current) {
+      textarea.value = current + '\n' + text;
+    } else {
+      textarea.value = text;
+    }
+    textarea.focus();
+  }
+}
+
+function loadNotes() {
+  if (!currentEncounter) return;
+  var notes = currentEncounter.clinicalNotes || {};
+  var sub = $("notesSubjective");
+  var obj = $("notesObjective");
+  var ass = $("notesAssessment");
+  var plan = $("notesPlan");
+
+  if (typeof notes === "string") {
+    if (sub) sub.value = notes;
+    if (obj) obj.value = "";
+    if (ass) ass.value = "";
+    if (plan) plan.value = "";
+  } else {
+    var subjective = notes.subjective || "";
+    if (!subjective && currentEncounter.chiefComplaint) {
+      subjective = currentEncounter.chiefComplaint;
+    }
+    if (sub) sub.value = subjective;
+    if (obj) obj.value = notes.objective || "";
+    if (ass) ass.value = notes.assessment || "";
+    if (plan) plan.value = notes.plan || "";
+  }
+}
+
+function saveNotes() {
+  if (!currentEncounter || isReadOnly) return;
+  currentEncounter.clinicalNotes = {
+    subjective: $("notesSubjective").value.trim(),
+    objective: $("notesObjective").value.trim(),
+    assessment: $("notesAssessment").value.trim(),
+    plan: $("notesPlan").value.trim()
+  };
+  currentEncounter.clinicalNotesFlat = [
+    currentEncounter.clinicalNotes.subjective,
+    currentEncounter.clinicalNotes.objective,
+    currentEncounter.clinicalNotes.assessment,
+    currentEncounter.clinicalNotes.plan
+  ].filter(Boolean).join("\n\n");
+  savePatients();
+  window.lcToast("Clinical notes saved", "success");
+  showAlert("Clinical notes saved");
+}
+
+document.addEventListener('keydown', function(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    const activeTab = document.querySelector('.consult-tab.active');
+    if (activeTab && activeTab.dataset.tab === 'notes') {
+      e.preventDefault();
+      saveNotes();
+    }
+  }
+});
+
+/* =========================================================
+   AUTOCOMPLETE ENGINE
+========================================================= */
+function setupAutocomplete(inputId, listId, catalogue, onSelect) {
+  const input = $(inputId);
+  const list = $(listId);
+
+  input.addEventListener("input", () => {
+    const q = input.value.trim().toLowerCase();
+    if (q.length < 1) {
+      list.classList.remove("show");
+      return;
+    }
+    const matches = catalogue.filter(item => {
+      if (typeof item === "string") return item.toLowerCase().includes(q);
+      const name = (item.name || "").toLowerCase();
+      const code = (item.code || "").toLowerCase();
+      const label = (item.label || "").toLowerCase();
+      const panel = (item.panel || "").toLowerCase();
+      return name.includes(q) || code.includes(q) || label.includes(q) || panel.includes(q);
+    }).slice(0, 14);
+
+    if (!matches.length) {
+      list.innerHTML = `<div class="autocomplete-item" style="color:#5F5B75;font-style:italic">No match – you can still request “${esc(input.value)}”</div>`;
+    } else {
+      list.innerHTML = matches.map(item => {
+        const name = typeof item === "string" ? item : item.name;
+        const display = typeof item === "string" ? item : (item.label || item.name);
+        const code = (item && item.code && item.kind === "panel") ? `<span class="code">${item.code}</span>` : "";
+        const kindBadge = (item && item.kind === "panel")
+          ? `<span class="code" style="background:#E5F1EA;color:#23714c">PANEL</span>`
+          : (item && item.kind === "test" ? `<span class="code" style="background:#EFEDF4;color:#607080">TEST</span>` : "");
+        return `<div class="autocomplete-item" data-value="${esc(name)}">${esc(display)} ${kindBadge}${code}</div>`;
+      }).join("");
+    }
+    list.classList.add("show");
+  });
+
+  list.addEventListener("click", e => {
+    const item = e.target.closest(".autocomplete-item");
+    if (!item || !item.dataset.value) return;
+    input.value = item.dataset.value;
+    list.classList.remove("show");
+    if (onSelect) onSelect(item.dataset.value);
+  });
+
+  document.addEventListener("click", e => {
+    if (!input.contains(e.target) && !list.contains(e.target)) {
+      list.classList.remove("show");
+    }
+  });
+}
+
+/* =========================================================
+   LAB ORDERS
+========================================================= */
+async function addLabOrder() {
+  if (isReadOnly) return;
+  const test = $("labTestInput").value.trim();
+  if (!test) { window.lcToast("Please enter a test name", "error"); return; }
+
+  currentEncounter.orders = currentEncounter.orders || [];
+  const orderNow = new Date().toISOString();
+  const priority = $("labPriority").value;
+  const note = $("labNote").value.trim();
+  const selectedConfig = labCatalogue.find(x => x.name === test);
+
+  const labOrder = {
+    id: "LAB-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8),
+    type: "Laboratory",
+    item: test,
+    code: selectedConfig?.code || "",
+    kind: selectedConfig?.kind || "test",
+    panelCode: selectedConfig?.kind === "panel" ? (selectedConfig.code || "") : "",
+    department: selectedConfig?.department || "",
+    priority,
+    note,
+    status: "Pending",
+    orderedAt: orderNow
+  };
+  currentEncounter.orders.push(labOrder);
+
+  const sharedOrders = JSON.parse(localStorage.getItem("hms_lab_orders") || "[]");
+ const panels = loadPanelsForReport();
+  const configPanel = selectedConfig?.kind === "panel"
+    ? panels.find(p => (p.code || "").toLowerCase() === (selectedConfig.code || "").toLowerCase() || (p.name || "").toLowerCase() === test.toLowerCase())
+    : null;
+  const requestedTests = configPanel?.tests?.length
+    ? configPanel.tests.map(t => ({
+        code: t.code || "", name: t.name, department: t.department || configPanel.department || "",
+        specimen: t.specimen || t.specimenType || "", status: "Awaiting Specimen",
+        specimenId: null, specimenType: null, specimenReceivedDate: null, specimenReceivedTime: null
+      }))
+    : [{
+        code: selectedConfig?.code || "", name: test, department: selectedConfig?.department || "",
+        specimen: selectedConfig?.specimen || "", status: "Awaiting Specimen",
+        specimenId: null, specimenType: null, specimenReceivedDate: null, specimenReceivedTime: null
+      }];
+
+  const shared = {
+    orderId: "LAB-" + Date.now(), patientId: currentPatient.id,
+    hospitalId: currentPatient.hospitalId || "", patientName: currentPatient.fullName,
+    visitId: currentEncounter.visitId, doctor: currentEncounter.consultant || "",
+    priority, note, panelName: test, panelCode: selectedConfig?.code || "",
+    kind: selectedConfig?.kind || "test", department: selectedConfig?.department || "",
+    orderedAt: orderNow, status: "Awaiting Specimen", tests: requestedTests
+  };
+  sharedOrders.push(shared);
+  localStorage.setItem("hms_lab_orders", JSON.stringify(sharedOrders));
+
+  currentEncounter.billing = currentEncounter.billing || [];
+  var price = 45.00;
+  if (typeof window.lcGetLabTestPrice === 'function') {
+    price = window.lcGetLabTestPrice(test);
+  }
+  const billingLine = { item: test, amount: price };
+  currentEncounter.billing.push(billingLine);
+
+  savePatients();
+  if (window.lcApiSavePatient && window.lcGetToken && window.lcGetToken()) {
+    try {
+      await window.lcApiSavePatient(currentPatient);
+    } catch (error) {
+      currentEncounter.orders = currentEncounter.orders.filter(order => order !== labOrder);
+      currentEncounter.billing = currentEncounter.billing.filter(line => line !== billingLine);
+      savePatients();
+      window.lcToast("Lab order could not be saved to the shared database: " + error.message, "error");
+      return;
+    }
+  }
+  $("labTestInput").value = "";
+  $("labNote").value = "";
+  $("labSuggestions").classList.remove("show");
+  renderLabOrders();
+  window.lcToast("Lab order added: " + test + " (GHS " + price.toFixed(2) + ")", "success");
+} 
+
+function labDisplayStatus(o) {
+  const rs = o.resultStatus || "";
+  if (rs === "Validated" || o.status === "Validated" || o.status === "Completed") {
+    let extra = [];
+    if (o.reportSentAt) extra.push("Sent");
+    if (o.doctorSeenAt) extra.push("Seen");
+    return { label: "Validated" + (extra.length ? " · " + extra.join(" · ") : ""), cls: "badge-validated" };
+  }
+  if (rs === "Preliminary" || o.status === "Preliminary") return { label: "Preliminary", cls: "badge-progress" };
+  if (rs === "Awaiting Validation" || o.status === "Awaiting Validation") return { label: "Awaiting Validation", cls: "badge-progress" };
+  if (o.status === "Specimen Received" || o.status === "In Progress") return { label: o.status, cls: "badge-spec" };
+  if (o.status === "Rejected") return { label: "Rejected", cls: "badge-waiting" };
+  return { label: o.status || "Pending", cls: "badge-pending" };
+}
+
+function isOrderValidated(o) {
+  return o.resultStatus === "Validated" || o.status === "Validated" || o.status === "Completed";
+}
+
+function renderLabOrders() {
+  const orders = (currentEncounter.orders || []).filter(o => o.type === "Laboratory");
+  const tbody = $("labOrdersBody");
+  const bar = $("labCombinedBar");
+  if (!orders.length) {
+    tbody.innerHTML = `<tr><td colspan="5" class="empty-state">No laboratory orders yet</td></tr>`;
+    if (bar) bar.style.display = "none";
+    return;
+  }
+  tbody.innerHTML = orders.map((o, idx) => {
+    const st = labDisplayStatus(o);
+    const validated = isOrderValidated(o);
+    let actions = "";
+    if (validated) {
+      actions += `<button class="btn btn-sm btn-primary" onclick="viewDoctorReport(${idx})">View Report</button> `;
+      if (!o.doctorSeenAt) {
+        actions += `<button class="btn btn-sm btn-outline" onclick="markOrderSeen(${idx})">Mark as seen</button> `;
+      } else {
+        actions += `<span class="badge badge-seen">Seen</span> `;
+      }
+    } else if (!isReadOnly && (o.status === "Pending" || o.status === "Awaiting Specimen")) {
+      actions += `<button class="btn btn-sm btn-outline" onclick="removeOrder('Laboratory',${idx})">Remove</button>`;
+    }
+
+    let criticalBadge = '';
+    if (o.results) {
+      Object.values(o.results).forEach(r => {
+        if (r.flag === 'LL' || r.flag === 'HH') {
+          criticalBadge = `<span class="badge badge-critical" style="margin-left:4px;">🚨 Critical</span>`;
+        }
+      });
+    }
+
+    return `
+    <tr>
+      <td><strong>${esc(o.item)}</strong> ${criticalBadge}
+        ${o.reportSentAt ? `<div class="lab-status-line">Sent ${new Date(o.reportSentAt).toLocaleString("en-GH")}</div>` : ""}
+        ${o.doctorSeenAt ? `<div class="lab-status-line">Seen ${new Date(o.doctorSeenAt).toLocaleString("en-GH")}</div>` : ""}
+      </td>
+      <td>${o.priority || "Routine"}</td>
+      <td><span class="badge ${st.cls}">${esc(st.label)}</span></td>
+      <td>${esc(o.note) || "—"}</td>
+      <td style="white-space:nowrap">${actions}</td>
+    </tr>`;
+  }).join("");
+
+  const validated = orders.filter(isOrderValidated);
+  if (bar) {
+    if (validated.length >= 2) {
+      bar.style.display = "flex";
+      bar.innerHTML = `<span><strong>${validated.length}</strong> validated panel(s) ready</span>
+        <button class="btn btn-sm btn-primary" onclick="viewCombinedDoctorReport()">View full report</button>`;
+    } else {
+      bar.style.display = "none";
+    }
+  }
+}
+
+function renderPharmacyOrders() {
+  const orders = (currentEncounter.orders || []).filter(o => o.type === "Pharmacy");
+  const tbody = $("pharmacyOrdersBody");
+  if (!tbody) return;
+  if (!orders.length) {
+    tbody.innerHTML = `<tr><td colspan="6" class="empty-state">No prescriptions yet</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = orders.map((o, idx) => `
+    <tr>
+      <td><strong>${esc(o.item)}</strong></td>
+      <td>${esc(o.dose) || "—"}</td>
+      <td>${esc(o.qty) || "—"}</td>
+      <td>${o.route || "Oral"}</td>
+      <td>${statusBadge(o.status)}</td>
+      <td>${isReadOnly ? "" : `<button class="btn btn-sm btn-outline" onclick="removeOrder('Pharmacy',${idx})">Remove</button>`}</td>
+    </tr>
+  `).join("");
+}
+
+function getLabOrderByFilteredIndex(index) {
+  let count = -1;
+  for (let i = 0; i < (currentEncounter.orders || []).length; i++) {
+    if (currentEncounter.orders[i].type === "Laboratory") {
+      count++;
+      if (count === index) return currentEncounter.orders[i];
+    }
+  }
+  return null;
+}
+
+function loadPanelsForReport() {
+  try {
+    return JSON.parse(localStorage.getItem("labcore_panels") || "null") ||
+           JSON.parse(localStorage.getItem("lc_panels") || "[]") || [];
+  } catch (e) { return []; }
+}
+
+function parametersForPanel(item) {
+  const panels = loadPanelsForReport();
+  const n = (item || "").toLowerCase();
+  const panel = panels.find(p =>
+    (p.name || "").toLowerCase() === n || (p.code || "").toLowerCase() === n
+  );
+  if (panel && panel.tests && panel.tests.length) {
+    return panel.tests.map(t => ({ name: t.name, unit: t.unit || "" }));
+  }
+  return [{ name: item, unit: "" }];
+}
+
+function buildReportHtmlForOrders(orderList, titleNote) {
+  const p = currentPatient;
+  const e = currentEncounter;
+  const age = ageFromDob(p.dob);
+  let panelsHtml = orderList.map(o => {
+    const params = parametersForPanel(o.item);
+    const results = o.results || {};
+    const rows = params.map(pr => {
+      const r = results[pr.name] || {};
+      if (!Object.keys(results).length && pr.name === o.item) {
+        return `<tr><td>${esc(o.item)}</td><td colspan="3"><em>Validated — detail values not stored</em></td></tr>`;
+      }
+      const flagBadge = r.flag ? ` <span class="badge badge-validated">${esc(r.flag)}</span>` : "";
+      return `<tr>
+        <td>${esc(pr.name)}</td>
+        <td><strong>${esc(r.value != null && r.value !== "" ? r.value : "—")}</strong>
+          ${flagBadge}</td>
+        <td>${esc(r.unit || pr.unit || "—")}</td>
+        <td>${esc(r.refText || "—")}</td>
+      </tr>`;
+    }).join("");
+    const extraKeys = Object.keys(results).filter(k => !params.some(pr => pr.name === k));
+    const extraRows = extraKeys.map(k => {
+      const r = results[k];
+      return `<tr>
+        <td>${esc(k)}</td>
+        <td><strong>${esc(r.value || "—")}</strong>
+          ${r.flag ? ` <span class="badge badge-validated">${esc(r.flag)}</span>` : ""}</td>
+        <td>${esc(r.unit || "—")}</td>
+        <td>${esc(r.refText || "—")}</td>
+      </tr>`;
+    }).join("");
+    const cmt = o.panelComment ? `<div style="margin-top:6px;font-size:12px;background:#F8F7FB;padding:8px 12px;border-radius:4px;"><strong>Comment:</strong> ${esc(o.panelComment)}</div>` : '';
+    return `<div class="report-panel-title">${esc(o.item)}</div>
+      <table>
+        <thead><tr><th>Parameter</th><th>Result</th><th>Unit</th><th>Reference</th></tr></thead>
+        <tbody>${rows}${extraRows}</tbody>
+      </table>
+      ${cmt}
+      <div class="report-sig">
+        <span>Validated by: ${esc(o.validatedBy || "—")}</span>
+        <span>${o.validatedAt ? new Date(o.validatedAt).toLocaleString("en-GH") : "—"}</span>
+      </div>
+      ${o.reportSentAt ? `<div class="lab-status-line">Sent to doctor: ${new Date(o.reportSentAt).toLocaleString("en-GH")}</div>` : ""}
+      ${o.doctorSeenAt ? `<div class="lab-status-line">Seen by doctor: ${esc(o.doctorSeenBy || "Doctor")} · ${new Date(o.doctorSeenAt).toLocaleString("en-GH")}</div>` : ""}`;
+  }).join("");
+
+  return `
+    <h1>LABCORE LABORATORY</h1>
+    <div class="sub">Diagnostic Department · Laboratory Report · ${esc(titleNote || "Read-only")}</div>
+    <div class="rline"></div>
+    <div class="report-patient">
+      <div><span>Patient</span>${esc(p.fullName)}</div>
+      <div><span>Patient ID</span>${esc(p.id)}</div>
+      <div><span>Encounter</span>${esc(e.visitId)}</div>
+      <div><span>DOB / Age</span>${esc(p.dob || "—")} (${esc(age)})</div>
+      <div><span>Sex</span>${esc(p.sex || "—")}</div>
+      <div><span>Requesting doctor</span>${esc(e.consultant || "—")}</div>
+    </div>
+    ${panelsHtml}
+    <p style="margin-top:16px;font-size:11px;color:#666">[LABORATORY REPORT — FOR CLINICAL USE · DO NOT EDIT]</p>`;
+}
+
+let doctorReportContext = null;
+
+function viewDoctorReport(index) {
+  const order = getLabOrderByFilteredIndex(index);
+  if (!order || !isOrderValidated(order)) {
+    window.lcToast("Report not available until results are validated", "error");
+    return;
+  }
+  doctorReportContext = { mode: "single", index };
+  $("doctorReportTitle").textContent = "Laboratory Report — " + order.item;
+  $("doctorReportSub").textContent = currentPatient.fullName + " · " + currentEncounter.visitId + " · Read-only";
+  $("doctorReportDoc").innerHTML = buildReportHtmlForOrders([order], "Per-panel");
+  const btn = $("btnMarkSeenFromReport");
+  if (btn) btn.style.display = order.doctorSeenAt ? "none" : "inline-flex";
+  $("doctorReportModal").classList.add("active");
+}
+
+function viewCombinedDoctorReport() {
+  const orders = (currentEncounter.orders || []).filter(o => o.type === "Laboratory" && isOrderValidated(o));
+  if (orders.length < 1) {
+    window.lcToast("No validated reports yet", "error");
+    return;
+  }
+  doctorReportContext = { mode: "combined" };
+  $("doctorReportTitle").textContent = "Full Laboratory Report";
+  $("doctorReportSub").textContent = currentPatient.fullName + " · " + currentEncounter.visitId + " · " + orders.length + " panel(s)";
+  $("doctorReportDoc").innerHTML = buildReportHtmlForOrders(orders, "Combined visit report");
+  const btn = $("btnMarkSeenFromReport");
+  if (btn) btn.style.display = "inline-flex";
+  $("doctorReportModal").classList.add("active");
+}
+
+function closeDoctorReport() {
+  $("doctorReportModal").classList.remove("active");
+  doctorReportContext = null;
+}
+
+function pushDoctorAudit(order, event, note) {
+  order.auditTrail = order.auditTrail || [];
+  order.auditTrail.push({
+    event,
+    by: (window.lcCurrentUserName && window.lcCurrentUserName()) || (window.lcGetUser && window.lcGetUser() && window.lcGetUser().name) || "Doctor",
+    at: new Date().toISOString(),
+    note: note || ""
+  });
+}
+
+function markOrderSeen(index) {
+  const order = getLabOrderByFilteredIndex(index);
+  if (!order || !isOrderValidated(order)) return;
+  order.doctorSeenAt = new Date().toISOString();
+  order.doctorSeenBy = (window.lcCurrentUserName && window.lcCurrentUserName()) || (window.lcGetUser && window.lcGetUser() && window.lcGetUser().name) || "Doctor";
+  pushDoctorAudit(order, "Report marked as seen by doctor", order.item);
+  savePatients();
+  renderLabOrders();
+  window.lcToast("Marked as seen: " + order.item, "success");
+}
+
+function markOrderSeenFromReport() {
+  if (!doctorReportContext) return;
+  if (doctorReportContext.mode === "single") {
+    markOrderSeen(doctorReportContext.index);
+    const order = getLabOrderByFilteredIndex(doctorReportContext.index);
+    if (order) {
+      $("doctorReportDoc").innerHTML = buildReportHtmlForOrders([order], "Per-panel");
+      const btn = $("btnMarkSeenFromReport");
+      if (btn) btn.style.display = "none";
+    }
+  } else {
+    const orders = (currentEncounter.orders || []).filter(o => o.type === "Laboratory" && isOrderValidated(o));
+    orders.forEach(o => {
+      if (!o.doctorSeenAt) {
+        o.doctorSeenAt = new Date().toISOString();
+        o.doctorSeenBy = (window.lcCurrentUserName && window.lcCurrentUserName()) || (window.lcGetUser && window.lcGetUser() && window.lcGetUser().name) || "Doctor";
+        pushDoctorAudit(o, "Report marked as seen by doctor", o.item);
+      }
+    });
+    savePatients();
+    renderLabOrders();
+    $("doctorReportDoc").innerHTML = buildReportHtmlForOrders(orders, "Combined visit report");
+    const btn = $("btnMarkSeenFromReport");
+    if (btn) btn.style.display = "none";
+    window.lcToast("All validated reports marked as seen", "success");
+  }
+}
+
+/* =========================================================
+   PHARMACY
+========================================================= */
+function addPharmacyOrder() {
+  if (isReadOnly) return;
+  const drug = $("rxDrugInput").value.trim();
+  if (!drug) { window.lcToast("Please enter drug name", "error"); return; }
+
+  currentEncounter.orders = currentEncounter.orders || [];
+  currentEncounter.orders.push({
+    type: "Pharmacy",
+    item: drug,
+    dose: $("rxDose").value.trim(),
+    qty: $("rxQty").value.trim(),
+    route: $("rxRoute").value,
+    status: "Pending",
+    orderedAt: new Date().toISOString()
+  });
+
+  currentEncounter.billing = currentEncounter.billing || [];
+  var price = window.lcGetPharmacyPrice ? window.lcGetPharmacyPrice(drug, 0) : 0;
+  var billingLine = { item: drug, amount: price };
+  if (price <= 0) billingLine.needsPricing = true;
+  currentEncounter.billing.push(billingLine);
+
+  savePatients();
+  $("rxDrugInput").value = "";
+  $("rxDose").value = "";
+  $("rxQty").value = "";
+  $("rxSuggestions").classList.remove("show");
+  renderPharmacyOrders();
+  window.lcToast("Prescription added: " + drug + " (GHS " + price.toFixed(2) + ")", "success");
+}
+
+/* =========================================================
+   RADIOLOGY
+========================================================= */
+function addRadiologyOrder() {
+  if (isReadOnly) return;
+  const test = $("radTestInput").value.trim();
+  if (!test) { window.lcToast("Please enter investigation", "error"); return; }
+
+  currentEncounter.orders = currentEncounter.orders || [];
+  currentEncounter.orders.push({
+    type: "Radiology",
+    item: test,
+    priority: $("radPriority").value,
+    note: $("radNote").value.trim(),
+    status: "Pending",
+    orderedAt: new Date().toISOString()
+  });
+
+  currentEncounter.billing = currentEncounter.billing || [];
+  var price = window.lcGetImagingPrice ? window.lcGetImagingPrice(test, 0) : 0;
+  var billingLine = { item: test, amount: price };
+  if (price <= 0) billingLine.needsPricing = true;
+  currentEncounter.billing.push(billingLine);
+
+  savePatients();
+  $("radTestInput").value = "";
+  $("radNote").value = "";
+  $("radSuggestions").classList.remove("show");
+  renderRadiologyOrders();
+  window.lcToast("Imaging request added: " + test + " (GHS " + price.toFixed(2) + ")", "success");
+}
+
+function renderRadiologyOrders() {
+  const orders = (currentEncounter.orders || []).filter(o => o.type === "Radiology");
+  const tbody = $("radOrdersBody");
+  if (!orders.length) {
+    tbody.innerHTML = `<tr><td colspan="5" class="empty-state">No imaging / sono requests yet</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = orders.map((o, idx) => `
+    <tr>
+      <td>${esc(o.item)}</td>
+      <td>${o.priority || "Routine"}</td>
+      <td>${statusBadge(o.status)}</td>
+      <td>${esc(o.note) || "—"}</td>
+      <td>${isReadOnly ? "" : `<button class="btn btn-sm btn-outline" onclick="removeOrder('Radiology',${idx})">Remove</button>`}</td>
+    </tr>
+  `).join("");
+}
+
+function removeOrder(type, indexInFiltered) {
+  if (isReadOnly) return;
+  let count = -1;
+  for (let i = 0; i < (currentEncounter.orders || []).length; i++) {
+    if (currentEncounter.orders[i].type === type) {
+      count++;
+      if (count === indexInFiltered) {
+        currentEncounter.orders.splice(i, 1);
+        break;
+      }
+    }
+  }
+  savePatients();
+  if (type === "Laboratory") renderLabOrders();
+  if (type === "Pharmacy") renderPharmacyOrders();
+  if (type === "Radiology") renderRadiologyOrders();
+  window.lcToast("Order removed", "info");
+}
+
+/* =========================================================
+   HISTORY
+========================================================= */
+function renderHistory() {
+  const previous = (currentPatient.encounters || [])
+    .filter(e => e.visitId !== currentEncounter.visitId)
+    .reverse();
+
+  if (!previous.length) {
+    $("historyContent").innerHTML = `<div class="empty-state">No previous encounters.</div>`;
+    return;
+  }
+  $("historyContent").innerHTML = previous.map(e => `
+    <div style="border:1px solid #DAD8E3;border-radius:8px;padding:14px;margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between">
+        <strong>${e.date} · ${e.service}${e.consultant ? " · " + e.consultant : ""}</strong>
+        ${statusBadge(e.status)}
+      </div>
+      <div style="font-size:12px;color:#5F5B75;margin-top:4px">${e.visitId}</div>
+      ${e.chiefComplaint ? `<div style="margin-top:6px;font-size:13px"><strong>Complaint:</strong> ${esc(e.chiefComplaint)}</div>` : ""}
+      ${(e.orders || []).length ? `<div style="margin-top:6px;font-size:12px;color:#486581">${e.orders.length} order(s)</div>` : ""}
+      ${e.clinicalNotes ? `<div style="margin-top:4px;font-size:11px;color:#5F5B75">${esc(e.clinicalNotes).substring(0,80)}${e.clinicalNotes.length>80?"…":""}</div>` : ""}
+    </div>
+  `).join("");
+}
+
+/* =========================================================
+   COMPLETE
+========================================================= */
+function completeEncounter() {
+  if (!currentEncounter || isReadOnly) return;
+  if (!confirm("Mark this encounter as Completed?")) return;
+  saveNotes();
+  currentEncounter.status = "Completed";
+  currentEncounter.closedAt = new Date().toISOString();
+  savePatients();
+  window.lcToast("Encounter " + currentEncounter.visitId + " completed", "success");
+  currentPatient = null;
+  currentEncounter = null;
+  $("consultUI").style.display = "none";
+  $("emptyState").style.display = "flex";
+  renderQueue();
+}
+
+/* =========================================================
+   EXPORT ENCOUNTER TO PDF
+========================================================= */
+function exportEncounterToPDF() {
+  if (!currentPatient || !currentEncounter) {
+    window.lcToast('No encounter selected', 'warning');
+    return;
+  }
+  const element = document.getElementById('consultArea');
+  if (!element) {
+    window.lcToast('Content not found', 'error');
+    return;
+  }
+  window.lcToast('Generating PDF...', 'info');
+  const emptyState = document.getElementById('emptyState');
+  if (emptyState.style.display !== 'none') {
+    window.lcToast('Please select a patient first', 'warning');
+    return;
+  }
+  html2pdf()
+    .set({
+      margin: 10,
+      filename: `Encounter_${currentEncounter.visitId}_${new Date().toISOString().slice(0,10)}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    })
+    .from(element)
+    .save()
+    .then(() => { window.lcToast('PDF exported successfully', 'success'); })
+    .catch((err) => {
+      console.error('PDF export error:', err);
+      window.lcToast('Error exporting PDF', 'error');
+    });
+}
+
+/* =========================================================
+   STATISTICS
+========================================================= */
+function showConsultationStats() {
+  const modal = document.getElementById('statsModal');
+  document.getElementById('statsModalSub').textContent = 'Consultation Activity · ' + new Date().toLocaleDateString();
+
+  let totalEncounters = 0, totalOrders = 0, completedEncounters = 0;
+  let serviceCounts = {};
+  let doctorCounts = {};
+
+  patients.forEach(p => {
+    (p.encounters || []).forEach(e => {
+      const isClinical = ["Consultation", "OPD", "Review", "ER", "Emergency"].includes(e.service);
+      if (!isClinical) return;
+      totalEncounters++;
+      if (e.status === "Completed") completedEncounters++;
+      serviceCounts[e.service] = (serviceCounts[e.service] || 0) + 1;
+      if (e.consultant) doctorCounts[e.consultant] = (doctorCounts[e.consultant] || 0) + 1;
+      (e.orders || []).forEach(o => { if (o.type === "Laboratory") totalOrders++; });
+    });
+  });
+
+  let html = `
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;">
+      <div class="dashboard-card"><div class="label">Total Encounters</div><div class="number" style="font-size:20px;">${totalEncounters}</div></div>
+      <div class="dashboard-card"><div class="label">Completed</div><div class="number" style="font-size:20px;color:var(--lc-green);">${completedEncounters}</div></div>
+      <div class="dashboard-card"><div class="label">Lab Orders</div><div class="number" style="font-size:20px;color:var(--lc-blue);">${totalOrders}</div></div>
+    </div>
+  `;
+
+  html += `<h4 style="font-size:13px;margin-bottom:8px;">By Service Type</h4>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">`;
+  Object.entries(serviceCounts).sort((a,b) => b[1] - a[1]).forEach(([service, count]) => {
+    html += `<div style="background:#F8F7FB;padding:8px 12px;border-radius:6px;font-size:12px;"><strong>${service}</strong> ${count}</div>`;
+  });
+  html += `</div>`;
+
+  if (Object.keys(doctorCounts).length) {
+    html += `<h4 style="font-size:13px;margin-bottom:8px;">By Doctor</h4>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">`;
+    Object.entries(doctorCounts).sort((a,b) => b[1] - a[1]).forEach(([doctor, count]) => {
+      html += `<div style="background:#F8F7FB;padding:8px 12px;border-radius:6px;font-size:12px;"><strong>${doctor}</strong> ${count}</div>`;
+    });
+    html += `</div>`;
+  }
+
+  document.getElementById('statsContent').innerHTML = html;
+  modal.classList.add('active');
+}
+
+function exportConsultationStats() {
+  window.lcToast('Exporting statistics...', 'info');
+}
+
+/* =========================================================
+   TABS + INIT
+========================================================= */
+document.querySelectorAll(".consult-tab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".consult-tab").forEach(t => t.classList.remove("active"));
+    document.querySelectorAll(".tab-pane").forEach(p => p.style.display = "none");
+    tab.classList.add("active");
+    var pane = $("pane-" + tab.dataset.tab);
+    if (pane) pane.style.display = "block";
+
+    if (tab.dataset.tab === 'ward') {
+      renderWardRoundTab();
+    }
+  });
+});
+
+setupAutocomplete("labTestInput", "labSuggestions", labCatalogue);
+setupAutocomplete("rxDrugInput", "rxSuggestions", drugCatalogue);
+setupAutocomplete("radTestInput", "radSuggestions", imagingCatalogue);
+
+function updateClock() {
+  var c = $("clock");
+  if (c) c.textContent = new Date().toLocaleTimeString("en-GH", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+renderQueue();
+setInterval(renderQueue, 30000);
+
+const drm = document.getElementById("doctorReportModal");
+if (drm) drm.addEventListener("click", e => { if (e.target.id === "doctorReportModal") closeDoctorReport(); });
+
+/* =========================================================
+   DOCTOR QUEUE FILTER — Lab results ready
+========================================================= */
+function encounterHasUnseenLabResults(enc) {
+  if (!enc || !enc.orders) return false;
+  return enc.orders.some(function(o) {
+    if (o.type !== 'Laboratory') return false;
+    var st = (o.resultStatus || o.status || '').toLowerCase();
+    var validated = st === 'validated' || st === 'completed';
+    if (!validated) return false;
+    return !o.doctorSeenAt;
+  });
+}
+
+(function patchConsultationQueue() {
+  var origSwitch = window.switchQueueView;
+  var origRender = window.renderQueue;
+
+  if (typeof origSwitch === 'function') {
+    window.switchQueueView = function(view) {
+      window._queueView = view;
+      if (typeof origSwitch === 'function') origSwitch(view);
+      document.querySelectorAll('.queue-tab').forEach(function(t) {
+        t.classList.toggle('active', t.getAttribute('data-view') === view);
+      });
+      if (typeof window.renderQueue === 'function') window.renderQueue();
+    };
+  }
+
+  if (typeof origRender === 'function') {
+    window.renderQueue = function() {
+      var view = window._queueView || 'waiting';
+      if (view !== 'labready') {
+        return origRender.apply(this, arguments);
+      }
+      var list = document.querySelector('.queue-list');
+      if (!list) return origRender.apply(this, arguments);
+
+      var pts = JSON.parse(localStorage.getItem('hms_patients_v3') || '[]');
+      var items = [];
+      pts.forEach(function(p) {
+        (p.encounters || []).forEach(function(e) {
+          var isClinical = ['Consultation', 'OPD', 'Review', 'ER', 'Emergency'].indexOf(e.service) >= 0;
+          if (!isClinical) return;
+          if (encounterHasUnseenLabResults(e)) items.push({ patient: p, encounter: e });
+        });
+      });
+
+      if (!items.length) {
+        list.innerHTML = '<div class="empty-state" style="padding:24px">No encounters with new validated lab results</div>';
+        return;
+      }
+      list.innerHTML = items.map(function(it) {
+        var p = it.patient, e = it.encounter;
+        var labCount = (e.orders || []).filter(function(o) {
+          return o.type === 'Laboratory' && !o.doctorSeenAt &&
+            ['validated','completed'].indexOf((o.resultStatus || o.status || '').toLowerCase()) >= 0;
+        }).length;
+        return '<div class="queue-item" onclick="openEncounterFromLabReady(\'' +
+          String(p.id).replace(/'/g, "\\'") + '\',\'' +
+          String(e.visitId).replace(/'/g, "\\'") + '\')">' +
+          '<div class="name">' + (p.fullName || 'Patient') + '</div>' +
+          '<div class="meta">' + (e.visitId || '') + ' · ' + (e.service || '') +
+          (e.consultant ? ' · ' + e.consultant : '') + '</div>' +
+          '<div class="complaint">' + labCount + ' new validated report(s)</div>' +
+          '<span class="badge badge-validated">Lab ready</span></div>';
+      }).join('');
+    };
+  }
+})();
+
+function openEncounterFromLabReady(patientId, visitId) {
+  if (typeof selectPatient === 'function') {
+    selectPatient(patientId, visitId);
+    return;
+  }
+}
+
+/* =========================================================
+   ROUND 2 — MODE BANNER, WARD ROUND, ADMIT, DISCHARGE
+========================================================= */
+function detectConsultMode() {
+  if (!currentEncounter) return 'opd';
+  if (currentPatient && currentPatient.admission && currentPatient.admission.status === 'Admitted') {
+    return 'ward';
+  }
+  if (currentEncounter.locationType === 'Emergency') return 'emergency';
+  return 'opd';
+}
+
+function renderModeBanner() {
+  var banner = document.getElementById('modeBanner');
+  if (!banner || !currentEncounter) return;
+
+  var mode = detectConsultMode();
+  banner.className = 'lc-mode-banner ' + mode;
+  banner.style.display = 'flex';
+
+  if (mode === 'emergency') {
+    var t = currentEncounter.triageLevel;
+    var tl = t && window.lcGetTriageLevel ? window.lcGetTriageLevel(t) : null;
+    var triageChip = tl
+      ? '<span class="lc-triage-chip" style="background:' + tl.color + '">TRIAGE ' + tl.level + ' · ' + tl.label + '</span>'
+      : '<span class="lc-triage-chip" style="background:#8A869C">NO TRIAGE</span>';
+    banner.innerHTML =
+      '<span class="lc-mode-label">🚨 EMERGENCY</span>' +
+      triageChip +
+      (currentEncounter.triageNote ? '<span style="font-weight:400">' + esc(currentEncounter.triageNote) + '</span>' : '') +
+      '<span class="lc-mode-detail">Arrived ' +
+        new Date(currentEncounter.createdAt || currentEncounter.date).toLocaleString() +
+      '</span>';
+  } else if (mode === 'ward') {
+    var adm = currentPatient.admission;
+    var days = Math.max(1, Math.ceil((Date.now() - new Date(adm.admittedAt).getTime()) / 86400000));
+    banner.innerHTML =
+      '<span class="lc-mode-label">🏥 WARD — DAY ' + days + '</span>' +
+      '<span style="font-weight:400">' + esc(adm.ward || '—') +
+        ' · Bed ' + esc(adm.bed || '—') +
+        (adm.attendingDoctor ? ' · ' + esc(adm.attendingDoctor) : '') +
+      '</span>' +
+      '<span class="lc-mode-detail">Admitted ' +
+        new Date(adm.admittedAt).toLocaleDateString() +
+      '</span>';
+  } else {
+    banner.innerHTML =
+      '<span class="lc-mode-label">🏥 OPD CONSULTATION</span>' +
+      '<span style="font-weight:400">' + esc(currentEncounter.service || 'OPD') + '</span>' +
+      '<span class="lc-mode-detail">' +
+        (currentEncounter.consultant ? esc(currentEncounter.consultant) + ' · ' : '') +
+        new Date(currentEncounter.createdAt || currentEncounter.date).toLocaleDateString() +
+      '</span>';
+  }
+}
+
+function renderWardRoundTab() {
+  var tab = document.getElementById('wardRoundTab');
+  var content = document.getElementById('wardRoundContent');
+  if (!tab || !content) return;
+
+  var mode = detectConsultMode();
+  if (mode !== 'ward') {
+    tab.style.display = 'none';
+    return;
+  }
+
+  tab.style.display = 'block';
+
+  var adm = currentPatient.admission;
+  var html = '';
+
+  html += '<div class="lc-admission-details">';
+  html += adCell('Admission ID', adm.admissionId);
+  html += adCell('Ward', adm.ward || '—');
+  html += adCell('Bed', adm.bed || '—');
+  html += adCell('Admitted', new Date(adm.admittedAt).toLocaleString());
+  html += adCell('Admitting Doctor', adm.admittedBy || '—');
+  html += adCell('Attending', adm.attendingDoctor || '—');
+  html += adCell('Primary Nurse', adm.primaryNurse || '—');
+  html += adCell('Admission Diagnosis', adm.admissionDiagnosis || '—');
+  html += adCell('Expected Stay', adm.expectedStay || '—');
+  html += '</div>';
+
+  var vitals = adm.vitals || [];
+  var latest = vitals.length ? vitals[vitals.length - 1] : null;
+  html += '<div class="lc-section-mini-title">Latest Vitals</div>';
+  if (!latest) {
+    html += '<div style="font-size:12px;color:#5F5B75;padding:10px 0">No vitals recorded yet. Nurse charts will appear here.</div>';
+  } else {
+    html += '<div class="lc-vitals-strip">';
+    html += vitalBox('BP', (latest.bpSys || '—') + '/' + (latest.bpDia || '—'), latest.bpSys > 140 || latest.bpDia > 90 ? 'abnormal' : (latest.bpSys < 90 ? 'abnormal' : ''));
+    html += vitalBox('HR', latest.hr || '—', latest.hr > 110 || latest.hr < 50 ? 'abnormal' : (latest.hr > 100 ? 'warn' : ''));
+    html += vitalBox('Temp', latest.temp ? latest.temp + '°C' : '—', latest.temp > 38 ? 'abnormal' : (latest.temp > 37.5 ? 'warn' : ''));
+    html += vitalBox('RR', latest.rr || '—', latest.rr > 24 || latest.rr < 10 ? 'abnormal' : '');
+    html += vitalBox('SpO2', latest.spo2 ? latest.spo2 + '%' : '—', latest.spo2 < 92 ? 'abnormal' : (latest.spo2 < 95 ? 'warn' : ''));
+    html += vitalBox('Pain', latest.pain != null ? latest.pain + '/10' : '—', latest.pain >= 7 ? 'abnormal' : (latest.pain >= 4 ? 'warn' : ''));
+    html += '</div>';
+    html += '<div style="font-size:11px;color:#5F5B75;margin-bottom:14px">Recorded ' +
+      new Date(latest.at).toLocaleString() + ' by ' + esc(latest.by) + '</div>';
+  }
+
+  var meds = (adm.medications || []).filter(function (m) { return m.status === 'Active'; });
+  html += '<div class="lc-section-mini-title">Active Medications (' + meds.length + ')</div>';
+  if (!meds.length) {
+    html += '<div style="font-size:12px;color:#5F5B75;padding:10px 0">No active medications.</div>';
+  } else {
+    html += '<div class="lc-meds-list">';
+    meds.forEach(function (m) {
+      html += '<div class="lc-med-row">' +
+        '<span class="lc-med-drug">' + esc(m.drug) + '</span>' +
+        '<span class="lc-med-dose">' + esc(m.dose) + ' · ' + esc(m.frequency) + ' · ' + esc(m.route) + '</span>' +
+        '<span class="lc-med-status" style="color:' + (m.administered.length ? '#2B7A4B' : '#9A6200') + '">' +
+          m.administered.length + ' dose(s) given' +
+        '</span>' +
+      '</div>';
+    });
+    html += '</div>';
+  }
+
+  var wrEncounters = (adm.encounters || []).filter(function (e) { return e.type === 'Ward Round'; });
+  html += '<div class="lc-section-mini-title">Ward Round History (' + wrEncounters.length + ')</div>';
+  if (!wrEncounters.length) {
+    html += '<div style="font-size:12px;color:#5F5B75;padding:10px 0">First ward round for this admission.</div>';
+  } else {
+    wrEncounters.slice().reverse().forEach(function (e) {
+      html += '<div style="border:1px solid var(--lc-border);border-radius:6px;padding:10px 12px;margin-bottom:8px;font-size:12px">' +
+        '<strong>' + new Date(e.createdAt).toLocaleString() + '</strong>' +
+        (e.consultant ? ' · ' + esc(e.consultant) : '') +
+        (e.chiefComplaint ? '<div style="margin-top:4px">' + esc(e.chiefComplaint) + '</div>' : '') +
+      '</div>';
+    });
+  }
+
+  content.innerHTML = html;
+}
+
+function adCell(label, value) {
+  return '<div class="lc-ad-cell"><span class="lc-ad-label">' + esc(label) + '</span>' +
+    '<span class="lc-ad-value">' + esc(value) + '</span></div>';
+}
+function vitalBox(label, value, cls) {
+  return '<div class="lc-vital-box">' +
+    '<div class="lc-vital-label">' + esc(label) + '</div>' +
+    '<div class="lc-vital-value ' + (cls || '') + '">' + esc(value) + '</div>' +
+  '</div>';
+}
+
+/* =========================================================
+   ADMIT / DISCHARGE / WARD ROUND ACTIONS
+========================================================= */
+function openAdmitModal() {
+  if (!currentPatient) return;
+  if (currentPatient.admission && currentPatient.admission.status === 'Admitted') {
+    window.lcToast('Patient is already admitted', 'info');
+    return;
+  }
+  var sel = document.getElementById('admitWardId');
+  var wards = (window.lcWardCatalogue && window.lcWardCatalogue.wards) || [];
+  sel.innerHTML = '<option value="">Select ward…</option>' +
+    wards.map(function (w) {
+      return '<option value="' + w.id + '">' + w.name + ' (' + w.beds + ' beds)</option>';
+    }).join('');
+
+  document.getElementById('admitAttending').value =
+    currentEncounter && currentEncounter.consultant ? currentEncounter.consultant : '';
+
+  document.getElementById('lcAdmitModal').classList.add('active');
+}
+
+function confirmAdmit() {
+  if (!currentPatient) return;
+  var wardId = document.getElementById('admitWardId').value;
+  var bed = document.getElementById('admitBedNumber').value.trim();
+  if (!wardId) { window.lcToast('Select a ward', 'error'); return; }
+  if (!bed) { window.lcToast('Enter a bed number', 'error'); return; }
+
+  var ward = (window.lcWardCatalogue.wards.find(function (w) { return w.id === wardId; })) || null;
+
+  var res = window.lcAdmit(currentPatient.id, {
+    ward: ward ? ward.name : '',
+    wardId: wardId,
+    bed: bed,
+    locationType: 'Ward',
+    triageLevel: currentEncounter ? currentEncounter.triageLevel : null,
+    triageNote: currentEncounter ? currentEncounter.triageNote : '',
+    diagnosis: document.getElementById('admitDiagnosis').value.trim(),
+    attendingDoctor: document.getElementById('admitAttending').value.trim(),
+    primaryNurse: document.getElementById('admitPrimaryNurse').value.trim(),
+    expectedStay: document.getElementById('admitExpectedStay').value
+  });
+
+  if (!res.ok) {
+    window.lcToast('Admission failed: ' + res.error, 'error');
+    return;
+  }
+
+  var fresh = JSON.parse(localStorage.getItem('hms_patients_v3') || '[]');
+  currentPatient = fresh.find(function (p) { return p.id === currentPatient.id; });
+
+  closeLcModal('lcAdmitModal');
+  window.lcToast('Patient admitted to ' + (ward ? ward.name : '') + ' · Bed ' + bed, 'success');
+
+  renderModeBanner();
+  renderWardRoundTab();
+  renderQueue();
+}
+
+function openDischargeModal() {
+  if (!currentPatient || !currentPatient.admission) return;
+  if (currentPatient.admission.status !== 'Admitted') {
+    window.lcToast('Patient is not currently admitted', 'info');
+    return;
+  }
+  document.getElementById('dischDiagnosis').value = currentPatient.admission.admissionDiagnosis || '';
+  document.getElementById('dischSummary').value = '';
+  document.getElementById('dischMeds').value = '';
+  document.getElementById('dischFollowUpDate').value = '';
+  document.getElementById('dischFollowUpNotes').value = '';
+  document.getElementById('lcDischargeModal').classList.add('active');
+}
+
+function confirmDischarge() {
+  if (!currentPatient) return;
+  var dx = document.getElementById('dischDiagnosis').value.trim();
+  if (!dx) { window.lcToast('Final diagnosis is required', 'error'); return; }
+
+  var res = window.lcDischarge(currentPatient.id, {
+    diagnosis: dx,
+    summary: document.getElementById('dischSummary').value.trim(),
+    medications: document.getElementById('dischMeds').value.trim(),
+    followUpDate: document.getElementById('dischFollowUpDate').value || null,
+    followUpNotes: document.getElementById('dischFollowUpNotes').value.trim()
+  });
+
+  if (!res.ok) {
+    window.lcToast('Discharge failed: ' + res.error, 'error');
+    return;
+  }
+
+  var fresh = JSON.parse(localStorage.getItem('hms_patients_v3') || '[]');
+  currentPatient = fresh.find(function (p) { return p.id === currentPatient.id; });
+
+  closeLcModal('lcDischargeModal');
+  window.lcToast('Patient discharged', 'success');
+
+  renderModeBanner();
+  renderWardRoundTab();
+  renderQueue();
+}
+
+function startWardRound() {
+  if (!currentPatient || !currentPatient.admission) return;
+  if (currentPatient.admission.status !== 'Admitted') {
+    window.lcToast('Patient is not admitted', 'error');
+    return;
+  }
+
+  var res = window.lcCreateWardRound(currentPatient.id, {
+    chiefComplaint: currentEncounter ? currentEncounter.chiefComplaint : ''
+  });
+  if (!res.ok) {
+    window.lcToast('Could not start ward round: ' + res.error, 'error');
+    return;
+  }
+
+  var fresh = JSON.parse(localStorage.getItem('hms_patients_v3') || '[]');
+  currentPatient = fresh.find(function (p) { return p.id === currentPatient.id; });
+
+  var wr = currentPatient.admission.encounters.find(function (e) { return e.visitId === res.visitId; });
+  if (wr) {
+    currentEncounter = wr;
+    window.lcToast('Ward round started for ' + currentPatient.fullName, 'success');
+    loadNotes();
+    renderModeBanner();
+    renderWardRoundTab();
+  }
+}
+
+function closeLcModal(id) {
+  var el = document.getElementById(id);
+  if (el) el.classList.remove('active');
+}
+
+document.addEventListener('click', function (e) {
+  if (e.target.classList.contains('lc-modal-overlay')) {
+    e.target.classList.remove('active');
+  }
+});
+
+/* =========================================================
+   PATCH: hook into selectPatient to render footer action buttons
+========================================================= */
+(function patchSelectPatientForMode() {
+  var orig = window.selectPatient;
+  if (typeof orig !== 'function') return;
+  window.selectPatient = function () {
+    orig.apply(this, arguments);
+    setTimeout(function () {
+      renderModeBanner();
+      renderWardRoundTab();
+
+      var footer = document.getElementById('footerActions');
+      if (!footer) return;
+      if (isReadOnly) return;
+
+      footer.querySelectorAll('.lc-admit-action, .lc-discharge-action').forEach(function (el) { el.remove(); });
+
+      var mode = detectConsultMode();
+
+      if (mode === 'opd' || mode === 'emergency') {
+        if (!currentPatient.admission || currentPatient.admission.status !== 'Admitted') {
+          var admitBtn = document.createElement('button');
+          admitBtn.className = 'btn lc-admit-btn lc-admit-action';
+          admitBtn.textContent = '🏥 Admit to Ward';
+          admitBtn.onclick = openAdmitModal;
+          footer.insertBefore(admitBtn, footer.firstChild);
+        }
+      }
+      if (mode === 'ward') {
+        var wrBtn = document.createElement('button');
+        wrBtn.className = 'btn lc-discharge-action';
+        wrBtn.style.background = '#3A3577';
+        wrBtn.style.color = '#fff';
+        wrBtn.style.borderColor = '#3A3577';
+        wrBtn.textContent = '📝 Start Ward Round';
+        wrBtn.onclick = startWardRound;
+
+        var dischBtn = document.createElement('button');
+        dischBtn.className = 'btn lc-discharge-btn lc-discharge-action';
+        dischBtn.textContent = '✅ Discharge Patient';
+        dischBtn.onclick = openDischargeModal;
+
+        footer.insertBefore(dischBtn, footer.firstChild);
+        footer.insertBefore(wrBtn, footer.firstChild);
+      }
+    }, 200);
+  };
+})();
+/* =========================================================
+   NURSING CHART — read-only view for the doctor
+   Shows vitals, meds, MAR, fluids, notes, care plans, SBAR.
+   Works for admitted AND non-admitted (OPD / ER) patients.
+========================================================= */
+function renderNursingChart() {
+  var container = document.getElementById('nursingChartContent');
+  if (!container || !currentPatient) return;
+
+  var p = currentPatient;
+  var adm = p.admission && p.admission.status === 'Admitted' ? p.admission : null;
+  var enc = currentEncounter;
+
+  // Read from the same containers the nursing engine writes to.
+  // For admitted patients: admission node. For OPD/ER: the encounter node.
+  var vits = adm ? (adm.vitals || []) : (enc && enc.vitals ? enc.vitals : []);
+  var meds = adm ? (adm.medications || []) : [];
+  var fluids = adm ? (adm.fluidBalance || []) : (enc && enc.fluidBalance ? enc.fluidBalance : []);
+  var notes = adm ? (adm.nursingNotes || []) : (enc && enc.nursingNotes ? enc.nursingNotes : []);
+  var plans = adm ? (adm.carePlans || []) : (enc && enc.carePlans ? enc.carePlans : []);
+  var sbars = adm ? (adm.handovers || []) : (p.handovers || []);
+
+  var html = '';
+
+  // ---------- banner ----------
+  html += '<div class="alert alert-info" style="margin-bottom:14px">' +
+    '📋 Nursing chart is <strong>read-only</strong> here. ' +
+    (adm
+      ? 'Admitted to <strong>' + esc(adm.ward || '—') + '</strong>, bed <strong>' + esc(adm.bed || '—') + '</strong>.'
+      : 'Outpatient / emergency encounter.') +
+    '</div>';
+
+  // ---------- vitals ----------
+  html += '<div class="section-title">Vitals History (' + vits.length + ')</div>';
+  if (!vits.length) {
+    html += '<div class="empty-state">No vitals recorded by nursing yet.</div>';
+  } else {
+    var recent = vits.slice().reverse().slice(0, 12);
+    html += '<table class="order-table">' +
+      '<thead><tr><th>When</th><th>BP</th><th>HR</th><th>Temp</th><th>RR</th><th>SpO₂</th><th>Pain</th><th>By</th><th>Notes</th></tr></thead><tbody>';
+    recent.forEach(function (v) {
+      var bpCls = (v.bpSys > 140 || v.bpDia > 90 || v.bpSys < 90) ? 'style="color:#B3261E;font-weight:700"' : '';
+      var hrCls = (v.hr > 110 || v.hr < 50) ? 'style="color:#B3261E;font-weight:700"' : (v.hr > 100 ? 'style="color:#9A6200;font-weight:600"' : '');
+      var tCls  = (v.temp > 38) ? 'style="color:#B3261E;font-weight:700"' : (v.temp > 37.5 ? 'style="color:#9A6200;font-weight:600"' : '');
+      var oCls  = (v.spo2 && v.spo2 < 92) ? 'style="color:#B3261E;font-weight:700"' : (v.spo2 && v.spo2 < 95 ? 'style="color:#9A6200;font-weight:600"' : '');
+      var pnCls = (v.pain >= 7) ? 'style="color:#B3261E;font-weight:700"' : (v.pain >= 4 ? 'style="color:#9A6200;font-weight:600"' : '');
+      html += '<tr>' +
+        '<td style="font-size:11px">' + new Date(v.at).toLocaleString() + '</td>' +
+        '<td ' + bpCls + '>' + (v.bpSys || '—') + '/' + (v.bpDia || '—') + '</td>' +
+        '<td ' + hrCls + '>' + (v.hr || '—') + '</td>' +
+        '<td ' + tCls + '>' + (v.temp ? v.temp + '°C' : '—') + '</td>' +
+        '<td>' + (v.rr || '—') + '</td>' +
+        '<td ' + oCls + '>' + (v.spo2 ? v.spo2 + '%' : '—') + '</td>' +
+        '<td ' + pnCls + '>' + (v.pain != null ? v.pain + '/10' : '—') + '</td>' +
+        '<td style="font-size:11px">' + esc(v.by || '—') + '</td>' +
+        '<td style="font-size:11px">' + esc(v.notes || '') + '</td>' +
+        '</tr>';
+    });
+    html += '</tbody></table>';
+    if (vits.length > 12) html += '<div style="font-size:11px;color:#5F5B75;margin-top:6px">Showing 12 most recent of ' + vits.length + '. Full history in Nursing Station.</div>';
+  }
+
+  // ---------- medications / MAR ----------
+  if (adm) {
+    html += '<div class="section-title" style="margin-top:18px">Medications &amp; MAR (' + meds.length + ')</div>';
+    if (!meds.length) {
+      html += '<div class="empty-state">No medications charted.</div>';
+    } else {
+      html += '<table class="order-table"><thead><tr><th>Drug</th><th>Dose</th><th>Frequency</th><th>Route</th><th>Started</th><th>Doses given</th><th>Last given</th><th>Status</th></tr></thead><tbody>';
+      meds.forEach(function (m) {
+        var given = (m.administered || []).length;
+        var last = given ? (m.administered[m.administered.length - 1].at) : null;
+        html += '<tr>' +
+          '<td><strong>' + esc(m.drug) + '</strong></td>' +
+          '<td>' + esc(m.dose || '—') + '</td>' +
+          '<td>' + esc(m.frequency || '—') + '</td>' +
+          '<td>' + esc(m.route || '—') + '</td>' +
+          '<td style="font-size:11px">' + (m.prescribedAt ? new Date(m.prescribedAt).toLocaleDateString() : '—') + '</td>' +
+          '<td><strong>' + given + '</strong></td>' +
+          '<td style="font-size:11px">' + (last ? new Date(last).toLocaleString() : '—') + '</td>' +
+          '<td>' + (m.status === 'Active'
+            ? '<span class="badge badge-progress">Active</span>'
+            : '<span class="badge badge-pending">' + esc(m.status) + '</span>') + '</td>' +
+          '</tr>';
+      });
+      html += '</tbody></table>';
+    }
+  }
+
+  // ---------- fluid balance ----------
+  if (adm || fluids.length) {
+    html += '<div class="section-title" style="margin-top:18px">Fluid Balance (' + fluids.length + ')</div>';
+    if (!fluids.length) {
+      html += '<div class="empty-state">No fluid entries charted.</div>';
+    } else {
+      var since = new Date(); since.setHours(0, 0, 0, 0);
+      var intake = 0, output = 0;
+      fluids.forEach(function (f) {
+        if (new Date(f.at).getTime() < since.getTime()) return;
+        if (f.type === 'Intake') intake += Number(f.amount) || 0;
+        else output += Number(f.amount) || 0;
+      });
+      html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px">' +
+        '<div style="background:#E5F1EA;border-radius:6px;padding:10px 12px"><div style="font-size:10px;color:#5F5B75;text-transform:uppercase">Intake today</div><div style="font-size:18px;font-weight:700;color:#2B7A4B">' + intake + ' mL</div></div>' +
+        '<div style="background:#fde8e8;border-radius:6px;padding:10px 12px"><div style="font-size:10px;color:#5F5B75;text-transform:uppercase">Output today</div><div style="font-size:18px;font-weight:700;color:#B3261E">' + output + ' mL</div></div>' +
+        '<div style="background:#E4EFF7;border-radius:6px;padding:10px 12px"><div style="font-size:10px;color:#5F5B75;text-transform:uppercase">Balance</div><div style="font-size:18px;font-weight:700;color:#3A3577">' + (intake - output >= 0 ? '+' : '') + (intake - output) + ' mL</div></div>' +
+      '</div>';
+      var recent = fluids.slice().reverse().slice(0, 10);
+      html += '<table class="order-table"><thead><tr><th>When</th><th>Type</th><th>Amount</th><th>Description</th><th>By</th></tr></thead><tbody>';
+      recent.forEach(function (f) {
+        var color = f.type === 'Intake' ? '#2B7A4B' : '#B3261E';
+        html += '<tr>' +
+          '<td style="font-size:11px">' + new Date(f.at).toLocaleString() + '</td>' +
+          '<td><span style="color:' + color + ';font-weight:700">' + esc(f.type) + '</span></td>' +
+          '<td><strong>' + f.amount + ' mL</strong></td>' +
+          '<td>' + esc(f.description || '') + '</td>' +
+          '<td style="font-size:11px">' + esc(f.by || '') + '</td>' +
+          '</tr>';
+      });
+      html += '</tbody></table>';
+    }
+  }
+
+  // ---------- nursing notes ----------
+  html += '<div class="section-title" style="margin-top:18px">Nursing Notes (' + notes.length + ')</div>';
+  if (!notes.length) {
+    html += '<div class="empty-state">No nursing notes recorded.</div>';
+  } else {
+    notes.slice().reverse().forEach(function (n) {
+      html += '<div style="border:1px solid #DAD8E3;border-radius:6px;padding:10px 12px;margin-bottom:8px">' +
+        '<div style="font-size:11px;color:#3A3577;font-weight:700">' + esc(n.category || 'General') + '</div>' +
+        '<div style="margin-top:4px;font-size:13px">' + esc(n.text) + '</div>' +
+        '<div style="font-size:10px;color:#5F5B75;margin-top:4px">' + new Date(n.at).toLocaleString() + ' · ' + esc(n.by || '') + '</div>' +
+      '</div>';
+    });
+  }
+
+  // ---------- care plans ----------
+  html += '<div class="section-title" style="margin-top:18px">Care Plans (' + plans.length + ')</div>';
+  if (!plans.length) {
+    html += '<div class="empty-state">No care plans active.</div>';
+  } else {
+    plans.forEach(function (cp) {
+      var resolved = cp.status === 'Resolved';
+      html += '<div style="border:1px solid #DAD8E3;border-radius:8px;padding:12px 14px;margin-bottom:10px;' + (resolved ? 'opacity:.6;background:#f8faf8' : '') + '">' +
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">' +
+          '<div><div style="font-weight:700;font-size:13px">' + esc(cp.diagnosis) + (resolved ? ' ✅' : '') + '</div>' +
+          (cp.relatedTo ? '<div style="font-size:11px;color:#5F5B75">Related to: ' + esc(cp.relatedTo) + '</div>' : '') + '</div>' +
+          '<div style="font-size:10px;color:#5F5B75;white-space:nowrap">' + new Date(cp.createdAt).toLocaleDateString() + ' · ' + esc(cp.createdBy) + '</div>' +
+        '</div>' +
+        (cp.goal ? '<div style="margin-top:6px;font-size:12px"><strong>Goal:</strong> ' + esc(cp.goal) + '</div>' : '') +
+        (cp.interventions && cp.interventions.length
+          ? '<ul style="margin:6px 0 0 18px;font-size:12px">' + cp.interventions.map(function (i) { return '<li>' + esc(i) + '</li>'; }).join('') + '</ul>'
+          : '') +
+        (cp.evaluations && cp.evaluations.length
+          ? '<div style="margin-top:8px;padding-top:6px;border-top:1px dashed #ddd;font-size:11px;color:#444">' +
+            cp.evaluations.map(function (ev) { return '<div>' + new Date(ev.at).toLocaleString() + ' — ' + esc(ev.by) + ': ' + esc(ev.text) + '</div>'; }).join('') +
+            '</div>'
+          : '') +
+        (resolved
+          ? '<div style="margin-top:8px;font-size:11px;color:#2B7A4B">Resolved ' + new Date(cp.resolvedAt).toLocaleString() + ' — ' + esc(cp.resolvedBy) + (cp.resolvedReason ? ' · ' + esc(cp.resolvedReason) : '') + '</div>'
+          : '') +
+      '</div>';
+    });
+  }
+
+  // ---------- SBAR handovers ----------
+  html += '<div class="section-title" style="margin-top:18px">Handovers — SBAR (' + sbars.length + ')</div>';
+  if (!sbars.length) {
+    html += '<div class="empty-state">No handover notes.</div>';
+  } else {
+    sbars.slice().reverse().forEach(function (h) {
+      html += '<div style="border:1px solid #DAD8E3;border-radius:8px;padding:12px 14px;margin-bottom:10px">' +
+        '<div style="font-size:11px;color:#5F5B75;margin-bottom:6px">' + new Date(h.at).toLocaleString() + ' · ' + esc(h.by) + '</div>' +
+        '<div style="font-size:12px;line-height:1.6">' +
+          (h.situation ? '<div><strong>S:</strong> ' + esc(h.situation) + '</div>' : '') +
+          (h.background ? '<div><strong>B:</strong> ' + esc(h.background) + '</div>' : '') +
+          (h.assessment ? '<div><strong>A:</strong> ' + esc(h.assessment) + '</div>' : '') +
+          (h.recommendation ? '<div><strong>R:</strong> ' + esc(h.recommendation) + '</div>' : '') +
+        '</div>' +
+      '</div>';
+    });
+  }
+
+  container.innerHTML = html;
+}
+
+// Wire the tab into selectPatient + the tab click handler
+(function patchForNursingTab() {
+  var _selectPatient = window.selectPatient;
+  if (typeof _selectPatient === 'function') {
+    window.selectPatient = function () {
+      _selectPatient.apply(this, arguments);
+      setTimeout(function () {
+        var tab = document.getElementById('nursingTab');
+        if (tab) tab.style.display = ''; // always visible (works for OPD too)
+        renderNursingChart();
+      }, 200);
+    };
+  }
+})();
+
+// Hook into tab clicks
+document.querySelectorAll('.consult-tab').forEach(function (tab) {
+  tab.addEventListener('click', function () {
+    if (tab.dataset.tab === 'nursing') renderNursingChart();
+  });
+});
+
+// Make renderNursingChart globally available (e.g. from Ward Round tab buttons)
+window.renderNursingChart = renderNursingChart;
+console.log('🩺 LabCore Consultation Workspace loaded');
+console.log('🏥 Round 2 — Ward mode patches loaded');
+</script>
+<script src="shared/labcore-connectivity.js"></script>
+<script src="shared/labcore-scan.js"></script>
+</body>
+</html>

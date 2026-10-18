@@ -1,0 +1,33 @@
+{
+  "name": "labcore-backend",
+  "version": "1.0.0",
+  "description": "LabCore LIS backend",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "seed": "node db/seed.js",
+    "admin:bootstrap": "node bootstrap-admin.js",
+    "backup": "node backup.js",
+    "backup:verify": "node verify-backup.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.922.0",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-async-errors": "^3.1.1",
+    "express-rate-limit": "^7.4.0",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.0",
+    "pg": "^8.13.0",
+    "uuid": "^11.1.1"
+  }
+}

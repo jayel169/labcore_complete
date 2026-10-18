@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Settings | LabCore</title>
+<link rel="stylesheet" href="shared/labcore-nav.css">
+<style>
+.st-wrap { max-width: 1100px; }
+.st-card {
+  background: #fff;
+  border: 1px solid var(--lc-border);
+  border-radius: 10px;
+  padding: 22px 24px;
+  margin-bottom: 18px;
+}
+.st-card h2 {
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.st-card .sub {
+  font-size: 12px;
+  color: var(--lc-text-muted);
+  margin-bottom: 18px;
+}
+.st-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 18px;
+}
+.st-grid .full { grid-column: 1 / -1; }
+.st-field label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--lc-text-muted);
+  margin-bottom: 5px;
+}
+.st-field input,
+.st-field textarea,
+.st-field select {
+  width: 100%;
+  padding: 9px 12px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--lc-text);
+  background: var(--lc-surface);
+  border: 1px solid var(--lc-border-strong);
+  border-radius: var(--lc-radius);
+  transition: border-color var(--lc-transition), box-shadow var(--lc-transition);
+}
+.st-field input:focus,
+.st-field textarea:focus,
+.st-field select:focus {
+  outline: none;
+  border-color: var(--lc-brand-accent);
+  box-shadow: 0 0 0 3px rgba(58,53,119,0.15);
+}
+.st-field textarea { resize: vertical; min-height: 60px; }
+.st-hint { font-size: 11px; color: var(--lc-text-subtle); margin-top: 4px; }
+
+.st-color-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.st-color-row input[type="color"] {
+  width: 46px;
+  height: 38px;
+  padding: 2px;
+  border: 1px solid var(--lc-border-strong);
+  border-radius: var(--lc-radius);
+  cursor: pointer;
+  background: #fff;
+}
+.st-color-row input[type="text"] {
+  flex: 1;
+  font-family: 'Courier New', monospace;
+}
+
+.st-logo-preview {
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px dashed var(--lc-border-strong);
+  border-radius: var(--lc-radius);
+  background: var(--lc-surface-2);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 80px;
+}
+.st-logo-preview img {
+  max-height: 60px;
+  max-width: 200px;
+  background: #fff;
+  padding: 4px;
+  border-radius: 4px;
+  border: 1px solid var(--lc-border);
+}
+.st-logo-preview .empty-note {
+  font-size: 12px;
+  color: var(--lc-text-subtle);
+  font-style: italic;
+}
+
+.st-preview {
+  background: #fff;
+  border: 1px solid var(--lc-border);
+  border-radius: 10px;
+  padding: 22px;
+  margin-bottom: 18px;
+  position: sticky;
+  top: 76px;
+}
+.st-preview h3 {
+  font-size: 12px;
+  font-weight: 700;
+  
+  
+  color: var(--lc-text-subtle);
+  margin-bottom: 14px;
+}
+.st-report-mock {
+  background: #fff;
+  border: 1px solid var(--lc-border);
+  border-radius: 4px;
+  padding: 16px;
+  font-family: var(--lc-font);
+  color: #2A2656;
+}
+.st-report-mock .rm-hdr {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  border-bottom: 2px solid #2A2656;
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+}
+.st-report-mock .rm-hdr-left { display: flex; gap: 10px; align-items: center; }
+.st-report-mock .rm-logo {
+  width: 46px; height: 46px;
+  background: #EFEDF4;
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800;
+  font-size: 16px;
+  color: #999;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.st-report-mock .rm-logo img { width: 100%; height: 100%; object-fit: contain; }
+.st-report-mock .rm-name { font-size: 14px; font-weight: 800;  }
+.st-report-mock .rm-tag  { font-size: 10px; color: #5F5B75; letter-spacing: 1px;  margin-top: 2px; }
+.st-report-mock .rm-right { text-align: right; font-size: 10px; color: #5F5B75; line-height: 1.6; max-width: 45%; }
+.st-report-mock .rm-body {
+  padding: 14px 0;
+  font-size: 11px;
+  color: #5F5B75;
+  text-align: center;
+  font-style: italic;
+}
+.st-report-mock .rm-foot {
+  border-top: 1px solid #e2e8f0;
+  padding-top: 8px;
+  font-size: 9px;
+  color: #8a96a0;
+  text-align: center;
+  line-height: 1.6;
+}
+
+.st-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+.st-layout { display: grid; grid-template-columns: 1fr 380px; gap: 20px; align-items: start; }
+@media (max-width: 1000px) {
+  .st-layout { grid-template-columns: 1fr; }
+  .st-preview { position: static; }
+  .st-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<aside class="sidebar"></aside>
+<button class="lc-mobile-toggle" aria-label="Menu">☰</button>
+<div class="lc-sidebar-overlay"></div>
+
+<div class="main">
+  <div class="lc-top-header">
+    <div>
+      <div class="lc-page-eyebrow">Administration</div>
+      <h1>Facility Settings</h1>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <button class="btn btn-sm lc-btn-outline" onclick="resetSettings()">↺ Reset to defaults</button>
+      <button class="btn lc-btn-primary" onclick="saveSettings()">💾 Save settings</button>
+    </div>
+  </div>
+
+  <div class="lc-content">
+    <div class="st-wrap">
+      <div id="pageAlert"></div>
+
+      <div class="st-layout">
+        <!-- FORM -->
+        <div>
+
+          <!-- IDENTITY -->
+          <div class="st-card">
+            <h2>Identity</h2>
+            <div class="sub">Your facility name and short code. These appear on every printed document.</div>
+            <div class="st-grid">
+              <div class="st-field">
+                <label>Facility name</label>
+                <input type="text" id="f_facilityName" placeholder="e.g. Akoma Diagnostic Laboratory" oninput="updatePreview()">
+              </div>
+              <div class="st-field">
+                <label>Short name / code</label>
+                <input type="text" id="f_facilityShort" placeholder="e.g. ADL" maxlength="8" oninput="updatePreview()">
+                <div class="st-hint">2–6 uppercase characters, no spaces. Used in barcodes and compact headers.</div>
+              </div>
+              <div class="st-field full">
+                <label>Logo</label>
+                <input type="file" id="f_logoFile" accept="image/*" onchange="onLogoSelected(event)">
+                <div class="st-hint">PNG or JPG, up to 200 KB. Shown on printed reports.</div>
+                <div class="st-logo-preview" id="logoPreview"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- CONTACT -->
+          <div class="st-card">
+            <h2>Contact</h2>
+            <div class="sub">How the facility can be reached. Printed on reports and receipts.</div>
+            <div class="st-grid">
+              <div class="st-field">
+                <label>Primary phone</label>
+                <input type="tel" id="f_phonePrimary" placeholder="+233 ...">
+              </div>
+              <div class="st-field">
+                <label>Secondary phone</label>
+                <input type="tel" id="f_phoneSecondary" placeholder="+233 ...">
+              </div>
+              <div class="st-field">
+                <label>Email</label>
+                <input type="email" id="f_email" placeholder="info@facility.example">
+              </div>
+              <div class="st-field">
+                <label>Website</label>
+                <input type="text" id="f_website" placeholder="https://...">
+              </div>
+              <div class="st-field full">
+                <label>Physical address</label>
+                <textarea id="f_addressLine1" rows="2" placeholder="Street address"></textarea>
+                <input type="text" id="f_addressLine2" placeholder="Building, floor, landmark (optional)" style="margin-top:8px">
+              </div>
+            </div>
+          </div>
+
+          <!-- LOCATION -->
+          <div class="st-card">
+            <h2>Location</h2>
+            <div class="sub">City, region, and country. Used in report headers.</div>
+            <div class="st-grid">
+              <div class="st-field">
+                <label>City</label>
+                <input type="text" id="f_city" placeholder="e.g. Accra">
+              </div>
+              <div class="st-field">
+                <label>Region / State</label>
+                <input type="text" id="f_region" placeholder="e.g. Greater Accra">
+              </div>
+              <div class="st-field">
+                <label>Country</label>
+                <input type="text" id="f_country" placeholder="e.g. Ghana">
+              </div>
+            </div>
+          </div>
+
+          <!-- SIGNATORY -->
+          <div class="st-card">
+            <h2>Lab director / signatory</h2>
+            <div class="sub">Printed on reports alongside validated results.</div>
+            <div class="st-grid">
+              <div class="st-field full">
+                <label>Director name</label>
+                <input type="text" id="f_directorName" placeholder="e.g. Dr. Ama Owusu, MBChB">
+              </div>
+              <div class="st-field full">
+                <label>Signature image (optional)</label>
+                <input type="file" id="f_signatureFile" accept="image/*" onchange="onSignatureSelected(event)">
+                <div class="st-hint">Transparent PNG preferred, up to 100 KB.</div>
+                <div class="st-logo-preview" id="signaturePreview"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- REPORT DEFAULTS -->
+          <div class="st-card">
+            <h2>Report defaults</h2>
+            <div class="sub">Fixed text shown on every printed report.</div>
+            <div class="st-grid">
+              <div class="st-field full">
+                <label>Footer text</label>
+                <textarea id="f_reportFooter" rows="2" placeholder="e.g. Thank you for choosing our laboratory."></textarea>
+              </div>
+              <div class="st-field full">
+                <label>Report validity note</label>
+                <textarea id="f_reportValidityNote" rows="2" placeholder="e.g. Results relate only to the specimen received."></textarea>
+              </div>
+              <div class="st-field full">
+                <label>Confidentiality statement</label>
+                <textarea id="f_confidentialityNote" rows="2" placeholder="e.g. This report is confidential and intended for the named patient and their clinician."></textarea>
+              </div>
+            </div>
+          </div>
+
+          <!-- WORKFLOW -->
+          <div class="st-card">
+            <h2>Workflow</h2>
+            <div class="sub">Defaults used across the app.</div>
+            <div class="st-grid">
+              <div class="st-field">
+                <label>Currency code</label>
+                <input type="text" id="f_currency" placeholder="GHS" maxlength="6">
+                <div class="st-hint">ISO code, e.g. GHS, NGN, USD.</div>
+              </div>
+              <div class="st-field">
+                <label>Default TAT (hours)</label>
+                <input type="number" id="f_defaultTatHours" min="1" max="720" step="1" placeholder="24">
+                <div class="st-hint">Used when a panel has no SLA configured.</div>
+              </div>
+              <div class="st-field">
+                <label>Date format</label>
+                <select id="f_dateFormat">
+                  <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                  <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                </select>
+              </div>
+              <div class="st-field">
+                <label>Time format</label>
+                <select id="f_timeFormat">
+                  <option value="24h">24-hour</option>
+                  <option value="12h">12-hour</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- THEME -->
+          <div class="st-card">
+            <h2>Theme</h2>
+            <div class="sub">Brand colors used throughout the interface.</div>
+            <div class="st-grid">
+              <div class="st-field">
+                <label>Primary brand color</label>
+                <div class="st-color-row">
+                  <input type="color" id="f_brandPrimary" oninput="syncColorText('brandPrimary')" onchange="updatePreview()">
+                  <input type="text" id="f_brandPrimaryText" maxlength="7" oninput="syncColorPicker('brandPrimary')">
+                </div>
+              </div>
+              <div class="st-field">
+                <label>Accent color</label>
+                <div class="st-color-row">
+                  <input type="color" id="f_brandAccent" oninput="syncColorText('brandAccent')" onchange="updatePreview()">
+                  <input type="text" id="f_brandAccentText" maxlength="7" oninput="syncColorPicker('brandAccent')">
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- PREVIEW -->
+        <div class="st-preview">
+          <h3>Report header preview</h3>
+          <div class="st-report-mock">
+            <div class="rm-hdr">
+              <div class="rm-hdr-left">
+                <div class="rm-logo" id="pvLogo">LC</div>
+                <div>
+                  <div class="rm-name" id="pvName">⚠ Facility name not configured</div>
+                  <div class="rm-tag" id="pvTag">Laboratory Report</div>
+                </div>
+              </div>
+              <div class="rm-right" id="pvRight"></div>
+            </div>
+            <div class="rm-body">— report content —</div>
+            <div class="rm-foot" id="pvFoot"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+<script src="shared/labcore-api.js"></script>
+<script src="shared/labcore-utils.js"></script>
+<script src="shared/labcore-ward.js"></script>
+<script src="shared/labcore-auth.js"></script>
+<script src="shared/labcore-staff.js"></script>
+<script src="shared/labcore-audit.js"></script>
+<script src="shared/labcore-settings.js"></script>
+<script src="shared/labcore-icons.js"></script>
+<script src="shared/labcore-nav.js"></script>
+<script src="shared/labcore-search.js"></script>
+<script src="shared/labcore-notifications.js"></script>
+
+<script>
+(function () {
+  'use strict';
+
+  var user = window.lcRequireAuth ? window.lcRequireAuth() : null;
+  if (!user) return;
+  if (user.id !== 'admin') {
+    if (window.lcToast) window.lcToast('Only administrators can change facility settings', 'warning');
+    window.location.href = 'dashboard.html';
+    return;
+  }
+
+  var MAX_LOGO_BYTES = 200 * 1024;
+  var MAX_SIG_BYTES  = 100 * 1024;
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function showAlert(msg, type) {
+    var el = $('pageAlert');
+    var cls = type === 'error' ? 'lc-alert-danger'
+            : type === 'warning' ? 'lc-alert-warning'
+            : type === 'info' ? 'lc-alert-info'
+            : 'lc-alert-success';
+    el.innerHTML = '<div class="lc-alert ' + cls + '">' + esc(msg) + '</div>';
+    setTimeout(function () { el.innerHTML = ''; }, 5000);
+  }
+
+  /* =========================================================
+     LOAD SETTINGS INTO FORM
+     ========================================================= */
+  function loadForm() {
+    var s = window.lcSettings.get();
+
+    // Identity
+    $('f_facilityName').value = s.facilityName || '';
+    $('f_facilityShort').value = s.facilityShort || '';
+
+    // Contact
+    $('f_phonePrimary').value = s.phonePrimary || '';
+    $('f_phoneSecondary').value = s.phoneSecondary || '';
+    $('f_email').value = s.email || '';
+    $('f_website').value = s.website || '';
+    $('f_addressLine1').value = s.addressLine1 || '';
+    $('f_addressLine2').value = s.addressLine2 || '';
+
+    // Location
+    $('f_city').value = s.city || '';
+    $('f_region').value = s.region || '';
+    $('f_country').value = s.country || '';
+
+    // Signatory
+    $('f_directorName').value = s.directorName || '';
+
+    // Report defaults
+    $('f_reportFooter').value = s.reportFooter || '';
+    $('f_reportValidityNote').value = s.reportValidityNote || '';
+    $('f_confidentialityNote').value = s.confidentialityNote || '';
+
+    // Workflow
+    $('f_currency').value = s.currency || 'GHS';
+    $('f_defaultTatHours').value = s.defaultTatHours || 24;
+    $('f_dateFormat').value = s.dateFormat || 'DD/MM/YYYY';
+    $('f_timeFormat').value = s.timeFormat || '24h';
+
+    // Theme
+    var bp = (!s.brandPrimary || s.brandPrimary.toUpperCase() === '#0B2E4F') ? '#2A2656' : s.brandPrimary;
+    var ba = (!s.brandAccent  || s.brandAccent.toUpperCase()  === '#0E7C7B') ? '#C23B6A' : s.brandAccent;
+    $('f_brandPrimary').value = bp;
+    $('f_brandPrimaryText').value = bp;
+    $('f_brandAccent').value = ba;
+    $('f_brandAccentText').value = ba;
+
+    renderLogoPreview();
+    renderSignaturePreview();
+    updatePreview();
+  }
+
+  function renderLogoPreview() {
+    var url = window.lcSettings.logoDataUrl();
+    var host = $('logoPreview');
+    if (!url) {
+      host.innerHTML = '<span class="empty-note">No logo uploaded yet</span>';
+      return;
+    }
+    host.innerHTML = '<img src="' + url + '" alt="logo">' +
+      '<button class="btn btn-sm lc-btn-outline" onclick="clearLogo()">Remove</button>';
+  }
+
+  function renderSignaturePreview() {
+    var url = window.lcSettings.signatureDataUrl();
+    var host = $('signaturePreview');
+    if (!url) {
+      host.innerHTML = '<span class="empty-note">No signature uploaded yet</span>';
+      return;
+    }
+    host.innerHTML = '<img src="' + url + '" alt="signature">' +
+      '<button class="btn btn-sm lc-btn-outline" onclick="clearSignature()">Remove</button>';
+  }
+
+  window.clearLogo = function () {
+    window.lcSettings.set('logoDataUrl', '');
+    renderLogoPreview();
+    updatePreview();
+  };
+  window.clearSignature = function () {
+    window.lcSettings.set('signatureDataUrl', '');
+    renderSignaturePreview();
+  };
+
+  /* =========================================================
+     LOGO / SIGNATURE UPLOAD
+     ========================================================= */
+  window.onLogoSelected = function (ev) {
+    var file = ev.target.files && ev.target.files[0];
+    if (!file) return;
+    if (file.size > MAX_LOGO_BYTES) {
+      showAlert('Logo is too large. Max 200 KB.', 'error');
+      ev.target.value = '';
+      return;
+    }
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      window.lcSettings.set('logoDataUrl', e.target.result);
+      renderLogoPreview();
+      updatePreview();
+      showAlert('Logo updated.', 'success');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  window.onSignatureSelected = function (ev) {
+    var file = ev.target.files && ev.target.files[0];
+    if (!file) return;
+    if (file.size > MAX_SIG_BYTES) {
+      showAlert('Signature is too large. Max 100 KB.', 'error');
+      ev.target.value = '';
+      return;
+    }
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      window.lcSettings.set('signatureDataUrl', e.target.result);
+      renderSignaturePreview();
+      showAlert('Signature updated.', 'success');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  /* =========================================================
+     COLOR SYNC
+     ========================================================= */
+  window.syncColorText = function (key) {
+    var picker = $('f_' + key);
+    var text = $('f_' + key + 'Text');
+    text.value = picker.value.toUpperCase();
+  };
+  window.syncColorPicker = function (key) {
+    var picker = $('f_' + key);
+    var text = $('f_' + key + 'Text');
+    var v = text.value.trim();
+    if (/^#[0-9A-Fa-f]{6}$/.test(v)) {
+      picker.value = v;
+    }
+    updatePreview();
+  };
+
+  /* =========================================================
+     PREVIEW
+     ========================================================= */
+  window.updatePreview = function () {
+    var name = $('f_facilityName').value.trim();
+    var short = $('f_facilityShort').value.trim();
+    var logoUrl = window.lcSettings.logoDataUrl();
+    var phone = $('f_phonePrimary').value.trim();
+    var phone2 = $('f_phoneSecondary').value.trim();
+    var city = $('f_city').value.trim();
+    var region = $('f_region').value.trim();
+    var country = $('f_country').value.trim();
+
+    $('pvName').textContent = name || '⚠ Facility name not configured';
+    $('pvTag').textContent = 'Laboratory Report';
+
+    var l = $('pvLogo');
+    if (logoUrl) {
+      l.innerHTML = '<img src="' + logoUrl + '" alt="logo">';
+    } else {
+      l.textContent = (short || 'LC').slice(0, 4).toUpperCase();
+    }
+
+    var right = [];
+    var loc = [city, region, country].filter(Boolean).join(', ');
+    if (loc) right.push(esc(loc));
+    var phones = [phone, phone2].filter(Boolean).join(' / ');
+    if (phones) right.push(esc(phones));
+    right.push('Printed: ' + new Date().toLocaleString());
+    $('pvRight').innerHTML = right.join('<br>');
+
+    var foot = $('f_reportFooter').value.trim();
+    $('pvFoot').textContent = foot || '— footer text —';
+  };
+
+  /* =========================================================
+     SAVE / RESET
+     ========================================================= */
+  window.saveSettings = function () {
+    var patch = {
+      facilityName: $('f_facilityName').value.trim(),
+      facilityShort: $('f_facilityShort').value.trim(),
+
+      phonePrimary: $('f_phonePrimary').value.trim(),
+      phoneSecondary: $('f_phoneSecondary').value.trim(),
+      email: $('f_email').value.trim(),
+      website: $('f_website').value.trim(),
+      addressLine1: $('f_addressLine1').value.trim(),
+      addressLine2: $('f_addressLine2').value.trim(),
+
+      city: $('f_city').value.trim(),
+      region: $('f_region').value.trim(),
+      country: $('f_country').value.trim(),
+
+      directorName: $('f_directorName').value.trim(),
+
+      reportFooter: $('f_reportFooter').value.trim(),
+      reportValidityNote: $('f_reportValidityNote').value.trim(),
+      confidentialityNote: $('f_confidentialityNote').value.trim(),
+
+      currency: ($('f_currency').value.trim() || 'GHS'),
+      defaultTatHours: Number($('f_defaultTatHours').value) || 24,
+      dateFormat: $('f_dateFormat').value,
+      timeFormat: $('f_timeFormat').value,
+
+      brandPrimary: $('f_brandPrimaryText').value.trim() || '#2A2656',
+      brandAccent: $('f_brandAccentText').value.trim() || '#C23B6A'
+    };
+
+    if (!window.lcSettings.setAll(patch)) {
+      showAlert('Could not save settings. Storage may be full.', 'error');
+      return;
+    }
+
+    window.lcSettings.applyTheme();
+
+    if (window.lcAudit) {
+      window.lcAudit('settings.updated', {
+        entity: 'facility-settings',
+        note: 'Facility settings saved (' + (patch.facilityName || 'unnamed') + ')'
+      });
+    }
+
+    showAlert('Settings saved. Reload other open tabs to see the changes.', 'success');
+    if (window.lcToast) window.lcToast('Facility settings saved', 'success');
+    updatePreview();
+  };
+
+  window.resetSettings = function () {
+    if (!confirm('Reset facility settings to defaults?\n\nThis will clear your name, contact details, and logo.')) return;
+    window.lcSettings.reset();
+    loadForm();
+    window.lcSettings.applyTheme();
+    showAlert('Settings reset to defaults.', 'info');
+    if (window.lcAudit) {
+      window.lcAudit('settings.reset', { entity: 'facility-settings', note: 'Facility settings reset' });
+    }
+  };
+
+  loadForm();
+  console.log('⚙️  Settings page ready');
+})();
+</script>
+</body>
+</html>

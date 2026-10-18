@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Turnaround Monitor | LabCore</title>
+  <link rel="stylesheet" href="shared/labcore-nav.css">
+  <style>
+    * { box-sizing:border-box; } body { margin:0; background:var(--lc-bg); color:var(--lc-text); font-family:var(--lc-font); }
+    .main { margin-left:var(--lc-sidebar-w); padding:28px; }
+    .head { display:flex; justify-content:space-between; align-items:flex-start; gap:14px; margin-bottom:16px; }
+    h1 { margin:0 0 5px; font-size:25px; } h2 { margin:0; font-size:17px; } p { margin:0; color:var(--lc-muted); font-size:13px; line-height:1.5; }
+    .cards { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-bottom:14px; }
+    .card,.panel { background:#fff; border:1px solid var(--lc-border); border-radius:7px; }
+    .card { padding:12px 14px; } .card span { display:block; color:var(--lc-muted); font-size:12px; } .card strong { display:block; margin-top:4px; font-size:23px; }
+    .panel { padding:15px; margin-bottom:14px; }
+    .panel-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:11px; }
+    .table-wrap { overflow-x:auto; } table { width:100%; border-collapse:collapse; }
+    th,td { padding:9px 8px; border-bottom:1px solid var(--lc-border); text-align:left; vertical-align:top; font-size:12px; }
+    th { color:var(--lc-muted); text-transform:uppercase; font-size:10px; white-space:nowrap; }
+    .targets-table { min-width:650px; } .queue-table { min-width:930px; }
+    .sub { display:block; margin-top:3px; color:var(--lc-muted); font-size:11px; }
+    .badge { display:inline-block; padding:3px 8px; border-radius:12px; background:var(--lc-success-bg); color:var(--lc-success); font-size:11px; font-weight:700; white-space:nowrap; }
+    .badge.overdue { background:var(--lc-danger-bg); color:var(--lc-danger); } .badge.no-target { background:var(--lc-warning-bg); color:var(--lc-warning); }
+    input { width:90px; padding:6px 7px; border:1px solid var(--lc-border); border-radius:4px; font:inherit; font-size:12px; }
+    .btn { border:1px solid var(--lc-border); border-radius:5px; background:#fff; padding:6px 8px; font:inherit; font-size:12px; cursor:pointer; }
+    .btn-primary { background:var(--lc-brand-primary); border-color:var(--lc-brand-primary); color:#fff; }
+    .notice { display:none; padding:10px 12px; margin-bottom:12px; border-radius:5px; background:var(--lc-info-bg); color:var(--lc-info); font-size:13px; }
+    .notice.error { background:var(--lc-danger-bg); color:var(--lc-danger); } .empty { padding:20px; text-align:center; color:var(--lc-muted); }
+    .note { margin-bottom:12px; padding:11px 13px; border-left:4px solid var(--lc-brand-gold); background:#fff9e9; font-size:13px; }
+    @media(max-width:900px) { .main { margin-left:0; padding:76px 16px 20px; } .cards { grid-template-columns:repeat(2,1fr); } }
+    @media(max-width:540px) { .head { flex-direction:column; } }
+  </style>
+</head>
+<body>
+  <aside class="sidebar"></aside><div class="lc-sidebar-overlay"></div>
+  <main class="main">
+    <header class="head"><div><h1>Turnaround Monitor</h1><p>Track time from specimen receipt to validated result, identify overdue work and review panel performance.</p></div><button type="button" class="btn" id="refresh">Refresh</button></header>
+    <div class="note"><strong>Targets:</strong> no turnaround SLA is assumed. An order is marked overdue only after an administrator configures a panel target. Times use specimen receipt in the facility's Africa/Accra time zone; missing receipt timestamps are excluded.</div>
+    <div class="notice" id="notice" role="status"></div>
+    <section class="cards" aria-label="Turnaround overview">
+      <div class="card"><span>Open work</span><strong id="openCount">0</strong></div>
+      <div class="card"><span>Over target</span><strong id="overdueCount">0</strong></div>
+      <div class="card"><span>Open with no target</span><strong id="unconfiguredCount">0</strong></div>
+      <div class="card"><span>Average validated TAT</span><strong id="averageTat">—</strong></div>
+    </section>
+    <section class="panel">
+      <div class="panel-head"><h2>Panel targets &amp; performance</h2><span id="panelCount" class="sub"></span></div>
+      <div class="table-wrap"><table class="targets-table"><thead><tr><th>Panel</th><th>Configured target (hours)</th><th>Open</th><th>Over target</th><th>Completed</th><th>Avg TAT</th><th>On time</th><th></th></tr></thead><tbody id="panelRows"></tbody></table></div>
+    </section>
+    <section class="panel">
+      <div class="panel-head"><h2>Open specimen-to-result queue</h2><span id="openCaption" class="sub"></span></div>
+      <div class="table-wrap"><table class="queue-table"><thead><tr><th>Received</th><th>Patient / visit</th><th>Specimen</th><th>Panel</th><th>Priority</th><th>Elapsed / target</th><th>State</th></tr></thead><tbody id="openRows"></tbody></table></div>
+    </section>
+    <section class="panel">
+      <div class="panel-head"><h2>Recently validated</h2></div>
+      <div class="table-wrap"><table class="queue-table"><thead><tr><th>Received</th><th>Patient / visit</th><th>Panel</th><th>Validated</th><th>TAT</th><th>Target</th></tr></thead><tbody id="completedRows"></tbody></table></div>
+    </section>
+  </main>
+  <script src="shared/labcore-api.js"></script><script src="shared/labcore-auth.js"></script><script src="shared/labcore-icons.js"></script><script src="shared/labcore-nav.js"></script>
+  <script>
+    (function () {
+      'use strict';
+      var data = { open:[], completed:[], panels:[], targets:[] };
+      var user = window.lcGetUser && window.lcGetUser();
+      var canManage = !!user && user.role === 'admin';
+      var $ = function (id) { return document.getElementById(id); };
+      function notice(text, error) { var el=$('notice'); el.textContent=text||''; el.classList.toggle('error',!!error); el.style.display=text?'block':'none'; }
+      function hours(value) { if(value==null)return '—'; if(value<1)return Math.round(value*60)+' min'; return value.toFixed(1)+' h'; }
+      function localTime(value) { if(!value)return '—'; var date=new Date(value); return isNaN(date.getTime())?'—':new Intl.DateTimeFormat(undefined,{timeZone:'Africa/Accra',dateStyle:'medium',timeStyle:'short'}).format(date)+' (Accra)'; }
+      function cell(row, value, sub) { var td=document.createElement('td');td.textContent=value==null||value===''?'—':String(value);if(sub){var el=document.createElement('span');el.className='sub';el.textContent=sub;td.appendChild(el);}row.appendChild(td);return td; }
+      function button(text, handler) { var el=document.createElement('button');el.type='button';el.className='btn btn-primary';el.textContent=text;el.addEventListener('click',handler);return el; }
+      function renderPanels() {
+        var body=$('panelRows');body.replaceChildren();
+        var known=new Set();
+        data.targets.forEach(function(target){known.add(target.panel.toLowerCase());});
+        data.panels.forEach(function(panel){
+          known.add(panel.panel.toLowerCase());
+          var row=document.createElement('tr');cell(row,panel.panel);
+          var targetCell=document.createElement('td');
+          if(canManage){
+            var input=document.createElement('input');input.type='number';input.min='0.1';input.max='720';input.step='0.1';input.value=panel.targetHours||'';input.placeholder='Not set';input.setAttribute('aria-label','Target hours for '+panel.panel);targetCell.appendChild(input);
+            row.appendChild(targetCell);var saveCell=document.createElement('td');
+            saveCell.textContent=panel.open;row.appendChild(saveCell);cell(row,panel.overdue);
+            cell(row,panel.completed);cell(row,hours(panel.averageHours));
+            cell(row,panel.targetHours&&panel.completed?Math.round(100*panel.metTarget/panel.completed)+'%':'—',panel.targetHours?'completed within target':'target not configured');
+            var actions=document.createElement('td');actions.appendChild(button('Save target',function(){saveTarget(panel.panel,input.value);}));row.appendChild(actions);
+          }else{
+            targetCell.textContent=panel.targetHours?panel.targetHours+' h':'Not configured';row.appendChild(targetCell);
+            cell(row,panel.open);cell(row,panel.overdue);cell(row,panel.completed);cell(row,hours(panel.averageHours));
+            cell(row,panel.targetHours&&panel.completed?Math.round(100*panel.metTarget/panel.completed)+'%':'—');
+            cell(row,'');
+          }
+          body.appendChild(row);
+        });
+        data.open.forEach(function(order){
+          if(known.has(order.panel.toLowerCase()))return;
+          known.add(order.panel.toLowerCase());
+          var row=document.createElement('tr');cell(row,order.panel);
+          if(canManage){var input=document.createElement('input');input.type='number';input.min='0.1';input.max='720';input.step='0.1';input.placeholder='Not set';input.setAttribute('aria-label','Target hours for '+order.panel);var targetCell=document.createElement('td');targetCell.appendChild(input);row.appendChild(targetCell);cell(row,'1');cell(row,'0');cell(row,'0');cell(row,'—');var action=document.createElement('td');action.appendChild(button('Save target',function(){saveTarget(order.panel,input.value);}));row.appendChild(action);}
+          else {cell(row,'Not configured');cell(row,'1');cell(row,'0');cell(row,'0');cell(row,'—');cell(row,'');}
+          body.appendChild(row);
+        });
+        $('panelCount').textContent=data.panels.length+' panel(s)';
+        if(!body.childNodes.length)body.innerHTML='<tr><td colspan="8" class="empty">No TAT data available yet.</td></tr>';
+      }
+      function renderOpen() {
+        var body=$('openRows');body.replaceChildren();
+        data.open.forEach(function(order){
+          var row=document.createElement('tr');cell(row,localTime(order.receivedAt));
+          cell(row,order.patientName,order.patientId+' · '+order.visitId);
+          cell(row,order.specimenId);cell(row,order.panel,order.department);
+          cell(row,order.priority);
+          cell(row,hours(order.ageHours),order.targetHours?'Target '+hours(order.targetHours):'No target configured');
+          var state=document.createElement('td'),badge=document.createElement('span');badge.className='badge'+(order.overdue?' overdue':!order.targetHours?' no-target':'');badge.textContent=order.overdue?'Overdue':!order.targetHours?'Target not set':'Within target';state.appendChild(badge);row.appendChild(state);body.appendChild(row);
+        });
+        if(!data.open.length)body.innerHTML='<tr><td colspan="7" class="empty">No open orders with a recorded receipt timestamp.</td></tr>';
+        $('openCaption').textContent=data.open.length+' open order(s), oldest first';
+      }
+      function renderCompleted() {
+        var body=$('completedRows');body.replaceChildren();
+        data.completed.forEach(function(order){
+          var row=document.createElement('tr');cell(row,localTime(order.receivedAt));cell(row,order.patientName,order.patientId+' · '+order.visitId);
+          cell(row,order.panel);cell(row,localTime(order.validatedAt));cell(row,hours(order.ageHours));
+          cell(row,order.targetHours?hours(order.targetHours):'Not configured',order.targetHours?(order.metTarget?'Within target':'Over target'):'');
+          body.appendChild(row);
+        });
+        if(!data.completed.length)body.innerHTML='<tr><td colspan="6" class="empty">No validated orders with a recorded receipt timestamp.</td></tr>';
+      }
+      function render() {
+        $('openCount').textContent=data.open.length;
+        $('overdueCount').textContent=data.open.filter(function(x){return x.overdue;}).length;
+        $('unconfiguredCount').textContent=data.open.filter(function(x){return !x.targetHours;}).length;
+        $('averageTat').textContent=hours(data.summary && data.summary.averageCompletedHours);
+        renderPanels();renderOpen();renderCompleted();
+      }
+      async function load() {
+        try { data=await window.lcApiGetTurnaround();render();notice('',false); }
+        catch(error){notice('Could not load turnaround data: '+error.message,true);}
+      }
+      async function saveTarget(panel,value) {
+        if(value===''||!Number.isFinite(Number(value))){notice('Enter a numeric target in hours.',true);return;}
+        try{await window.lcApiSetTurnaroundTarget(panel,value);notice('Target updated for '+panel+'.',false);await load();}
+        catch(error){notice('Target was not saved: '+error.message,true);}
+      }
+      $('refresh').addEventListener('click',load);
+      load();
+    }());
+  </script>
+</body>
+</html>

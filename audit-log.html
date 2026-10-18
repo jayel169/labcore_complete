@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audit Log | LabCore</title>
+<link rel="stylesheet" href="shared/labcore-nav.css">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+.al-card {
+  background: #fff;
+  border: 1px solid var(--lc-border);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+.al-filters {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--lc-border);
+  background: var(--lc-surface-2);
+}
+.al-filters input,
+.al-filters select {
+  padding: 8px 12px;
+  border: 1px solid var(--lc-border-strong);
+  border-radius: var(--lc-radius);
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--lc-text);
+  background: var(--lc-surface);
+}
+.al-filters input[type="text"] { min-width: 220px; flex: 1; }
+.al-filters input[type="date"] { width: 150px; }
+.al-filters select { min-width: 150px; }
+.al-filters input:focus,
+.al-filters select:focus {
+  outline: none;
+  border-color: var(--lc-brand-accent);
+  box-shadow: 0 0 0 3px rgba(58,53,119,0.15);
+}
+.al-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.al-table thead th {
+  background: var(--lc-surface-2);
+  text-align: left;
+  padding: 10px 12px;
+  font-size: 10px;
+  font-weight: 700;
+  
+  
+  color: var(--lc-text-muted);
+  border-bottom: 2px solid var(--lc-border);
+  white-space: nowrap;
+}
+.al-table tbody td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--lc-rule);
+  vertical-align: top;
+}
+.al-table tbody tr:hover { background: var(--lc-surface-2); }
+.al-table .col-time    { white-space: nowrap; width: 160px; }
+.al-table .col-user    { white-space: nowrap; width: 140px; }
+.al-table .col-role    { white-space: nowrap; width: 110px; color: var(--lc-text-muted); }
+.al-table .col-event   { white-space: nowrap; width: 190px; font-weight: 600; }
+.al-table .col-note    { color: var(--lc-text); }
+.al-table .col-note .ent {
+  color: var(--lc-text-subtle);
+  font-size: 11px;
+  display: block;
+  margin-top: 2px;
+}
+.al-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--lc-radius-sm);
+  font-size: 10px;
+  font-weight: 700;
+  
+  
+}
+.al-pill.green { background: var(--lc-success-bg); color: var(--lc-success); }
+.al-pill.blue  { background: var(--lc-info-bg);    color: var(--lc-info); }
+.al-pill.amber { background: var(--lc-warning-bg); color: var(--lc-warning); }
+.al-pill.red   { background: var(--lc-danger-bg);  color: var(--lc-danger); }
+.al-pill.gray  { background: var(--lc-surface-2);  color: var(--lc-text-muted); }
+.al-count {
+  padding: 12px 18px;
+  font-size: 12px;
+  color: var(--lc-text-muted);
+  border-bottom: 1px solid var(--lc-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.al-empty {
+  padding: 50px 20px;
+  text-align: center;
+  color: var(--lc-text-muted);
+  font-size: 13px;
+}
+.al-kpi {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+@media (max-width: 900px) {
+  .al-kpi { grid-template-columns: 1fr 1fr; }
+  .al-table .col-role, .al-table .col-entity { display: none; }
+}
+</style>
+</head>
+<body>
+
+<aside class="sidebar"></aside>
+<button class="lc-mobile-toggle" aria-label="Menu">☰</button>
+<div class="lc-sidebar-overlay"></div>
+
+<div class="main">
+  <div class="lc-top-header">
+    <div>
+      <div class="lc-page-eyebrow">Administration</div>
+      <h1>Audit Log</h1>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <button class="btn btn-sm lc-btn-outline" onclick="exportFiltered()">📊 Export to Excel</button>
+      <button class="btn btn-sm lc-btn-outline" onclick="window.location.reload()">🔄 Refresh</button>
+    </div>
+  </div>
+
+  <div class="lc-content">
+
+    <div class="al-kpi">
+      <div class="lc-kpi">
+        <div class="lc-kpi-label">Total events</div>
+        <div class="lc-kpi-value" id="kpiTotal">0</div>
+        <div class="lc-kpi-sub">matching current filters</div>
+      </div>
+      <div class="lc-kpi lc-kpi--info">
+        <div class="lc-kpi-label">Distinct users</div>
+        <div class="lc-kpi-value" id="kpiUsers">0</div>
+        <div class="lc-kpi-sub">who produced these events</div>
+      </div>
+      <div class="lc-kpi lc-kpi--success">
+        <div class="lc-kpi-label">Validations</div>
+        <div class="lc-kpi-value" id="kpiValidated">0</div>
+        <div class="lc-kpi-sub">result.validated</div>
+      </div>
+      <div class="lc-kpi lc-kpi--danger">
+        <div class="lc-kpi-label">Criticals acked</div>
+        <div class="lc-kpi-value" id="kpiCriticals">0</div>
+        <div class="lc-kpi-sub">critical.acked</div>
+      </div>
+    </div>
+
+    <div class="al-card">
+      <div class="al-filters">
+        <input type="text" id="alSearch" placeholder="Search user, event, patient, panel, note…" oninput="renderAll()">
+        <input type="date" id="alFrom" onchange="renderAll()" title="From date">
+        <input type="date" id="alTo" onchange="renderAll()" title="To date">
+        <select id="alUser" onchange="renderAll()">
+          <option value="">All users</option>
+        </select>
+        <select id="alEvent" onchange="renderAll()">
+          <option value="">All event types</option>
+        </select>
+        <button class="btn btn-sm" onclick="clearFilters()">Clear</button>
+      </div>
+      <div class="al-count">
+        <span id="alCount">Loading…</span>
+        <span id="alTruncInfo" style="font-size:11px;color:var(--lc-text-subtle)"></span>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="al-table">
+          <thead>
+            <tr>
+              <th class="col-time">When</th>
+              <th class="col-user">User</th>
+              <th class="col-role">Role</th>
+              <th class="col-event">Event</th>
+              <th>Details</th>
+            </tr>
+          </thead>
+          <tbody id="alBody">
+            <tr><td colspan="5"><div class="al-empty">Loading…</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="shared/labcore-api.js"></script>
+<script src="shared/labcore-utils.js"></script>
+<script src="shared/labcore-auth.js"></script>
+<script src="shared/labcore-staff.js"></script>
+<script src="shared/labcore-audit.js"></script>
+<script src="shared/labcore-settings.js"></script>
+<script src="shared/labcore-icons.js"></script>
+<script src="shared/labcore-nav.js"></script>
+<script src="shared/labcore-search.js"></script>
+<script src="shared/labcore-notifications.js"></script>
+
+<script>
+(function () {
+  'use strict';
+
+  var user = window.lcRequireAuth ? window.lcRequireAuth() : null;
+  if (!user) return;
+  if (user.id !== 'admin') {
+    if (window.lcToast) window.lcToast('Only administrators can view the audit log', 'warning');
+    window.location.href = 'dashboard.html';
+    return;
+  }
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function fmt(iso) {
+    if (!iso) return '—';
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return iso;
+    return d.toLocaleString('en-GB', {
+      day: '2-digit', month: 'short', year: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit'
+    });
+  }
+  function pillClass(event) {
+    var e = String(event || '').toLowerCase();
+    if (e.indexOf('validated') >= 0)          return 'green';
+    if (e.indexOf('critical') >= 0)           return 'red';
+    if (e.indexOf('reject') >= 0)             return 'red';
+    if (e.indexOf('amend') >= 0)              return 'amber';
+    if (e.indexOf('login') >= 0)              return 'blue';
+    if (e.indexOf('settings') >= 0)           return 'blue';
+    if (e.indexOf('staff.') >= 0)             return 'blue';
+    if (e.indexOf('session') >= 0)            return 'blue';
+    return 'gray';
+  }
+
+  var ALL_ENTRIES = [];
+
+  async function refreshData() {
+    // Try the server first
+    if (window.lcApiGetAudit && window.lcGetToken && window.lcGetToken()) {
+      try {
+        var serverEntries = await window.lcApiGetAudit({ limit: 2000 });
+        if (Array.isArray(serverEntries) && serverEntries.length) {
+          ALL_ENTRIES = serverEntries;
+          console.log('[audit-log] loaded ' + serverEntries.length + ' events from server');
+          ALL_ENTRIES.sort(function (a, b) { return String(b.at).localeCompare(String(a.at)); });
+          populateUserSelect();
+          populateEventSelect();
+          renderAll();
+          return;
+        }
+      } catch (e) {
+        console.warn('[audit-log] server load failed, falling back to localStorage:', e.message);
+      }
+    }
+
+    // Fallback: localStorage
+    ALL_ENTRIES = (window.lcReadAuditLog && window.lcReadAuditLog()) || [];
+    ALL_ENTRIES.sort(function (a, b) { return String(b.at).localeCompare(String(a.at)); });
+    populateUserSelect();
+    populateEventSelect();
+    renderAll();
+  }
+
+  function populateUserSelect() {
+    var sel = $('alUser');
+    var current = sel.value;
+    var users = {};
+    ALL_ENTRIES.forEach(function (e) { if (e.by) users[e.by] = true; });
+    var names = Object.keys(users).sort();
+    sel.innerHTML = '<option value="">All users</option>' +
+      names.map(function (u) { return '<option value="' + esc(u) + '">' + esc(u) + '</option>'; }).join('');
+    if (names.indexOf(current) >= 0) sel.value = current;
+  }
+
+  function populateEventSelect() {
+    var sel = $('alEvent');
+    var current = sel.value;
+    var events = {};
+    ALL_ENTRIES.forEach(function (e) { if (e.event) events[e.event] = true; });
+    var list = Object.keys(events).sort();
+    sel.innerHTML = '<option value="">All event types</option>' +
+      list.map(function (ev) { return '<option value="' + esc(ev) + '">' + esc(ev) + '</option>'; }).join('');
+    if (list.indexOf(current) >= 0) sel.value = current;
+  }
+
+  function filtered() {
+    var q = ($('alSearch').value || '').trim().toLowerCase();
+    var from = $('alFrom').value;
+    var to = $('alTo').value;
+    var user = $('alUser').value;
+    var event = $('alEvent').value;
+
+    var fromTs = from ? new Date(from + 'T00:00:00').getTime() : null;
+    var toTs   = to   ? new Date(to + 'T23:59:59').getTime()   : null;
+
+    return ALL_ENTRIES.filter(function (e) {
+      var t = new Date(e.at).getTime();
+      if (isNaN(t)) return false;
+      if (fromTs != null && t < fromTs) return false;
+      if (toTs != null && t > toTs) return false;
+      if (user && e.by !== user) return false;
+      if (event && e.event !== event) return false;
+      if (q) {
+        var blob = [
+          e.by, e.role, e.roleLabel, e.event,
+          e.patientName, e.patientId, e.visitId, e.specimenId,
+          e.panel, e.test, e.department, e.note
+        ].join(' ').toLowerCase();
+        if (blob.indexOf(q) < 0) return false;
+      }
+      return true;
+    });
+  }
+
+  function renderAll() {
+    var list = filtered();
+    var total = list.length;
+
+    // KPIs
+    var users = {};
+    var validated = 0;
+    var criticals = 0;
+    list.forEach(function (e) {
+      if (e.by) users[e.by] = true;
+      if (e.event === 'result.validated') validated++;
+      if (e.event === 'critical.acked')   criticals++;
+    });
+    $('kpiTotal').textContent     = total;
+    $('kpiUsers').textContent     = Object.keys(users).length;
+    $('kpiValidated').textContent = validated;
+    $('kpiCriticals').textContent = criticals;
+
+    $('alCount').textContent =
+      total + ' event(s) · ' + ALL_ENTRIES.length + ' total in log';
+
+    var MAX_SHOWN = 1000;
+    var shown = list.slice(0, MAX_SHOWN);
+    $('alTruncInfo').textContent =
+      list.length > MAX_SHOWN ? 'Showing first ' + MAX_SHOWN + ' of ' + list.length +
+        ' — narrow the filters or export to Excel for the full set.' : '';
+
+    var tbody = $('alBody');
+    if (!shown.length) {
+      tbody.innerHTML = '<tr><td colspan="5"><div class="al-empty">No events match the current filters.</div></td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = shown.map(function (e) {
+      var cls = pillClass(e.event);
+      var detailParts = [];
+      if (e.patientName) detailParts.push(e.patientName);
+      if (e.patientId)   detailParts.push('(' + e.patientId + ')');
+      if (e.visitId)     detailParts.push('· ' + e.visitId);
+      if (e.panel)       detailParts.push('· ' + e.panel);
+      if (e.test)        detailParts.push('· ' + e.test);
+      var detail = detailParts.join(' ');
+
+      return '<tr>' +
+        '<td class="col-time">' + esc(fmt(e.at)) + '</td>' +
+        '<td class="col-user">' + esc(e.by || '—') + '</td>' +
+        '<td class="col-role">' + esc(e.roleLabel || e.role || '—') + '</td>' +
+        '<td class="col-event"><span class="al-pill ' + cls + '">' + esc(e.event || '—') + '</span></td>' +
+        '<td class="col-note">' +
+          (detail ? esc(detail) : '') +
+          (e.note ? (detail ? '<span class="ent">' + esc(e.note) + '</span>' : esc(e.note)) : '') +
+        '</td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  window.clearFilters = function () {
+    $('alSearch').value = '';
+    $('alFrom').value = '';
+    $('alTo').value = '';
+    $('alUser').value = '';
+    $('alEvent').value = '';
+    renderAll();
+  };
+
+  window.exportFiltered = function () {
+    var list = filtered();
+    if (!list.length) {
+      if (window.lcToast) window.lcToast('No events to export', 'warning');
+      return;
+    }
+    var rows = [[
+      'When', 'User', 'Role', 'Event',
+      'Patient ID', 'Patient name', 'Visit ID', 'Specimen ID',
+      'Panel', 'Test', 'Department', 'Note'
+    ]];
+    list.forEach(function (e) {
+      rows.push([
+        e.at || '', e.by || '', e.roleLabel || e.role || '', e.event || '',
+        e.patientId || '', e.patientName || '', e.visitId || '', e.specimenId || '',
+        e.panel || '', e.test || '', e.department || '', e.note || ''
+      ]);
+    });
+    try {
+      var ws = XLSX.utils.aoa_to_sheet(rows);
+      var wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Audit');
+      XLSX.writeFile(wb, 'LabCore_Audit_' + new Date().toISOString().slice(0, 10) + '.xlsx');
+      if (window.lcToast) window.lcToast('Exported ' + list.length + ' events', 'success');
+    } catch (err) {
+      if (window.lcToast) window.lcToast('Export failed: ' + err.message, 'error');
+    }
+  };
+
+  refreshData();
+  setInterval(refreshData, 60000);   // live-ish refresh every minute
+
+  console.log('📋 Audit log viewer ready —', ALL_ENTRIES.length, 'entries');
+})();
+</script>
+</body>
+</html>

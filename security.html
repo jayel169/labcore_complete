@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Account security | LabCore</title>
+  <link rel="stylesheet" href="shared/labcore-nav.css">
+  <style>
+    * { box-sizing:border-box; } body { margin:0; background:var(--lc-bg); color:var(--lc-text); font-family:var(--lc-font); }
+    .main { margin-left:var(--lc-sidebar-w); padding:28px; max-width:1000px; }
+    .panel { background:#fff; border:1px solid var(--lc-border); border-radius:7px; padding:18px; margin:0 0 14px; }
+    h1 { margin:0 0 14px; font-size:25px; } h2 { margin:0 0 10px; font-size:18px; }
+    p { color:var(--lc-muted); font-size:13px; line-height:1.5; }
+    label { display:block; margin:12px 0 5px; font-size:13px; font-weight:600; }
+    input { width:min(460px,100%); padding:10px; border:1px solid var(--lc-border); border-radius:5px; font:inherit; }
+    .btn { margin-top:14px; border:0; border-radius:5px; padding:10px 14px; background:var(--lc-brand-primary); color:#fff; font:inherit; font-weight:600; cursor:pointer; }
+    .notice { display:none; padding:10px; margin-bottom:12px; border-radius:5px; background:var(--lc-success-bg); color:var(--lc-success); }
+    .notice.error { background:var(--lc-danger-bg); color:var(--lc-danger); }
+    @media(max-width:900px) { .main { margin-left:0; padding:76px 16px 20px; } }
+  </style>
+</head>
+<body>
+  <aside class="sidebar"></aside><div class="lc-sidebar-overlay"></div>
+  <main class="main">
+    <h1>Account security</h1>
+    <div id="notice" class="notice" role="status"></div>
+    <section class="panel">
+      <h2>Change password</h2>
+      <p>Use 12–128 characters, including uppercase and lowercase letters and at least one number. Changing your password signs out other active sessions.</p>
+      <form id="passwordForm">
+        <label for="currentPassword">Current password</label><input id="currentPassword" type="password" autocomplete="current-password" required>
+        <label for="newPassword">New password</label><input id="newPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" required>
+        <label for="confirmPassword">Confirm new password</label><input id="confirmPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" required>
+        <label for="totp">Current authenticator code</label><input id="totp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required>
+        <button class="btn" type="submit">Update password</button>
+      </form>
+    </section>
+    <section class="panel">
+      <h2>Authenticator app</h2>
+      <p id="mfaStatus">Authenticator app is required to sign in. To replace a lost device, ask an administrator to reset your account security; you will need a new temporary setup PIN.</p>
+    </section>
+  </main>
+  <script src="shared/labcore-api.js"></script><script src="shared/labcore-auth.js"></script><script src="shared/labcore-icons.js"></script><script src="shared/labcore-nav.js"></script>
+  <script>
+    (function () {
+      'use strict';
+      var notice = document.getElementById('notice');
+      function show(message, error) { notice.textContent = message; notice.classList.toggle('error', !!error); notice.style.display = 'block'; }
+      var user = window.lcRequireAuth && window.lcRequireAuth();
+      if (!user) return;
+      window.lcApiFetch('/auth/me').then(function (data) {
+        document.getElementById('mfaStatus').textContent = data.mfaEnabled
+          ? 'Authenticator app MFA is active for this account.'
+          : 'Authenticator app setup is required. Sign out and sign in again to finish security setup.';
+      }).catch(function (error) { show('Could not load account status: ' + error.message, true); });
+      document.getElementById('passwordForm').addEventListener('submit', async function (event) {
+        event.preventDefault();
+        var newPassword = document.getElementById('newPassword').value;
+        if (newPassword !== document.getElementById('confirmPassword').value) { show('New passwords do not match.', true); return; }
+        try {
+          await window.lcApiChangePassword({
+            currentPassword: document.getElementById('currentPassword').value,
+            newPassword: newPassword,
+            totp: document.getElementById('totp').value
+          });
+          show('Password changed. Other active sessions have been signed out.', false);
+          this.reset();
+        } catch (error) { show('Password was not changed: ' + error.message, true); }
+      });
+    }());
+  </script>
+</body>
+</html>

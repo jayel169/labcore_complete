@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Imaging Worklist | LabCore</title>
+<link rel="stylesheet" href="shared/labcore-nav.css">
+<style>
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--lc-font); background: var(--lc-bg); color: var(--lc-text); }
+.main { margin-left: 245px; min-height: 100vh; padding: 24px 28px; }
+.topbar { margin-bottom: 16px; }
+.topbar h1 { font-size: 22px; }
+.topbar p { font-size: 13px; color: var(--lc-muted); margin-top: 4px; }
+.sketch-banner {
+  background: #fff8e6; border: 1px solid #f0d78c; border-radius: 8px;
+  padding: 12px 16px; margin-bottom: 18px; font-size: 13px; color: #6b5a1e;
+}
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px; }
+.stat-card { background: #fff; border: 1px solid var(--lc-border); border-radius: 8px; padding: 14px; }
+.stat-card .label { font-size: 11px; color: var(--lc-muted);  }
+.stat-card .number { font-size: 22px; font-weight: 700; margin-top: 4px; }
+.tabs { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+.tab {
+  padding: 8px 14px; border-radius: 6px; border: 1px solid var(--lc-border);
+  background: #fff; cursor: pointer; font-size: 12px; font-weight: 600;
+}
+.tab.active { background: var(--lc-blue); color: #fff; border-color: var(--lc-blue); }
+.card { background: #fff; border: 1px solid var(--lc-border); border-radius: 10px; overflow: hidden; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; padding: 11px 14px; background: #F8F7FB; font-size: 10px;  color: #5F5B75; border-bottom: 1px solid var(--lc-border); }
+td { padding: 12px 14px; border-bottom: 1px solid #eee; vertical-align: middle; }
+.badge { display: inline-block; padding: 3px 8px; border-radius: 10px; font-size: 10px; font-weight: 700; }
+.badge-pending { background: #EFEDF4; color: #5F5B75; }
+.badge-progress { background: #E4EFF7; color: #1F5F8B; }
+.badge-done { background: #E5F1EA; color: #2B7A4B; }
+.btn { padding: 6px 11px; border-radius: 6px; border: 1px solid var(--lc-border); background: #fff; cursor: pointer; font-size: 11px; font-weight: 600; }
+.btn-primary { background: var(--lc-blue); border-color: var(--lc-blue); color: #fff; }
+.btn-success { background: var(--lc-green); border-color: var(--lc-green); color: #fff; }
+.empty { text-align: center; padding: 36px; color: var(--lc-muted); font-size: 13px; }
+.roadmap {
+  margin-top: 20px; background: #fff; border: 1px solid var(--lc-border); border-radius: 10px; padding: 18px 20px;
+}
+.roadmap h3 { font-size: 14px; margin-bottom: 10px; }
+.roadmap ol { margin-left: 18px; font-size: 13px; color: #444; line-height: 1.7; }
+.roadmap li { margin-bottom: 4px; }
+.modality-tag { font-size: 10px; background: #EFEDF4; color: #445; padding: 2px 6px; border-radius: 4px; }
+@media (max-width: 900px) {
+  .main { margin-left: 0; padding-top: 70px; }
+  .stats { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+<aside class="sidebar"></aside>
+<button class="lc-mobile-toggle" aria-label="Menu">☰</button>
+<div class="lc-sidebar-overlay"></div>
+
+<div class="main">
+  <div class="topbar">
+    <h1>Imaging Worklist</h1>
+    <p id="roleHint">Ultrasound · X-Ray · CT · MRI requests from consultation</p>
+  </div>
+
+  <div class="sketch-banner">
+    <strong>Sketch / prototype.</strong>
+    This page lists radiology &amp; sonography orders already placed in Consultation.
+    Status updates are saved to the encounter. Full reporting (templates, images, PACS) can be added later.
+  </div>
+
+  <div class="stats">
+    <div class="stat-card">
+      <div class="label">Requested</div>
+      <div class="number" id="statReq">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">In progress</div>
+      <div class="number" id="statProg">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Completed</div>
+      <div class="number" id="statDone">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">My modality filter</div>
+      <div class="number" id="statMod" style="font-size:14px;padding-top:8px">All</div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-view="all" onclick="setView('all')">All</button>
+    <button class="tab" data-view="pending" onclick="setView('pending')">Requested</button>
+    <button class="tab" data-view="progress" onclick="setView('progress')">In progress</button>
+    <button class="tab" data-view="done" onclick="setView('done')">Completed</button>
+  </div>
+
+  <div class="card">
+    <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>Patient</th>
+            <th>Visit</th>
+            <th>Study</th>
+            <th>Priority</th>
+            <th>Ordered</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="imgBody">
+          <tr><td colspan="7" class="empty">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="roadmap">
+    <h3>Roadmap (next steps for a full imaging module)</h3>
+    <ol>
+      <li>Modality worklists split (Sonography vs Radiography) with room / machine assignment</li>
+      <li>Structured report templates (OB ultrasound, abdomen, chest X-ray)</li>
+      <li>Attach images or external PACS links</li>
+      <li>Critical / unexpected findings alert back to the ordering doctor</li>
+      <li>Billing integration (auto charge when study is completed)</li>
+      <li>Printable imaging report with hospital letterhead</li>
+    </ol>
+  </div>
+</div>
+<script src="shared/labcore-api.js"></script>
+<script src="shared/labcore-utils.js"></script>
+<script src="shared/labcore-ward.js"></script>
+<script src="shared/labcore-auth.js"></script>
+<script src="shared/labcore-staff.js"></script>   <!-- NEW -->
+<script src="shared/labcore-icons.js"></script>
+<script src="shared/labcore-nav.js"></script>
+<script src="shared/labcore-search.js"></script>
+<script src="shared/labcore-notifications.js"></script>
+<script src="shared/labcore-print-preview.js"></script>
+<script src="shared/labcore-timeline.js"></script>
+<script>
+(function () {
+  if (window.lcRequireAuth) window.lcRequireAuth();
+})();
+
+var currentView = 'all';
+var items = [];
+
+var US_KEYWORDS = ['ultrasound', 'sonograph', 'obstetric', 'pelvic', 'abdominal ultrasound', 'thyroid ultrasound', 'breast ultrasound', 'scrotal', 'doppler', 'echo'];
+var XR_KEYWORDS = ['x-ray', 'xray', 'ct ', 'ct scan', 'mri', 'mammogram', 'radiograph'];
+
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function modalityOf(name) {
+  var n = (name || '').toLowerCase();
+  for (var i = 0; i < US_KEYWORDS.length; i++) {
+    if (n.indexOf(US_KEYWORDS[i]) >= 0) return 'Ultrasound';
+  }
+  for (var j = 0; j < XR_KEYWORDS.length; j++) {
+    if (n.indexOf(XR_KEYWORDS[j]) >= 0) return 'Radiography';
+  }
+  return 'Imaging';
+}
+
+function roleFilter() {
+  var u = window.lcGetUser && window.lcGetUser();
+  if (!u) return null;
+  if (u.id === 'sonographer') return 'Ultrasound';
+  if (u.id === 'radiographer') return 'Radiography';
+  return null; // doctor/admin see all
+}
+
+function loadItems() {
+  var patients = [];
+  try { patients = JSON.parse(localStorage.getItem('hms_patients_v3') || '[]'); } catch (e) {}
+  items = [];
+  patients.forEach(function (p) {
+    (p.encounters || []).forEach(function (e) {
+      (e.orders || []).forEach(function (o, oi) {
+        if (o.type !== 'Radiology' && o.type !== 'Imaging' && o.type !== 'Sonography') return;
+        var st = (o.status || 'Pending').toLowerCase();
+        var stage = 'pending';
+        if (st.indexOf('progress') >= 0 || st.indexOf('started') >= 0) stage = 'progress';
+        if (st.indexOf('complete') >= 0 || st.indexOf('reported') >= 0 || st.indexOf('done') >= 0) stage = 'done';
+        items.push({
+          patientId: p.id,
+          patientName: p.fullName,
+          visitId: e.visitId,
+          study: o.item || o.name || 'Imaging',
+          priority: o.priority || 'Routine',
+          orderedAt: o.orderedAt || e.createdAt || e.date,
+          status: o.status || 'Pending',
+          stage: stage,
+          note: o.note || '',
+          modality: modalityOf(o.item || o.name),
+          orderIndex: oi,
+          encounter: e,
+          patient: p,
+          order: o
+        });
+      });
+    });
+  });
+  items.sort(function (a, b) {
+    return String(b.orderedAt).localeCompare(String(a.orderedAt));
+  });
+  render();
+}
+
+function setView(v) {
+  currentView = v;
+  document.querySelectorAll('.tab').forEach(function (t) {
+    t.classList.toggle('active', t.getAttribute('data-view') === v);
+  });
+  render();
+}
+
+function render() {
+  var mod = roleFilter();
+  document.getElementById('statMod').textContent = mod || 'All';
+  var u = window.lcGetUser && window.lcGetUser();
+  if (u) {
+    document.getElementById('roleHint').textContent =
+      (u.label || u.name) + (mod ? ' · showing ' + mod + ' studies' : ' · all imaging modalities');
+  }
+
+  var filtered = items.filter(function (it) {
+    if (mod && it.modality !== mod && it.modality !== 'Imaging') return false;
+    if (currentView === 'pending' && it.stage !== 'pending') return false;
+    if (currentView === 'progress' && it.stage !== 'progress') return false;
+    if (currentView === 'done' && it.stage !== 'done') return false;
+    return true;
+  });
+
+  document.getElementById('statReq').textContent = items.filter(function (i) { return i.stage === 'pending'; }).length;
+  document.getElementById('statProg').textContent = items.filter(function (i) { return i.stage === 'progress'; }).length;
+  document.getElementById('statDone').textContent = items.filter(function (i) { return i.stage === 'done'; }).length;
+
+  var body = document.getElementById('imgBody');
+  if (!filtered.length) {
+    body.innerHTML = '<tr><td colspan="7" class="empty">No imaging requests in this view.<br>Doctors add them under Consultation → Imaging.</td></tr>';
+    return;
+  }
+
+  body.innerHTML = filtered.map(function (it) {
+    var badge = it.stage === 'done' ? 'badge-done' : (it.stage === 'progress' ? 'badge-progress' : 'badge-pending');
+    var actions = '';
+    if (it.stage === 'pending') {
+      actions = '<button class="btn btn-primary" onclick="startStudy(\'' + esc(it.patientId) + '\',\'' + esc(it.visitId) + '\',' + it.orderIndex + ')">Start</button>';
+    } else if (it.stage === 'progress') {
+      actions = '<button class="btn btn-success" onclick="completeStudy(\'' + esc(it.patientId) + '\',\'' + esc(it.visitId) + '\',' + it.orderIndex + ')">Mark completed</button>';
+    } else {
+      actions = '<span style="font-size:11px;color:#5F5B75">Reported</span>';
+    }
+    return '<tr>' +
+      '<td><strong>' + esc(it.patientName) + '</strong><div style="font-size:11px;color:#5F5B75">' + esc(it.patientId) + '</div></td>' +
+      '<td>' + esc(it.visitId) + '</td>' +
+      '<td>' + esc(it.study) + ' <span class="modality-tag">' + esc(it.modality) + '</span>' +
+      (it.note ? '<div style="font-size:11px;color:#5F5B75">' + esc(it.note) + '</div>' : '') + '</td>' +
+      '<td>' + esc(it.priority) + '</td>' +
+      '<td style="font-size:12px">' + (it.orderedAt ? new Date(it.orderedAt).toLocaleString() : '—') + '</td>' +
+      '<td><span class="badge ' + badge + '">' + esc(it.status) + '</span></td>' +
+      '<td>' + actions + '</td>' +
+      '</tr>';
+  }).join('');
+}
+
+function updateOrder(patientId, visitId, orderIndex, status) {
+  var patients = [];
+  try { patients = JSON.parse(localStorage.getItem('hms_patients_v3') || '[]'); } catch (e) {}
+  var p = patients.find(function (x) { return x.id === patientId; });
+  if (!p) return false;
+  var e = (p.encounters || []).find(function (x) { return x.visitId === visitId; });
+  if (!e || !e.orders || !e.orders[orderIndex]) return false;
+  e.orders[orderIndex].status = status;
+  e.orders[orderIndex].updatedAt = new Date().toISOString();
+  e.orders[orderIndex].updatedBy = (window.lcGetUser && window.lcGetUser() || {}).name || 'Imaging';
+  if (status === 'Completed') e.orders[orderIndex].completedAt = new Date().toISOString();
+  localStorage.setItem('hms_patients_v3', JSON.stringify(patients));
+  return true;
+}
+
+function startStudy(patientId, visitId, orderIndex) {
+  if (updateOrder(patientId, visitId, orderIndex, 'In Progress')) {
+    if (window.lcToast) window.lcToast('Study started', 'success');
+    loadItems();
+  }
+}
+
+function completeStudy(patientId, visitId, orderIndex) {
+  var note = prompt('Brief finding / report summary (optional):', '');
+  var patients = [];
+  try { patients = JSON.parse(localStorage.getItem('hms_patients_v3') || '[]'); } catch (e) {}
+  var p = patients.find(function (x) { return x.id === patientId; });
+  if (!p) return;
+  var e = (p.encounters || []).find(function (x) { return x.visitId === visitId; });
+  if (!e || !e.orders || !e.orders[orderIndex]) return;
+  e.orders[orderIndex].status = 'Completed';
+  e.orders[orderIndex].completedAt = new Date().toISOString();
+  e.orders[orderIndex].updatedBy = (window.lcGetUser && window.lcGetUser() || {}).name || 'Imaging';
+  if (note) e.orders[orderIndex].result = note;
+  localStorage.setItem('hms_patients_v3', JSON.stringify(patients));
+  if (window.lcToast) window.lcToast('Study marked completed', 'success');
+  loadItems();
+}
+
+loadItems();
+setInterval(loadItems, 30000);
+</script>
+</body>
+</html>

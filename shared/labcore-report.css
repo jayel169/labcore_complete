@@ -1,0 +1,126 @@
+/* LabCore – Shared Report / Print Styles */
+:root {
+  --lc-report-navy: #1a3a5c;
+  --lc-report-gold: #d4a843;
+  --lc-report-muted: #6b7a8a;
+  --lc-report-border: #e2e8f0;
+}
+
+.report-doc, .print-report-container, #doctorReportDoc {
+  font-family: 'Segoe UI', Arial, Helvetica, sans-serif;
+  color: #1a1a2e;
+  line-height: 1.45;
+  max-width: 210mm;
+  margin: 0 auto;
+}
+
+.report-doc h1, .print-report-container .logo {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--lc-report-navy);
+  margin: 0 0 4px;
+}
+
+.report-doc .sub, .print-report-container .subtitle {
+  font-size: 10px;
+  color: var(--lc-report-muted);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.report-doc .rline {
+  height: 2px;
+  background: var(--lc-report-navy);
+  margin: 8px 0 14px;
+}
+
+.report-patient, .print-report-container .patient-section {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px 16px;
+  background: #f8fafc;
+  border: 1px solid var(--lc-report-border);
+  border-radius: 4px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  font-size: 12px;
+}
+
+.report-patient span, .print-report-container .patient-section .label {
+  display: block;
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--lc-report-muted);
+  font-weight: 700;
+}
+
+.report-panel-title, .print-report-container .panel-title {
+  background: var(--lc-report-navy);
+  color: #fff;
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  border-radius: 3px 3px 0 0;
+  margin-top: 14px;
+}
+
+.report-doc table, .print-report-container .results-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  border: 1px solid var(--lc-report-border);
+  border-top: none;
+  margin-bottom: 8px;
+}
+
+.report-doc th, .print-report-container .results-table th {
+  background: #f1f4f8;
+  padding: 6px 10px;
+  text-align: left;
+  font-size: 9px;
+  text-transform: uppercase;
+  color: #5a6a7a;
+  border-bottom: 1px solid var(--lc-report-border);
+}
+
+.report-doc td, .print-report-container .results-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid #edf0f2;
+  vertical-align: top;
+}
+
+.report-sig {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--lc-report-muted);
+  margin: 6px 0 12px;
+  padding: 0 4px;
+}
+
+.lab-status-line {
+  font-size: 10px;
+  color: var(--lc-report-muted);
+  margin-top: 2px;
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 10px;
+  font-size: 9px;
+  font-weight: 700;
+}
+.badge-validated { background: #e8f5ee; color: #23714c; }
+
+@media print {
+  .report-doc, .print-report-container {
+    max-width: none;
+    margin: 0;
+  }
+  body { background: #fff; }
+}

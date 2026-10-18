@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard | LabCore</title>
+<link rel="stylesheet" href="shared/labcore-nav.css">
+<style>
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--lc-font); background: var(--lc-bg); color: var(--lc-text); }
+.main { margin-left: 245px; min-height: 100vh; padding: 24px 28px; }
+
+.topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+.topbar h1 { font-size: 22px; }
+.topbar p { font-size: 13px; color: var(--lc-muted); margin-top: 4px; }
+.topbar-right { display: flex; align-items: center; gap: 12px; }
+.user-chip { background: #fff; border: 1px solid var(--lc-border); border-radius: 20px; padding: 6px 14px; font-size: 12px; font-weight: 600; }
+
+.ward-stats {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.ws-card {
+  background: #fff;
+  border: 1px solid var(--lc-border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  transition: all 0.2s;
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+.ws-card:hover { box-shadow: var(--lc-shadow); transform: translateY(-2px); border-color: var(--lc-blue); }
+.ws-card .label { font-size: 10px; color: var(--lc-muted);   }
+.ws-card .number { font-size: 24px; font-weight: 700; margin-top: 4px; }
+.ws-card .sub { font-size: 11px; color: var(--lc-muted); margin-top: 3px; }
+.ws-card.admitted .number { color: var(--lc-blue); }
+.ws-card.overdue .number { color: var(--lc-red); }
+.ws-card.criticals .number { color: var(--lc-red); }
+.ws-card.today .number { color: var(--lc-green); }
+.ws-card.triage .number { color: var(--lc-warning); }
+
+.stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 20px; }
+.stat-card { background: #fff; border: 1px solid var(--lc-border); border-radius: 10px; padding: 18px; transition: 0.2s; }
+.stat-card:hover { box-shadow: var(--lc-shadow); transform: translateY(-2px); }
+.stat-card .label { font-size: 11px; color: var(--lc-muted);   }
+.stat-card .number { font-size: 28px; font-weight: 700; margin-top: 6px; }
+.stat-card .sub { font-size: 11px; color: var(--lc-muted); margin-top: 4px; }
+.stat-card.awaiting .number { color: var(--lc-warning); }
+.stat-card.pending .number { color: var(--lc-blue); }
+.stat-card.critical .number { color: var(--lc-red); }
+.stat-card.done .number { color: var(--lc-green); }
+
+.section-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--lc-blue);
+  
+  
+  margin: 22px 0 10px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--lc-border);
+}
+
+.triage-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.triage-pill {
+  background: #fff;
+  border: 1px solid var(--lc-border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: all 0.15s;
+  border-left: 4px solid #8A869C;
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+.triage-pill:hover { box-shadow: var(--lc-shadow); transform: translateY(-1px); }
+.triage-pill.t1 { border-left-color: #B3261E; }
+.triage-pill.t2 { border-left-color: #9A6200; }
+.triage-pill.t3 { border-left-color: #9A6200; }
+.triage-pill.t4 { border-left-color: #2B7A4B; }
+.triage-pill.t5 { border-left-color: #8A869C; }
+.triage-pill .t-label { font-size: 10px; font-weight: 700;  color: var(--lc-muted); }
+.triage-pill .t-count { font-size: 20px; font-weight: 700; margin-top: 2px; }
+.triage-pill.t1 .t-count { color: #B3261E; }
+.triage-pill.t2 .t-count { color: #9A6200; }
+.triage-pill.t3 .t-count { color: #9A6200; }
+.triage-pill.t4 .t-count { color: #2B7A4B; }
+
+.census-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.census-cell {
+  background: #fff;
+  border: 1px solid var(--lc-border);
+  border-left: 4px solid var(--lc-blue);
+  border-radius: 6px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.census-cell:hover { box-shadow: var(--lc-shadow); }
+.census-cell.high { border-left-color: var(--lc-warning); }
+.census-cell.full { border-left-color: var(--lc-red); }
+.census-cell.empty { border-left-color: #c0c5c0; opacity: 0.65; }
+.census-cell .ward-name { font-size: 12px; font-weight: 700; }
+.census-cell .ward-occupancy { font-size: 11px; color: var(--lc-muted); margin-top: 2px; }
+.census-cell .ward-bar { height: 4px; background: #EFEDF4; border-radius: 2px; margin-top: 6px; overflow: hidden; }
+.census-cell .ward-bar-fill { height: 100%; background: var(--lc-blue); }
+.census-cell.high .ward-bar-fill { background: var(--lc-warning); }
+.census-cell.full .ward-bar-fill { background: var(--lc-red); }
+
+.tat-widget { background: #fff; border: 1px solid var(--lc-border); border-radius: 10px; padding: 16px 18px; margin-bottom: 20px; }
+.tat-widget-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px; }
+.tat-widget-head h2 { font-size: 14px; }
+.tat-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 14px; }
+.tat-metric { background: #F8F7FB; border: 1px solid var(--lc-border); border-radius: 8px; padding: 12px 14px; }
+.tat-metric .t-label { font-size: 10px; color: var(--lc-muted);   }
+.tat-metric .t-value { font-size: 20px; font-weight: 700; margin-top: 4px; }
+.tat-metric .t-value.ok { color: var(--lc-green); }
+.tat-metric .t-value.warn { color: var(--lc-warning); }
+.tat-metric .t-value.crit { color: var(--lc-red); }
+.tat-bars { display: flex; flex-direction: column; gap: 6px; }
+.tat-bar-row { display: grid; grid-template-columns: 160px 1fr 70px; align-items: center; gap: 10px; font-size: 12px; }
+.tat-bar-row .t-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tat-bar-track { height: 14px; background: #EFEDF4; border-radius: 7px; overflow: hidden; position: relative; }
+.tat-bar-fill { height: 100%; border-radius: 7px; transition: width 0.4s ease-out; background: var(--lc-green); }
+.tat-bar-fill.warn { background: var(--lc-warning); }
+.tat-bar-fill.crit { background: var(--lc-red); }
+.tat-bar-target { position: absolute; top: 0; bottom: 0; width: 2px; background: #1E1B2E; opacity: 0.6; }
+.tat-bar-row .t-time { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; color: #444; }
+
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.card { background: #fff; border: 1px solid var(--lc-border); border-radius: 10px; overflow: hidden; }
+.card-head { padding: 14px 18px; border-bottom: 1px solid var(--lc-border); font-weight: 600; font-size: 14px; display: flex; justify-content: space-between; align-items: center; }
+.card-body { padding: 8px 0; max-height: 360px; overflow-y: auto; }
+.list-row { padding: 10px 18px; border-bottom: 1px solid #EFEDF4; font-size: 13px; display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+.list-row:hover { background: #F8F7FB; }
+.list-row .meta { font-size: 11px; color: var(--lc-muted); margin-top: 2px; }
+.list-row a { color: var(--lc-blue); text-decoration: none; font-weight: 600; font-size: 12px; }
+.empty { padding: 30px; text-align: center; color: var(--lc-muted); font-size: 13px; }
+
+.quick-links { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-top: 20px; }
+.quick-link {
+  background: #fff; border: 1px solid var(--lc-border); border-radius: 8px;
+  padding: 16px; text-align: center; text-decoration: none; color: var(--lc-text);
+  transition: 0.2s; font-size: 13px; font-weight: 600;
+}
+.quick-link:hover { border-color: var(--lc-blue); background: #E4EFF7; }
+.quick-link .icon { font-size: 22px; display: block; margin-bottom: 6px; }
+
+@media (max-width: 1100px) {
+  .stats { grid-template-columns: repeat(3, 1fr); }
+  .ward-stats { grid-template-columns: repeat(3, 1fr); }
+  .tat-metrics { grid-template-columns: repeat(2, 1fr); }
+  .grid-2 { grid-template-columns: 1fr; }
+  .quick-links { grid-template-columns: repeat(2, 1fr); }
+  .triage-row { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 900px) {
+  .main { margin-left: 0; padding-top: 70px; }
+}
+@media (max-width: 600px) {
+  .stats, .ward-stats, .tat-metrics { grid-template-columns: 1fr 1fr; }
+  .quick-links { grid-template-columns: 1fr; }
+  .triage-row { grid-template-columns: 1fr 1fr; }
+  .tat-bar-row { grid-template-columns: 100px 1fr 55px; font-size: 11px; }
+}
+</style>
+</head>
+<body>
+<aside class="sidebar"></aside>
+<button class="lc-mobile-toggle" aria-label="Menu">☰</button>
+<div class="lc-sidebar-overlay"></div>
+
+<div class="main">
+  <div class="topbar">
+    <div>
+      <h1>Dashboard</h1>
+      <p id="welcomeLine">Today's workload</p>
+    </div>
+    <div class="topbar-right">
+      <div class="user-chip" id="userChip">—</div>
+      <div id="serverStatus" style="
+        display:inline-flex;align-items:center;gap:6px;
+        background:#fff;border:1px solid var(--lc-border);
+        border-radius:20px;padding:6px 14px;font-size:12px;font-weight:600;
+        color:var(--lc-muted);
+      " title="Connecting to backend…">
+        <span id="serverDot" style="
+          display:inline-block;width:8px;height:8px;border-radius:50%;
+          background:#ccc;
+        "></span>
+        <span id="serverLabel">Checking server…</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- WARD / ADMISSION STATS -->
+  <div class="ward-stats">
+    <a class="ws-card admitted" href="ward-board.html">
+      <div class="label">Admitted patients</div>
+      <div class="number" id="statAdmitted">0</div>
+      <div class="sub">across all wards</div>
+    </a>
+    <a class="ws-card overdue" href="nursing-station.html">
+      <div class="label">Vitals overdue</div>
+      <div class="number" id="statVitalsDue">0</div>
+      <div class="sub">&gt; 4 hours since check</div>
+    </a>
+    <a class="ws-card criticals" href="result-entry.html">
+      <div class="label">Critical results (24h)</div>
+      <div class="number" id="statCritical24">0</div>
+      <div class="sub">need clinical action</div>
+    </a>
+    <a class="ws-card today" href="ward-board.html">
+      <div class="label">Admissions today</div>
+      <div class="number" id="statAdmToday">0</div>
+      <div class="sub">newly admitted</div>
+    </a>
+    <a class="ws-card triage" href="triage-board.html">
+      <div class="label">Emergency waitlist</div>
+      <div class="number" id="statERWait">0</div>
+      <div class="sub">active ER encounters</div>
+    </a>
+  </div>
+
+  <!-- TRIAGE ROW -->
+  <div class="triage-row" id="triageRow">
+    <a class="triage-pill t1" href="triage-board.html?level=1">
+      <div class="t-label">T1 Resus</div>
+      <div class="t-count" id="t1Count">0</div>
+    </a>
+    <a class="triage-pill t2" href="triage-board.html?level=2">
+      <div class="t-label">T2 Emergent</div>
+      <div class="t-count" id="t2Count">0</div>
+    </a>
+    <a class="triage-pill t3" href="triage-board.html?level=3">
+      <div class="t-label">T3 Urgent</div>
+      <div class="t-count" id="t3Count">0</div>
+    </a>
+    <a class="triage-pill t4" href="triage-board.html?level=4">
+      <div class="t-label">T4 Less urgent</div>
+      <div class="t-count" id="t4Count">0</div>
+    </a>
+    <a class="triage-pill t5" href="triage-board.html?level=5">
+      <div class="t-label">T5 Non-urgent</div>
+      <div class="t-count" id="t5Count">0</div>
+    </a>
+  </div>
+
+  <!-- WARD CENSUS -->
+  <div class="section-title">Ward Census</div>
+  <div class="census-grid" id="censusGrid"></div>
+
+  <!-- LAB STATS -->
+  <div class="section-title">Laboratory</div>
+  <div class="stats">
+    <div class="stat-card awaiting">
+      <div class="label">Awaiting specimen</div>
+      <div class="number" id="statAwaiting">0</div>
+      <div class="sub">Orders waiting for sample</div>
+    </div>
+    <div class="stat-card pending">
+      <div class="label">Pending validation</div>
+      <div class="number" id="statPending">0</div>
+      <div class="sub">Preliminary / awaiting sign-off</div>
+    </div>
+    <div class="stat-card critical">
+      <div class="label">Critical (unacked)</div>
+      <div class="number" id="statCritical">0</div>
+      <div class="sub">Need clinical attention</div>
+    </div>
+    <div class="stat-card done">
+      <div class="label">Validated today</div>
+      <div class="number" id="statDone">0</div>
+      <div class="sub">Completed reports</div>
+    </div>
+    <div class="stat-card" style="border-left: 3px solid #3A3577;">
+      <div class="label">Avg TAT (today)</div>
+      <div class="number" id="statTAT" style="color: #3A3577;">—</div>
+      <div class="sub">Order → validated</div>
+    </div>
+  </div>
+
+  <!-- TAT WIDGET -->
+  <div class="tat-widget">
+    <div class="tat-widget-head">
+      <h2>⏱️ Turn-Around Time — last 7 days</h2>
+      <div style="font-size: 12px;">
+        <a href="reports.html" style="color: var(--lc-blue); text-decoration: none;">Full TAT report →</a>
+      </div>
+    </div>
+    <div class="tat-metrics">
+      <div class="tat-metric"><div class="t-label">Median TAT</div><div class="t-value" id="tatMetricMedian">—</div></div>
+      <div class="tat-metric"><div class="t-label">90th percentile</div><div class="t-value" id="tatMetricP90">—</div></div>
+      <div class="tat-metric"><div class="t-label">STAT median</div><div class="t-value" id="tatMetricStat">—</div></div>
+      <div class="tat-metric"><div class="t-label">% within 24h</div><div class="t-value" id="tatMetricWithin">—</div></div>
+    </div>
+    <div class="tat-bars" id="tatBars">
+      <div class="empty" style="padding: 12px; font-size: 12px;">Loading TAT breakdown…</div>
+    </div>
+  </div>
+
+  <!-- TWO LISTS -->
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-head">
+        <span>Awaiting specimen</span>
+        <a href="lab-reception.html" style="font-size: 12px; color: var(--lc-blue); text-decoration: none;">Open reception →</a>
+      </div>
+      <div class="card-body" id="listAwaiting"></div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <span>Pending validation</span>
+        <a href="result-entry.html" style="font-size: 12px; color: var(--lc-blue); text-decoration: none;">Open results →</a>
+      </div>
+      <div class="card-body" id="listPending"></div>
+    </div>
+  </div>
+
+  <div class="quick-links" id="quickLinks"></div>
+</div>
+
+<script src="shared/labcore-api.js"></script>
+<script src="shared/labcore-utils.js"></script>
+<script src="shared/labcore-ward.js"></script>
+<script src="shared/labcore-nursing.js"></script>
+<script src="shared/labcore-settings.js"></script><script src="shared/labcore-nursing.js"></script>
+<script src="shared/labcore-audit.js"></script>
+<script src="shared/labcore-auth.js"></script>
+<script src="shared/labcore-staff.js"></script>
+<script src="shared/labcore-icons.js"></script>
+<script src="shared/labcore-nav.js"></script>
+<script src="shared/labcore-search.js"></script>
+<script src="shared/labcore-notifications.js"></script>
+
+<script>
+(function () {
+  'use strict';
+
+  var user = window.lcRequireAuth();
+  if (user) {
+    document.getElementById('userChip').textContent = user.name + ' · ' + user.label;
+    document.getElementById('welcomeLine').textContent =
+      'Welcome, ' + user.name + ' · ' + new Date().toLocaleDateString('en-GH', {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+      });
+  }
+
+  function isToday(iso) {
+    if (!iso) return false;
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return false;
+    var t = new Date();
+    return d.getFullYear() === t.getFullYear() &&
+           d.getMonth() === t.getMonth() &&
+           d.getDate() === t.getDate();
+  }
+
+  function esc(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function loadPatients() {
+    try { return JSON.parse(localStorage.getItem('hms_patients_v3') || '[]'); }
+    catch (e) { return []; }
+  }
+
+  /* =========================================================
+     WARD STATS
+  ========================================================= */
+  function renderWardStats() {
+    var patients = loadPatients();
+
+    var admitted = 0, vitalsDue = 0, admToday = 0, erWait = 0;
+    var criticals24 = 0;
+    var now = Date.now();
+    var cutoff24 = now - 24 * 3600000;
+    var today = new Date().toISOString().slice(0, 10);
+
+    patients.forEach(function (p) {
+      if (p.admission && p.admission.status === 'Admitted') {
+        admitted++;
+        if ((p.admission.admittedAt || '').slice(0, 10) === today) admToday++;
+
+        var lastVital = (p.admission.vitals || []).slice(-1)[0];
+        if (!lastVital || (now - new Date(lastVital.at).getTime()) > 4 * 3600000) {
+          vitalsDue++;
+        }
+
+        (p.admission.encounters || []).forEach(function (e) {
+          (e.orders || []).forEach(function (o) {
+            if (o.type !== 'Laboratory') return;
+            if (!o.results) return;
+            Object.values(o.results).forEach(function (r) {
+              if (r.flag === 'LL' || r.flag === 'HH') {
+                if (o.validatedAt && new Date(o.validatedAt).getTime() >= cutoff24) criticals24++;
+                else if (!o.validatedAt) criticals24++;
+              }
+            });
+          });
+        });
+      }
+
+      (p.encounters || []).forEach(function (e) {
+        if (e.locationType !== 'Emergency') return;
+        if (e.status === 'Completed') return;
+        erWait++;
+      });
+
+      (p.encounters || []).forEach(function (e) {
+        (e.orders || []).forEach(function (o) {
+          if (o.type !== 'Laboratory') return;
+          if (!o.results) return;
+          if (!o.validatedAt) return;
+          if (new Date(o.validatedAt).getTime() < cutoff24) return;
+          Object.values(o.results).forEach(function (r) {
+            if (r.flag === 'LL' || r.flag === 'HH') criticals24++;
+          });
+        });
+      });
+    });
+
+    document.getElementById('statAdmitted').textContent = admitted;
+    document.getElementById('statVitalsDue').textContent = vitalsDue;
+    document.getElementById('statCritical24').textContent = criticals24;
+    document.getElementById('statAdmToday').textContent = admToday;
+    document.getElementById('statERWait').textContent = erWait;
+  }
+
+  /* =========================================================
+     TRIAGE ROW
+  ========================================================= */
+  function renderTriageRow() {
+    var counts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    var patients = loadPatients();
+
+    patients.forEach(function (p) {
+      (p.encounters || []).forEach(function (e) {
+        if (e.locationType !== 'Emergency') return;
+        if (e.status === 'Completed') return;
+        if (e.triageLevel) counts[e.triageLevel] = (counts[e.triageLevel] || 0) + 1;
+      });
+    });
+
+    document.getElementById('t1Count').textContent = counts[1] || 0;
+    document.getElementById('t2Count').textContent = counts[2] || 0;
+    document.getElementById('t3Count').textContent = counts[3] || 0;
+    document.getElementById('t4Count').textContent = counts[4] || 0;
+    document.getElementById('t5Count').textContent = counts[5] || 0;
+  }
+
+  /* =========================================================
+     CENSUS GRID
+  ========================================================= */
+  function renderCensus() {
+    var patients = loadPatients();
+    var wards = (window.lcWardCatalogue && window.lcWardCatalogue.wards) || [];
+    var counts = {};
+    wards.forEach(function (w) { counts[w.id] = 0; });
+
+    patients.forEach(function (p) {
+      if (!p.admission || p.admission.status !== 'Admitted') return;
+      var wid = p.admission.wardId;
+      if (!wid) {
+        var match = wards.find(function (w) { return w.name === p.admission.ward; });
+        wid = match ? match.id : null;
+      }
+      if (wid && counts[wid] != null) counts[wid]++;
+    });
+
+    var html = wards.map(function (w) {
+      var used = counts[w.id] || 0;
+      var pct = w.beds ? Math.round(used * 100 / w.beds) : 0;
+      var cls = pct >= 90 ? 'full' : pct >= 70 ? 'high' : (used === 0 ? 'empty' : '');
+      return '<div class="census-cell ' + cls + '" onclick="window.location.href=\'ward-board.html\'">' +
+        '<div class="ward-name">' + esc(w.name) + '</div>' +
+        '<div class="ward-occupancy">' + used + ' / ' + w.beds + ' beds (' + pct + '%)</div>' +
+        '<div class="ward-bar"><div class="ward-bar-fill" style="width: ' + pct + '%"></div></div>' +
+      '</div>';
+    }).join('');
+
+    document.getElementById('censusGrid').innerHTML = html;
+  }
+
+  /* =========================================================
+     LAB STATS + LISTS + TAT
+  ========================================================= */
+  function renderLabStats() {
+    var patients = loadPatients();
+    var awaiting = [], pending = [];
+    var validatedToday = 0;
+    var tatHours = [];
+
+    patients.forEach(function (p) {
+      (p.encounters || []).forEach(function (enc) {
+        (enc.orders || []).forEach(function (o) {
+          if (o.type !== 'Laboratory') return;
+          var st = (o.resultStatus || o.status || '').toLowerCase();
+
+          if (st === 'awaiting specimen' || st === 'pending' ||
+              (!o.specimenId && st.indexOf('received') === -1 && st.indexOf('valid') === -1 && st.indexOf('prelim') === -1)) {
+            if (!o.specimenId || st === 'awaiting specimen' || st === 'pending') {
+              awaiting.push({ patient: p.fullName, patientId: p.id, visitId: enc.visitId, panel: o.item });
+            }
+          }
+          if (st.indexOf('prelim') >= 0 || st.indexOf('validation') >= 0 || st === 'preliminary' || st === 'awaiting validation') {
+            pending.push({ patient: p.fullName, patientId: p.id, visitId: enc.visitId, panel: o.item, status: o.resultStatus || o.status });
+          }
+          if ((st === 'validated' || st === 'completed') && isToday(o.validatedAt)) {
+            validatedToday++;
+            var start = o.orderedAt || o.specimenReceivedDate || enc.createdAt || enc.date;
+            if (start && o.validatedAt) {
+              var t0 = new Date(start).getTime();
+              var t1 = new Date(o.validatedAt).getTime();
+              if (!isNaN(t0) && !isNaN(t1) && t1 >= t0) tatHours.push((t1 - t0) / 3600000);
+            }
+          }
+        });
+      });
+    });
+
+    var crits = window.lcGetCriticalAlerts ? window.lcGetCriticalAlerts() : [];
+
+    var avgTat = tatHours.length ? (tatHours.reduce(function (a, b) { return a + b; }, 0) / tatHours.length) : null;
+    document.getElementById('statTAT').textContent = fmtHours(avgTat);
+
+    document.getElementById('statAwaiting').textContent = awaiting.length;
+    document.getElementById('statPending').textContent = pending.length;
+    document.getElementById('statCritical').textContent = crits.length;
+    document.getElementById('statDone').textContent = validatedToday;
+
+    var la = document.getElementById('listAwaiting');
+    if (!awaiting.length) la.innerHTML = '<div class="empty">No orders awaiting specimen</div>';
+    else la.innerHTML = awaiting.slice(0, 15).map(function (r) {
+      return '<div class="list-row"><div><strong>' + esc(r.patient) + '</strong><div class="meta">' + esc(r.panel) + ' · ' + esc(r.visitId) + '</div></div>' +
+        '<a href="lab-reception.html">Register</a></div>';
+    }).join('');
+
+    var lp = document.getElementById('listPending');
+    if (!pending.length) lp.innerHTML = '<div class="empty">Nothing pending validation</div>';
+    else lp.innerHTML = pending.slice(0, 15).map(function (r) {
+      return '<div class="list-row"><div><strong>' + esc(r.patient) + '</strong><div class="meta">' + esc(r.panel) + ' · ' + esc(r.status) + '</div></div>' +
+        '<a href="result-entry.html">Open</a></div>';
+    }).join('');
+
+    renderTATWidget();
+  }
+
+  /* =========================================================
+     TAT METRICS — 7 day window
+  ========================================================= */
+  function computeTATMetrics() {
+    var patients = loadPatients();
+    var sevenAgo = Date.now() - 7 * 24 * 3600 * 1000;
+    var perTest = {}, statHours = [], allHours = [];
+
+    patients.forEach(function (p) {
+      (p.encounters || []).forEach(function (enc) {
+        (enc.orders || []).forEach(function (o) {
+          if (o.type !== 'Laboratory') return;
+          if (!o.validatedAt) return;
+          if (new Date(o.validatedAt).getTime() < sevenAgo) return;
+
+          var start = o.orderedAt || o.specimenReceivedDate || enc.createdAt || enc.date;
+          if (!start) return;
+          var t0 = new Date(start).getTime();
+          var t1 = new Date(o.validatedAt).getTime();
+          if (isNaN(t0) || isNaN(t1) || t1 < t0) return;
+          var h = (t1 - t0) / 3600000;
+          allHours.push(h);
+
+          var priority = o.priority || 'Routine';
+          if (priority === 'STAT') statHours.push(h);
+
+                  var key = o.item;
+        if (!perTest[key]) {
+          perTest[key] = {
+            hours: [],
+            priority: priority,
+            code: o.code || o.panelCode || '',
+            slaHours: (window.lcSettings && typeof window.lcSettings.tatForPanel === 'function')
+                        ? window.lcSettings.tatForPanel(o.code || o.panelCode || o.item)
+                        : 24
+          };
+        }
+        perTest[key].hours.push(h);
+        });
+      });
+    });
+
+    function median(arr) {
+      if (!arr.length) return null;
+      var a = arr.slice().sort(function (x, y) { return x - y; });
+      var mid = Math.floor(a.length / 2);
+      return a.length % 2 ? a[mid] : (a[mid - 1] + a[mid]) / 2;
+    }
+    function pct(arr, p) {
+      if (!arr.length) return null;
+      var a = arr.slice().sort(function (x, y) { return x - y; });
+      return a[Math.min(a.length - 1, Math.floor(a.length * p / 100))];
+    }
+
+       var perTestList = Object.keys(perTest).map(function (test) {
+      var t = perTest[test];
+      var m = median(t.hours);
+      return {
+        test: test,
+        count: t.hours.length,
+        median: m,
+        slaHours: t.slaHours || 24,
+        withinSla: (m != null && m <= (t.slaHours || 24)),
+        overdue:   (m != null && m >  (t.slaHours || 24))
+      };
+    }).sort(function (a, b) { return b.count - a.count; }).slice(0, 8);
+
+    return {
+      count: allHours.length,
+      median: median(allHours),
+      p90: pct(allHours, 90),
+      statMedian: median(statHours),
+      within24Pct: (function () {
+        if (!allHours.length) return null;
+        // Compare each order against its own panel SLA
+        var within = 0, total = 0;
+        patients.forEach(function (p) {
+          (p.encounters || []).forEach(function (enc) {
+            (enc.orders || []).forEach(function (o) {
+              if (o.type !== 'Laboratory') return;
+              if (!o.validatedAt) return;
+              if (new Date(o.validatedAt).getTime() < sevenAgo) return;
+              var start = o.orderedAt || o.specimenReceivedDate || enc.createdAt || enc.date;
+              if (!start) return;
+              var t0 = new Date(start).getTime();
+              var t1 = new Date(o.validatedAt).getTime();
+              if (isNaN(t0) || isNaN(t1) || t1 < t0) return;
+              var h = (t1 - t0) / 3600000;
+              var sla = (window.lcSettings && typeof window.lcSettings.tatForPanel === 'function')
+                          ? window.lcSettings.tatForPanel(o.code || o.panelCode || o.item)
+                          : 24;
+              total++;
+              if (h <= sla) within++;
+            });
+          });
+        });
+        return total ? Math.round(within * 100 / total) : null;
+      })(),
+      perTest: perTestList
+    };
+  }
+
+  function fmtHours(h) {
+    if (h == null || isNaN(h)) return '—';
+    if (h < 1) return Math.round(h * 60) + ' min';
+    if (h < 24) return h.toFixed(1) + ' h';
+    return (h / 24).toFixed(1) + ' d';
+  }
+
+  function colourForTAT(h) {
+    if (h == null) return '';
+    if (h <= 8) return 'ok';
+    if (h <= 24) return 'warn';
+    return 'crit';
+  }
+
+  function renderTATWidget() {
+    var m = computeTATMetrics();
+
+    var medianEl = document.getElementById('tatMetricMedian');
+    medianEl.textContent = fmtHours(m.median);
+    medianEl.className = 't-value ' + colourForTAT(m.median);
+
+    var p90El = document.getElementById('tatMetricP90');
+    p90El.textContent = fmtHours(m.p90);
+    p90El.className = 't-value ' + colourForTAT(m.p90);
+
+    var statEl = document.getElementById('tatMetricStat');
+    statEl.textContent = fmtHours(m.statMedian);
+    statEl.className = 't-value ' + colourForTAT(m.statMedian);
+
+    var withinEl = document.getElementById('tatMetricWithin');
+    withinEl.textContent = m.within24Pct != null ? m.within24Pct + '%' : '—';
+    withinEl.className = 't-value ' + (m.within24Pct == null ? '' : (m.within24Pct >= 90 ? 'ok' : m.within24Pct >= 75 ? 'warn' : 'crit'));
+
+    var bars = document.getElementById('tatBars');
+    if (!m.perTest.length) {
+      bars.innerHTML = '<div class="empty" style="padding:12px;font-size:12px">No validated results in the last 7 days.</div>';
+      return;
+    }
+    var maxMedian = Math.max.apply(null, m.perTest.map(function (t) {
+      return Math.max(t.median || 0, t.slaHours || 0);
+    }).concat([24]));
+
+    bars.innerHTML = m.perTest.map(function (t) {
+      var sla = t.slaHours || 24;
+      var pct = t.median != null ? Math.min(100, (t.median / maxMedian) * 100) : 0;
+      var targetPct = Math.min(100, (sla / maxMedian) * 100);
+      var cls = t.median == null ? '' : (t.median <= sla ? 'ok' : (t.median <= sla * 1.5 ? 'warn' : 'crit'));
+      var slaTag = t.overdue
+        ? ' <span style="color:#B3261E;font-weight:700">⚠ past ' + sla + 'h SLA</span>'
+        : ' <span style="color:#2B7A4B">✓ within ' + sla + 'h</span>';
+      return '<div class="tat-bar-row">' +
+        '<div class="t-name" title="' + esc(t.test) + '">' + esc(t.test) +
+          ' <span style="color:#8A869C;font-weight:400">(' + t.count + ')</span>' + slaTag +
+        '</div>' +
+        '<div class="tat-bar-track">' +
+          '<div class="tat-bar-fill ' + cls + '" style="width:' + pct + '%"></div>' +
+          '<div class="tat-bar-target" style="left:' + targetPct + '%" title="' + sla + 'h SLA"></div>' +
+        '</div>' +
+        '<div class="t-time">' + fmtHours(t.median) + '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  /* =========================================================
+     QUICK LINKS
+  ========================================================= */
+  function renderQuickLinks() {
+    var u = window.lcGetUser();
+    var all = [
+      { href: 'patient-registration.html', icon: '♙', label: 'Patients', roles: null },
+      { href: 'consultation.html', icon: '👨‍⚕️', label: 'Consultation', roles: ['doctor', 'nurse', 'admin'] },
+      { href: 'nursing-station.html', icon: '🩺', label: 'Nursing Station', roles: ['nurse', 'admin', 'scientist'] },
+      { href: 'ward-board.html', icon: '🛏️', label: 'Ward Board', roles: ['nurse', 'doctor', 'admin', 'scientist'] },
+      { href: 'triage-board.html', icon: '🚨', label: 'Triage Board', roles: ['nurse', 'doctor', 'admin', 'receptionist'] },
+      { href: 'lab-reception.html', icon: '▤', label: 'Sample Registration', roles: ['scientist', 'receptionist', 'admin'] },
+      { href: 'result-entry.html', icon: '✓', label: 'Result Entry', roles: ['scientist', 'doctor', 'admin'] },
+      { href: 'reports.html', icon: '📊', label: 'Reports & Audit', roles: ['scientist', 'doctor', 'admin'] },
+      { href: 'test-configuration.html', icon: '⚙', label: 'Test Panels', roles: ['scientist', 'admin'] }
+    ];
+    var box = document.getElementById('quickLinks');
+    box.innerHTML = all.filter(function (l) {
+      if (!l.roles) return true;
+      return u && l.roles.indexOf(u.id) >= 0;
+    }).map(function (l) {
+      return '<a class="quick-link" href="' + l.href + '"><span class="icon">' + l.icon + '</span>' + l.label + '</a>';
+    }).join('');
+  }
+
+  /* =========================================================
+     INIT
+  ========================================================= */
+  function renderAll() {
+    try { renderWardStats(); } catch (e) { console.warn('ward stats', e); }
+    try { renderTriageRow(); } catch (e) { console.warn('triage', e); }
+    try { renderCensus(); } catch (e) { console.warn('census', e); }
+    try { renderLabStats(); } catch (e) { console.warn('lab', e); }
+    try { renderQuickLinks(); } catch (e) { console.warn('quicklinks', e); }
+  }
+
+  /* =========================================================
+     SERVER STATUS WIDGET — proves the browser can reach the backend
+  ========================================================= */
+  async function checkServerStatus() {
+    var dot   = document.getElementById('serverDot');
+    var label = document.getElementById('serverLabel');
+    var wrap  = document.getElementById('serverStatus');
+    if (!dot || !label || !wrap) return;
+
+    if (!window.lcApiHealth) {
+      dot.style.background = '#ccc';
+      label.textContent = 'API adapter not loaded';
+      wrap.title = 'labcore-api.js missing — check script order in <head>';
+      return;
+    }
+
+    try {
+      var ok = await window.lcApiHealth();
+      if (ok) {
+        dot.style.background = '#2B7A4B';
+        label.textContent = 'Server online';
+        wrap.title = 'Backend: ' + (window.LABCORE_API_BASE || '?');
+        wrap.style.color = '#2B7A4B';
+      } else {
+        dot.style.background = '#9A6200';
+        label.textContent = 'Server responded oddly';
+        wrap.title = 'Health check returned not-ok';
+        wrap.style.color = '#9A6200';
+      }
+    } catch (e) {
+      dot.style.background = '#B3261E';
+      label.textContent = 'Server offline';
+      wrap.title = 'Cannot reach ' + (window.LABCORE_API_BASE || '?') + ' — is npm start running?';
+      wrap.style.color = '#B3261E';
+    }
+  }
+
+  checkServerStatus();
+  setInterval(checkServerStatus, 15000);
+
+  renderAll();
+  setInterval(renderAll, 30000);
+})();
+</script>
+<script src="shared/labcore-connectivity.js"></script>
+</body>
+</html>

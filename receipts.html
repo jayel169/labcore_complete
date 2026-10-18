@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Receipts | LabCore</title>
+<link rel="stylesheet" href="shared/labcore-nav.css">
+<style>
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--lc-font); background: var(--lc-bg); color: var(--lc-text); }
+.main { margin-left: 245px; min-height: 100vh; padding: 24px 28px; }
+
+.topbar { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 18px; flex-wrap: wrap; gap: 12px; }
+.topbar h1 { font-size: 22px; }
+.topbar p { font-size: 13px; color: var(--lc-muted); margin-top: 4px; }
+
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px; }
+.stat-card { background: #fff; border: 1px solid var(--lc-border); border-radius: 8px; padding: 14px; }
+.stat-card .label { font-size: 11px; color: var(--lc-muted);  }
+.stat-card .number { font-size: 22px; font-weight: 700; margin-top: 4px; }
+.stat-card .sub { font-size: 11px; color: var(--lc-muted); margin-top: 2px; }
+
+.filters {
+  background: #fff;
+  border: 1px solid var(--lc-border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.filters input,
+.filters select {
+  padding: 8px 12px;
+  border: 1px solid var(--lc-border);
+  border-radius: 6px;
+  font-size: 12px;
+  background: #fff;
+  color: var(--lc-text);
+}
+.filters input[type="text"] { flex: 1; min-width: 200px; }
+.filters input[type="date"] { width: 160px; }
+
+.card { background: #fff; border: 1px solid var(--lc-border); border-radius: 10px; overflow: hidden; }
+.card-head { padding: 12px 16px; border-bottom: 1px solid var(--lc-border); font-weight: 600; font-size: 14px; display: flex; justify-content: space-between; align-items: center; }
+
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+th {
+  background: #F8F7FB; text-align: left; padding: 10px 12px;
+  font-size: 10px;  color: #5F5B75;
+  border-bottom: 1px solid var(--lc-border); white-space: nowrap;
+}
+td { padding: 10px 12px; border-bottom: 1px solid #eee; vertical-align: middle; }
+tr:hover { background: #F8F7FB; }
+
+.btn {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--lc-border);
+  background: #fff;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--lc-text);
+}
+.btn:hover { background: var(--lc-bg); }
+.btn-primary { background: var(--lc-blue); border-color: var(--lc-blue); color: #fff; }
+.btn-primary:hover { background: #2A2656; }
+.btn-sm { padding: 4px 8px; font-size: 10px; }
+
+.badge { display: inline-block; padding: 3px 8px; border-radius: 10px; font-size: 10px; font-weight: 700; }
+.badge-cash { background: #E5F1EA; color: #2B7A4B; }
+.badge-momo { background: #FBF0DA; color: #9a5b00; }
+.badge-card { background: #E4EFF7; color: #3A3577; }
+.badge-ins { background: #f3e5f5; color: #6b21a8; }
+.badge-bank { background: #e0e7ff; color: #3730a3; }
+
+.money { font-variant-numeric: tabular-nums; font-weight: 700; }
+.money.positive { color: #2B7A4B; }
+.money.zero { color: #5F5B75; }
+.money.negative { color: #B3261E; }
+
+.empty { padding: 40px; text-align: center; color: var(--lc-muted); font-size: 13px; }
+
+/* Reprint modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 26, 31, 0.55);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 1500;
+  padding: 16px;
+  
+}
+.modal-overlay.active { display: flex; }
+.modal-box {
+  background: #fff;
+  border-radius: 10px;
+  max-width: 480px;
+  width: 100%;
+  padding: 22px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+.modal-box h3 { font-size: 16px; margin-bottom: 6px; }
+.modal-box p { font-size: 12px; color: #5F5B75; margin-bottom: 16px; }
+.size-choices { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+.size-choice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 2px solid var(--lc-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.size-choice:hover { border-color: var(--lc-blue); background: #f5f9fc; }
+.size-choice.selected { border-color: var(--lc-blue); background: #e8f4fc; }
+.size-choice .icon { font-size: 22px; }
+.size-choice .name { font-weight: 700; font-size: 13px; }
+.size-choice .desc { font-size: 11px; color: #5F5B75; margin-top: 2px; }
+.modal-foot { display: flex; justify-content: flex-end; gap: 8px; }
+
+@media (max-width: 1000px) {
+  .main { margin-left: 0; padding-top: 60px; }
+  .stats { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 600px) {
+  .stats { grid-template-columns: 1fr; }
+  .filters { flex-direction: column; align-items: stretch; }
+  .filters input, .filters select { width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<aside class="sidebar"></aside>
+<button class="lc-mobile-toggle" aria-label="Menu">☰</button>
+<div class="lc-sidebar-overlay"></div>
+
+<div class="main">
+  <div class="topbar">
+    <div>
+      <h1>🧾 Receipts</h1>
+      <p>Archive · search · reprint payment receipts</p>
+    </div>
+    <div>
+      <button class="btn btn-sm btn-primary" onclick="exportReceipts()">📊 Export CSV</button>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat-card">
+      <div class="label">Receipts today</div>
+      <div class="number" id="statTodayCount">0</div>
+      <div class="sub">printed this calendar day</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Collected today</div>
+      <div class="number" id="statTodayTotal" style="color: var(--lc-green);">GHS 0.00</div>
+      <div class="sub">sum of amount paid</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Receipts (all time)</div>
+      <div class="number" id="statAllCount">0</div>
+      <div class="sub">archived</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Reprints today</div>
+      <div class="number" id="statReprintsToday" style="color: var(--lc-warning);">0</div>
+      <div class="sub">reprint log entries</div>
+    </div>
+  </div>
+
+  <div class="filters">
+    <input type="text" id="search" placeholder="Search receipt number, patient, visit ID…" oninput="render()">
+    <input type="date" id="dateFrom" onchange="render()" title="From date">
+    <input type="date" id="dateTo" onchange="render()" title="To date">
+    <select id="methodFilter" onchange="render()">
+      <option value="">All payment methods</option>
+      <option value="Cash">Cash</option>
+      <option value="Mobile Money">Mobile Money</option>
+      <option value="Card">Card</option>
+      <option value="Insurance">Insurance</option>
+      <option value="Bank transfer">Bank transfer</option>
+    </select>
+    <button class="btn btn-sm" onclick="clearFilters()">Clear</button>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <span>Receipt Archive</span>
+      <span id="resultCount" style="font-size: 11px; color: #5F5B75;"></span>
+    </div>
+    <div style="overflow-x: auto;">
+      <table>
+        <thead>
+          <tr>
+            <th>Receipt #</th>
+            <th>Date & Time</th>
+            <th>Patient</th>
+            <th>Encounter</th>
+            <th>Method</th>
+            <th style="text-align: right;">Amount Paid</th>
+            <th style="text-align: right;">Balance After</th>
+            <th>By</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="receiptBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- REPRINT MODAL -->
+<div class="modal-overlay" id="reprintModal">
+  <div class="modal-box">
+    <h3>Print Receipt</h3>
+    <p id="reprintSub">Select printer size</p>
+
+    <div class="size-choices" id="sizeChoices">
+      <div class="size-choice selected" data-size="a4">
+        <div>
+          <div class="name">A4 Paper</div>
+          <div class="desc">Standard office printer — full-page receipt</div>
+        </div>
+      </div>
+      <div class="size-choice" data-size="58mm">
+        <div>
+          <div class="name">Thermal 58mm</div>
+          <div class="desc">Small POS receipt printer</div>
+        </div>
+      </div>
+      <div class="size-choice" data-size="80mm">
+        <div>
+          <div class="name">Thermal 80mm</div>
+          <div class="desc">Wider POS receipt printer</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-foot">
+      <button class="btn" onclick="closeReprintModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="doReprint()">🖨️ Print</button>
+    </div>
+  </div>
+</div>
+
+<script src="shared/labcore-api.js"></script>
+<script src="shared/labcore-utils.js"></script>
+<script src="shared/labcore-ward.js"></script>
+<script src="shared/labcore-receipts.js"></script>
+<script src="shared/labcore-auth.js"></script>
+<script src="shared/labcore-staff.js"></script>   <!-- NEW -->
+<script src="shared/labcore-audit.js"></script>
+<script src="shared/labcore-icons.js"></script>
+<script src="shared/labcore-nav.js"></script>
+<script src="shared/labcore-search.js"></script>
+<script src="shared/labcore-notifications.js"></script>
+
+<script>
+(function () {
+  'use strict';
+
+  (function () { if (window.lcRequireAuth) window.lcRequireAuth(); })();
+
+  var pendingReceiptNumber = null;
+  var pendingSize = 'a4';
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function money(n) {
+    n = Number(n) || 0;
+    return 'GHS ' + n.toFixed(2);
+  }
+  function fmtDateTime(iso) {
+    if (!iso) return '—';
+    var d = new Date(iso);
+    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) +
+           ' ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  async function syncRemoteReceipts() {
+    if (!window.lcApiGetReceipts) return;
+    try {
+      var remote = await window.lcApiGetReceipts();
+      var merged = window.lcListReceipts({});
+      var known = {};
+      merged.forEach(function (receipt) { known[receipt.receiptNumber] = true; });
+      remote.forEach(function (receipt) {
+        if (receipt.receiptNumber && !known[receipt.receiptNumber]) {
+          merged.push(receipt);
+          known[receipt.receiptNumber] = true;
+        }
+      });
+      merged.sort(function (a, b) { return String(b.printedAt).localeCompare(String(a.printedAt)); });
+      localStorage.setItem('labcore_receipts', JSON.stringify(merged.slice(0, 5000)));
+      render();
+    } catch (error) {
+      console.error('[receipts] server archive sync failed:', error);
+      if (window.lcToast) window.lcToast('Could not sync the receipt archive with the server: ' + error.message, 'warning');
+    }
+  }
+
+  function methodClass(m) {
+    m = String(m || '').toLowerCase();
+    if (m.indexOf('cash') >= 0) return 'badge-cash';
+    if (m.indexOf('mobile') >= 0 || m.indexOf('momo') >= 0) return 'badge-momo';
+    if (m.indexOf('card') >= 0) return 'badge-card';
+    if (m.indexOf('insurance') >= 0) return 'badge-ins';
+    if (m.indexOf('bank') >= 0) return 'badge-bank';
+    return 'badge-cash';
+  }
+
+  function render() {
+    var search = document.getElementById('search').value.trim().toLowerCase();
+    var from = document.getElementById('dateFrom').value;
+    var to = document.getElementById('dateTo').value;
+    var method = document.getElementById('methodFilter').value;
+
+    var list = window.lcListReceipts({
+      search: search,
+      dateFrom: from ? new Date(from).toISOString() : null,
+      dateTo: to ? new Date(to + 'T23:59:59').toISOString() : null
+    });
+
+    if (method) {
+      list = list.filter(function (r) { return r.paymentMethod === method; });
+    }
+
+    document.getElementById('resultCount').textContent = list.length + ' receipt(s)';
+
+    var body = document.getElementById('receiptBody');
+    if (!list.length) {
+      body.innerHTML = '<tr><td colspan="9" class="empty">No receipts match the filter.</td></tr>';
+      updateStats();
+      return;
+    }
+
+    body.innerHTML = list.map(function (r) {
+      var balClass = Number(r.balanceRemaining) > 0 ? 'negative' : 'zero';
+      return '<tr>' +
+        '<td><strong>' + esc(r.receiptNumber) + '</strong></td>' +
+        '<td>' + fmtDateTime(r.printedAt) + '</td>' +
+        '<td><strong>' + esc(r.patientName) + '</strong><div style="font-size: 10px; color: #5F5B75;">' + esc(r.patientId) + '</div></td>' +
+        '<td>' + esc(r.visitId) + '<div style="font-size: 10px; color: #5F5B75;">' + esc(r.service) + '</div></td>' +
+        '<td><span class="badge ' + methodClass(r.paymentMethod) + '">' + esc(r.paymentMethod) + '</span></td>' +
+        '<td style="text-align: right;" class="money positive">' + money(r.amountPaid) + '</td>' +
+        '<td style="text-align: right;" class="money ' + balClass + '">' + money(r.balanceRemaining) + '</td>' +
+        '<td>' + esc(r.printedBy) + '</td>' +
+        '<td><button class="btn btn-sm btn-primary" onclick="openReprint(\'' + esc(r.receiptNumber) + '\')">🖨️ Reprint</button></td>' +
+      '</tr>';
+    }).join('');
+
+    updateStats();
+  }
+
+  function updateStats() {
+    var summary = window.lcTodayReceiptsSummary();
+    document.getElementById('statTodayCount').textContent = summary.count;
+    document.getElementById('statTodayTotal').textContent = money(summary.total);
+
+    var all = window.lcListReceipts({});
+    document.getElementById('statAllCount').textContent = all.length;
+
+    // Reprints today
+    var today = new Date().toISOString().slice(0, 10);
+    var reprints = 0;
+    all.forEach(function (r) {
+      (r.reprintLog || []).forEach(function (log) {
+        if ((log.at || '').slice(0, 10) === today) reprints++;
+      });
+    });
+    document.getElementById('statReprintsToday').textContent = reprints;
+  }
+
+  window.openReprint = function (receiptNumber) {
+    pendingReceiptNumber = receiptNumber;
+    pendingSize = 'a4';
+    document.querySelectorAll('#sizeChoices .size-choice').forEach(function (el) {
+      el.classList.toggle('selected', el.dataset.size === 'a4');
+    });
+    document.getElementById('reprintSub').textContent = 'Receipt ' + receiptNumber;
+    document.getElementById('reprintModal').classList.add('active');
+  };
+
+  window.closeReprintModal = function () {
+    document.getElementById('reprintModal').classList.remove('active');
+    pendingReceiptNumber = null;
+  };
+
+  window.doReprint = function () {
+    if (!pendingReceiptNumber) return;
+    var ok = window.lcReprintReceipt(pendingReceiptNumber, pendingSize);
+    if (ok) {
+      window.lcToast('Sent to print: ' + pendingReceiptNumber, 'success');
+    }
+    closeReprintModal();
+    render();
+  };
+
+  // Size choice clicking
+  document.querySelectorAll('#sizeChoices .size-choice').forEach(function (el) {
+    el.addEventListener('click', function () {
+      document.querySelectorAll('#sizeChoices .size-choice').forEach(function (x) {
+        x.classList.remove('selected');
+      });
+      el.classList.add('selected');
+      pendingSize = el.dataset.size;
+    });
+  });
+
+  // Overlay click closes modal
+  document.getElementById('reprintModal').addEventListener('click', function (e) {
+    if (e.target.id === 'reprintModal') closeReprintModal();
+  });
+
+  window.clearFilters = function () {
+    document.getElementById('search').value = '';
+    document.getElementById('dateFrom').value = '';
+    document.getElementById('dateTo').value = '';
+    document.getElementById('methodFilter').value = '';
+    render();
+  };
+
+  window.exportReceipts = function () {
+    var list = window.lcListReceipts({});
+    if (!list.length) {
+      window.lcToast('No receipts to export', 'warning');
+      return;
+    }
+    var rows = [[
+      'Receipt Number', 'Printed At', 'Printed By',
+      'Patient ID', 'Patient Name', 'Visit ID', 'Service',
+      'Total Charged', 'Previous Paid', 'Amount Paid', 'Balance Remaining',
+      'Payment Method'
+    ]];
+    list.forEach(function (r) {
+      rows.push([
+        r.receiptNumber, r.printedAt, r.printedBy,
+        r.patientId, r.patientName, r.visitId, r.service,
+        r.totalCharged, r.previousPaid, r.amountPaid, r.balanceRemaining,
+        r.paymentMethod
+      ]);
+    });
+    var csv = rows.map(function (row) {
+      return row.map(function (c) { return '"' + String(c == null ? '' : c).replace(/"/g, '""') + '"'; }).join(',');
+    }).join('\n');
+    var blob = new Blob([csv], { type: 'text/csv' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'LabCore_Receipts_' + new Date().toISOString().slice(0, 10) + '.csv';
+    a.click();
+    window.lcToast('Exported ' + list.length + ' receipt(s)', 'success');
+  };
+
+  render();
+  syncRemoteReceipts();
+  setInterval(render, 30000);
+})();
+</script>
+
+</body>
+</html>

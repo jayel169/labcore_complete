@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Triage Board | LabCore</title>
+<link rel="stylesheet" href="shared/labcore-nav.css">
+<style>
+
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family: var(--lc-font);background:var(--lc-bg);color:var(--lc-text)}
+.main{margin-left:245px;min-height:100vh;padding:24px 28px}
+.topbar{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;flex-wrap:wrap;gap:12px}
+.topbar h1{font-size:22px}
+.topbar p{font-size:13px;color:var(--lc-muted);margin-top:4px}
+
+.level-tabs{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:18px}
+.lvl-card{background:#fff;border:1px solid var(--lc-border);border-left:4px solid #ccc;border-radius:8px;padding:12px 14px;cursor:pointer;transition:.15s;text-decoration:none;color:inherit;display:block}
+.lvl-card:hover{box-shadow:0 2px 10px rgba(0,0,0,.08);transform:translateY(-1px)}
+.lvl-card.active{background:#E4EFF7;border-color:var(--lc-blue)}
+.lvl-card .lvl-lbl{font-size:10px;font-weight:700;color:var(--lc-muted);}
+.lvl-card .lvl-num{font-size:22px;font-weight:700;margin-top:4px}
+.lvl-card.t1{border-left-color:#B3261E} .lvl-card.t1 .lvl-num{color:#B3261E}
+.lvl-card.t2{border-left-color:#9A6200} .lvl-card.t2 .lvl-num{color:#9A6200}
+.lvl-card.t3{border-left-color:#9A6200} .lvl-card.t3 .lvl-num{color:#9A6200}
+.lvl-card.t4{border-left-color:#2B7A4B} .lvl-card.t4 .lvl-num{color:#2B7A4B}
+.lvl-card.t5{border-left-color:#8A869C} .lvl-card.t5 .lvl-num{color:#8A869C}
+.lvl-card.all{border-left-color:#3A3577} .lvl-card.all .lvl-num{color:#3A3577}
+
+.card{background:#fff;border:1px solid var(--lc-border);border-radius:10px;overflow:hidden;margin-bottom:18px}
+.card-head{padding:14px 18px;border-bottom:1px solid var(--lc-border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;font-weight:600;font-size:14px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;padding:10px 12px;background:#F8F7FB;font-size:10px;color:#5F5B75;border-bottom:1px solid var(--lc-border)}
+td{padding:11px 12px;border-bottom:1px solid #eee;vertical-align:middle}
+tr:hover{background:#F8F7FB}
+.triage-chip{display:inline-block;padding:3px 10px;border-radius:12px;font-size:10px;font-weight:800;color:#fff;}
+.overdue{background:#FBE9E7 !important}
+.overdue td:first-child::before{content:'⏰ ';}
+.btn{padding:6px 12px;border-radius:6px;border:1px solid var(--lc-border);background:#fff;cursor:pointer;font-size:11px;font-weight:600;transition:.2s}
+.btn:hover{background:var(--lc-bg);transform:translateY(-1px)}
+.btn-primary{background:var(--lc-blue);border-color:var(--lc-blue);color:#fff}
+.btn-sm{padding:4px 10px;font-size:10px}
+.empty{padding:40px;text-align:center;color:var(--lc-muted);font-size:13px}
+@media (max-width:900px){.main{margin-left:0;padding-top:70px}}
+@media (max-width:700px){.level-tabs{grid-template-columns:repeat(3,1fr)}}
+</style>
+</head>
+<body>
+<aside class="sidebar"></aside>
+<button class="lc-mobile-toggle" aria-label="Menu">☰</button>
+<div class="lc-sidebar-overlay"></div>
+
+<div class="main">
+  <div class="topbar">
+    <div>
+      <h1>🚨 Triage Board</h1>
+      <p>Live emergency queue · sorted by acuity · target times enforced</p>
+    </div>
+    <div class="toolbar">
+      <button class="btn btn-sm" onclick="renderAll()">🔄 Refresh</button>
+    </div>
+  </div>
+
+  <div class="level-tabs" id="levelTabs"></div>
+
+  <div class="card">
+    <div class="card-head">
+      <span id="boardTitle">All active triage</span>
+      <span id="countLine" style="font-size:11px;color:var(--lc-muted)"></span>
+    </div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>Triage</th>
+            <th>Patient</th>
+            <th>Age / Sex</th>
+            <th>Complaint</th>
+            <th>Arrived</th>
+            <th>Wait vs target</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="triageBody"><tr><td colspan="7" class="empty">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div><script src="shared/labcore-api.js"></script>
+<script src="shared/labcore-utils.js"></script>
+<script src="shared/labcore-ward.js"></script>
+<script src="shared/labcore-auth.js"></script>
+<script src="shared/labcore-staff.js"></script>   <!-- NEW -->
+<script src="shared/labcore-audit.js"></script>
+<script src="shared/labcore-icons.js"></script>
+<script src="shared/labcore-nav.js"></script>
+<script src="shared/labcore-search.js"></script>
+<script src="shared/labcore-notifications.js"></script>
+<script>
+(function(){
+  'use strict';
+  if (window.lcRequireAuth) window.lcRequireAuth();
+
+  var currentLevel = null; // null = all
+  var qp = new URLSearchParams(window.location.search);
+  if (qp.get('level')) {
+    var n = parseInt(qp.get('level'), 10);
+    if (n >= 1 && n <= 5) currentLevel = n;
+  }
+
+  function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+  function loadPatients(){try{return JSON.parse(localStorage.getItem('hms_patients_v3')||'[]');}catch(e){return[];}}
+  function ageFromDob(dob){if(!dob)return'—';var b=new Date(dob),t=new Date();if(isNaN(b.getTime()))return'—';var a=t.getFullYear()-b.getFullYear();var m=t.getMonth()-b.getMonth();if(m<0||(m===0&&t.getDate()<b.getDate()))a--;return a+'y';}
+  function fmtDate(iso){if(!iso)return'—';return new Date(iso).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});}
+
+  var LEVELS = (window.lcWardCatalogue && window.lcWardCatalogue.triageLevels) || [
+    {level:1,label:'Resuscitation',color:'#B3261E',maxWait:'Immediate',maxMinutes:0},
+    {level:2,label:'Emergent',color:'#9A6200',maxWait:'10 min',maxMinutes:10},
+    {level:3,label:'Urgent',color:'#9A6200',maxWait:'30 min',maxMinutes:30},
+    {level:4,label:'Less Urgent',color:'#2B7A4B',maxWait:'60 min',maxMinutes:60},
+    {level:5,label:'Non-Urgent',color:'#8A869C',maxWait:'120 min',maxMinutes:120}
+  ];
+
+  function targetMinutes(level) {
+    var l = LEVELS.find(function(x){return x.level===level;});
+    return l ? l.maxMinutes : 120;
+  }
+  function colourFor(level) {
+    var l = LEVELS.find(function(x){return x.level===level;});
+    return l ? l.color : '#8A869C';
+  }
+
+  function collect() {
+    var patients = loadPatients();
+    var rows = [];
+    patients.forEach(function(p){
+      (p.encounters||[]).forEach(function(e){
+        if (e.locationType !== 'Emergency') return;
+        if (e.status === 'Completed') return;
+        if (!e.triageLevel) return;
+        rows.push({patient:p, enc:e});
+      });
+    });
+    return rows;
+  }
+
+  function renderTabs() {
+    var all = collect();
+    var counts = {1:0,2:0,3:0,4:0,5:0};
+    all.forEach(function(r){counts[r.enc.triageLevel]=(counts[r.enc.triageLevel]||0)+1;});
+
+    var html =
+      '<a class="lvl-card all '+(currentLevel===null?'active':'')+'" href="?">'+
+        '<div class="lvl-lbl">All active</div>'+
+        '<div class="lvl-num">'+all.length+'</div>'+
+      '</a>';
+    LEVELS.forEach(function(l){
+      html +=
+        '<a class="lvl-card t'+l.level+' '+(currentLevel===l.level?'active':'')+'" href="?level='+l.level+'">'+
+          '<div class="lvl-lbl">T'+l.level+' · '+esc(l.label)+'</div>'+
+          '<div class="lvl-num">'+(counts[l.level]||0)+'</div>'+
+          '<div style="font-size:9px;color:#5F5B75;margin-top:2px">Target '+esc(l.maxWait)+'</div>'+
+        '</a>';
+    });
+    document.getElementById('levelTabs').innerHTML = html;
+  }
+
+  function renderTable() {
+    var rows = collect();
+    if (currentLevel !== null) rows = rows.filter(function(r){return r.enc.triageLevel===currentLevel;});
+
+    // sort by acuity then arrival
+    rows.sort(function(a,b){
+      var la=a.enc.triageLevel||9, lb=b.enc.triageLevel||9;
+      if (la!==lb) return la-lb;
+      return String(a.enc.createdAt||a.enc.date).localeCompare(String(b.enc.createdAt||b.enc.date));
+    });
+
+    var title = currentLevel ? 'Triage T'+currentLevel : 'All active triage';
+    document.getElementById('boardTitle').textContent = title;
+    document.getElementById('countLine').textContent = rows.length + ' patient(s)';
+
+    var body = document.getElementById('triageBody');
+    if (!rows.length) {
+      body.innerHTML = '<tr><td colspan="7" class="empty">No patients in this view</td></tr>';
+      return;
+    }
+
+    body.innerHTML = rows.map(function(r){
+      var p=r.patient, e=r.enc;
+      var target = targetMinutes(e.triageLevel);
+      var arrived = new Date(e.createdAt || e.date).getTime();
+      var waitedMin = Math.floor((Date.now() - arrived) / 60000);
+      var overdue = target > 0 && waitedMin > target;
+      var waitStr = waitedMin < 60 ? waitedMin+'m' : Math.floor(waitedMin/60)+'h '+(waitedMin%60)+'m';
+      var targetStr = target === 0 ? 'Immediate' : target+'m';
+      var waitClass = overdue ? 'style="color:#B3261E;font-weight:700"' : '';
+      var rowClass = overdue ? 'overdue' : '';
+
+      return '<tr class="'+rowClass+'">'+
+        '<td><span class="triage-chip" style="background:'+colourFor(e.triageLevel)+'">T'+e.triageLevel+'</span></td>'+
+        '<td><strong>'+esc(p.fullName)+'</strong><div style="font-size:10px;color:#5F5B75">'+esc(p.id)+'</div></td>'+
+        '<td>'+ageFromDob(p.dob)+' · '+esc(p.sex||'—')+'</td>'+
+        '<td>'+esc(e.triageNote || e.chiefComplaint || '—')+'</td>'+
+        '<td>'+fmtDate(e.createdAt||e.date)+'</td>'+
+        '<td '+waitClass+'>'+waitStr+' / '+targetStr+'</td>'+
+        '<td>'+
+          '<button class="btn btn-sm btn-primary" onclick="window.location.href=\'consultation.html\'">See</button> '+
+          '<button class="btn btn-sm" onclick="openPatient(\''+esc(p.id)+'\')">Profile</button>'+
+        '</td>'+
+      '</tr>';
+    }).join('');
+  }
+
+  window.openPatient = function(id){
+    window.location.href = 'patient-registration.html?focus=' + encodeURIComponent(id);
+  };
+
+  function renderAll() {
+    renderTabs();
+    renderTable();
+  }
+  window.renderAll = renderAll;
+
+  renderAll();
+  setInterval(renderAll, 30000);
+  console.log('🚨 Triage Board ready');
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Label Designer | LabCore</title>
+<link rel="stylesheet" href="shared/labcore-nav.css">
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<style>
+
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family: var(--lc-font);background:var(--lc-bg);color:var(--lc-text)}
+.main{margin-left:245px;min-height:100vh;padding:24px 28px}
+.topbar{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;flex-wrap:wrap;gap:12px}
+.topbar h1{font-size:22px}
+.topbar p{font-size:13px;color:var(--lc-muted);margin-top:4px}
+.btn{padding:8px 14px;border-radius:6px;border:1px solid var(--lc-border);background:#fff;cursor:pointer;font-size:12px;font-weight:600;transition:.2s;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{background:var(--lc-bg);transform:translateY(-1px);box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.btn-primary{background:var(--lc-blue);border-color:var(--lc-blue);color:#fff}
+.btn-primary:hover{background:#2A2656}
+.btn-success{background:var(--lc-green);border-color:var(--lc-green);color:#fff}
+.btn-success:hover{background:#206038}
+.btn-danger{background:var(--lc-red);border-color:var(--lc-red);color:#fff}
+.btn-sm{padding:5px 10px;font-size:11px}
+.layout{display:grid;grid-template-columns:340px 1fr;gap:20px;align-items:start}
+.card{background:#fff;border:1px solid var(--lc-border);border-radius:10px;overflow:hidden;margin-bottom:16px}
+.card-head{padding:14px 18px;border-bottom:1px solid var(--lc-border);display:flex;justify-content:space-between;align-items:center;font-weight:600;font-size:14px;flex-wrap:wrap;gap:8px}
+.card-body{padding:16px 18px}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:11px;font-weight:600;color:#4A4660;margin-bottom:4px}
+.field input[type=text],.field input[type=number],.field select{width:100%;padding:8px 10px;border:1px solid var(--lc-border);border-radius:6px;font-size:12px;background:#fff;color:var(--lc-text)}
+.field input[type=text]:focus,.field input[type=number]:focus,.field select:focus{outline:none;border-color:var(--lc-blue);box-shadow:0 0 0 3px rgba(58,53,119,.15)}
+.field.check{display:flex;align-items:center;gap:8px;font-size:12px}
+.field.check input{width:16px;height:16px;cursor:pointer;accent-color:var(--lc-blue)}
+.field.check label{margin:0;cursor:pointer;font-size:12px;font-weight:500;color:var(--lc-text)}
+
+.preview-stage{background:#e9ecef;padding:30px;border-radius:10px;display:flex;align-items:center;justify-content:center;min-height:420px;overflow:auto}
+.preview-wrap{background:#fff;border:1px solid #ccc;box-shadow:0 4px 16px rgba(0,0,0,.15);position:relative}
+
+/* The label itself — WYSIWYG */
+.label{
+  background:#fff;
+  color:#000;
+  font-family:'Courier New',monospace;
+  padding:6px 8px;
+  display:flex;
+  flex-direction:column;
+  gap:1px;
+  overflow:hidden;
+  box-sizing:border-box;
+}
+.label .l-header{
+  display:flex;justify-content:space-between;align-items:baseline;
+  font-family: var(--lc-font);
+  font-weight:800;font-size:9pt;letter-spacing:1px;
+  border-bottom:1px solid #000;
+  padding-bottom:1px;
+  margin-bottom:2px;
+}
+.label .l-header .l-priority{font-size:7pt;font-weight:700;}
+.label .l-header .l-priority.urgent{color:#B3261E}
+.label .l-barcode{display:flex;justify-content:center;align-items:center;margin:1px 0}
+.label .l-barcode img{display:block;max-width:100%;height:auto}
+.label .l-id{font-weight:800;font-size:9pt;text-align:center;line-height:1}
+.label .l-name{font-size:8pt;font-weight:700;line-height:1.1}
+.label .l-meta{font-size:7pt;line-height:1.15;color:#333}
+.label .l-tests{font-size:7pt;line-height:1.15;font-weight:600;word-break:break-word}
+.label .l-foot{font-size:6.5pt;line-height:1.1;color:#555;display:flex;justify-content:space-between}
+
+/* Print sheet: A4 with N labels laid out */
+#printSheet{display:none}
+@media print{
+  body *{visibility:hidden}
+  #printSheet,#printSheet *{visibility:visible}
+  #printSheet{display:block !important;position:absolute;left:0;top:0;width:100%;background:#fff;padding:6mm}
+  .print-label{page-break-inside:avoid;margin:1mm;display:inline-block}
+  .sidebar,.lc-mobile-toggle,.lc-sidebar-overlay,.topbar,.layout>.left,.btn{display:none !important}
+  @page{size:A4;margin:5mm}
+}
+
+.queue-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid #eee;font-size:12px}
+.queue-row:last-child{border-bottom:none}
+.queue-row input[type=checkbox]{width:16px;height:16px;accent-color:var(--lc-blue);cursor:pointer}
+.queue-row .meta{font-size:11px;color:var(--lc-muted)}
+.queue-row .tests{font-size:11px;color:#3A3577;font-weight:600}
+.empty{text-align:center;padding:30px;color:var(--lc-muted);font-size:12px}
+.filter-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;align-items:center}
+.filter-row input,.filter-row select{padding:6px 10px;border:1px solid var(--lc-border);border-radius:6px;font-size:11px;background:#fff;color:var(--lc-text)}
+.chip{display:inline-block;padding:2px 8px;border-radius:10px;background:#EFEDF4;font-size:10px;font-weight:600;margin-right:4px}
+.chip.urgent{background:#FBE9E7;color:#8C1C16}
+@media (max-width:1000px){.layout{grid-template-columns:1fr}}
+@media (max-width:900px){.main{margin-left:0;padding-top:70px}}
+</style>
+</head>
+<body>
+<aside class="sidebar"></aside>
+<button class="lc-mobile-toggle" aria-label="Menu">☰</button>
+<div class="lc-sidebar-overlay"></div>
+
+<div class="main">
+  <div class="topbar">
+    <div>
+      <h1>🏷️ Label Designer</h1>
+      <p>WYSIWYG specimen labels · thermal roll + A4 sheet · browser print + ZPL</p>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-sm" onclick="syncFromSettings()">⚙️ Load from Settings</button>
+      <button class="btn btn-sm" onclick="resetTemplate()">↺ Reset template</button>
+      <button class="btn btn-sm" onclick="saveTemplate()">💾 Save template</button>
+      <button class="btn btn-sm" onclick="downloadZPLSelected()">⬇ ZPL for selected</button>
+      <button class="btn btn-sm" onclick="exportPDFSelected()">📄 PDF for selected</button>
+      <button class="btn btn-primary" onclick="printSelected()">🖨️ Print selected</button>
+    </div>
+  </div>
+
+  <div class="layout">
+    <!-- LEFT: Editor -->
+    <div class="left">
+      <div class="card">
+        <div class="card-head">Label size</div>
+        <div class="card-body">
+          <div class="field">
+            <label>Preset</label>
+            <select id="tplSize" onchange="onSizeChange()"></select>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div class="field"><label>Width (mm)</label><input type="number" id="tplW" min="20" max="200" step="0.5" oninput="onDimChange()"></div>
+            <div class="field"><label>Height (mm)</label><input type="number" id="tplH" min="15" max="200" step="0.5" oninput="onDimChange()"></div>
+          </div>
+          <div class="field"><label>Copies per specimen</label><input type="number" id="tplCopies" min="1" max="10" value="1" oninput="onCopiesChange()"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">Fields to show</div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+          <div class="field check"><input type="checkbox" id="tplLogo" onchange="onFieldChange()"><label for="tplLogo">Show logo (recommend only for ≥ 60×40 mm)</label></div>
+          <div class="field check"><input type="checkbox" id="tplHeader" onchange="onFieldChange()"><label for="tplHeader">Header text (LABCORE)</label></div>
+          <div class="field check"><input type="checkbox" id="tplName" onchange="onFieldChange()"><label for="tplName">Patient name</label></div>
+          <div class="field check"><input type="checkbox" id="tplPid" onchange="onFieldChange()"><label for="tplPid">Patient ID</label></div>
+          <div class="field check"><input type="checkbox" id="tplVid" onchange="onFieldChange()"><label for="tplVid">Visit ID</label></div>
+          <div class="field check"><input type="checkbox" id="tplTests" onchange="onFieldChange()"><label for="tplTests">Tests on this specimen</label></div>
+          <div class="field check"><input type="checkbox" id="tplContainer" onchange="onFieldChange()"><label for="tplContainer">Container type</label></div>
+          <div class="field check"><input type="checkbox" id="tplDate" onchange="onFieldChange()"><label for="tplDate">Received date</label></div>
+          <div class="field check"><input type="checkbox" id="tplPriority" onchange="onFieldChange()"><label for="tplPriority">Priority badge</label></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">Barcode content</div>
+        <div class="card-body">
+          <div class="field check"><input type="checkbox" id="tplEncodeTests" onchange="onFieldChange()"><label for="tplEncodeTests">Encode tests in barcode (longer barcode — not recommended)</label></div>
+          <div class="field"><label>Header text override</label><input type="text" id="tplHeaderText" value="" oninput="onHeaderChange()"></div>
+          <div class="field"><label>Barcode height (mm)</label><input type="number" id="tplBcHeight" min="5" max="25" step="0.5" oninput="onBcHeightChange()"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Preview + queue -->
+    <div class="right">
+      <div class="card">
+        <div class="card-head">
+          <span>Live preview <span style="font-size:11px;color:var(--lc-muted);font-weight:400" id="previewSizeLabel"></span></span>
+        </div>
+        <div class="card-body">
+          <div class="preview-stage">
+            <div class="preview-wrap" id="previewWrap">
+              <div class="label" id="previewLabel"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <span>Unprinted specimens</span>
+          <span style="font-size:11px;color:var(--lc-muted);font-weight:400" id="queueCount"></span>
+        </div>
+        <div class="card-body" style="padding:0">
+          <div style="padding:12px 14px;border-bottom:1px solid var(--lc-border)">
+            <div class="filter-row">
+              <select id="queueFilter">
+                <option value="unprinted">Unprinted only</option>
+                <option value="today">Received today</option>
+                <option value="all">All specimens</option>
+              </select>
+              <input type="text" id="queueSearch" placeholder="Filter patient / ID / tests…" oninput="renderQueue()">
+              <button class="btn btn-sm" onclick="toggleSelectAll()">Select all</button>
+              <button class="btn btn-sm" onclick="markSelectedPrinted()">✓ Mark printed</button>
+            </div>
+            <div style="font-size:11px;color:var(--lc-muted)">
+              <span id="selectedCount">0</span> selected · Thermal roll prints 1 per label · A4 sheet packs multiple per page
+            </div>
+          </div>
+          <div id="queueList" style="max-height:460px;overflow-y:auto"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Hidden print sheet: labels are cloned here for printing -->
+<div id="printSheet"></div>
+
+<script src="shared/labcore-api.js"></script>
+<script src="shared/labcore-utils.js"></script>
+<script src="shared/labcore-ward.js"></script>
+<script src="shared/labcore-auth.js"></script>
+<script src="shared/labcore-staff.js"></script>
+<script src="shared/labcore-audit.js"></script>
+<script src="shared/labcore-settings.js"></script>  <!-- MUST come before labels -->
+<script src="shared/labcore-labels.js"></script>
+<script src="shared/labcore-icons.js"></script>
+<script src="shared/labcore-nav.js"></script>
+<script src="shared/labcore-search.js"></script>
+<script src="shared/labcore-notifications.js"></script>
+<script src="shared/labcore-print-preview.js"></script>
+<script src="shared/labcore-timeline.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var user = (window.lcRequireAuth && window.lcRequireAuth()) || window.lcGetUser();
+  var tpl = window.lcLabelGetTemplate();
+  var selected = new Set();
+  var queueCache = [];
+
+  // ---------- INIT ----------
+  function init() {
+    fillSizeSelect();
+    applyTemplateToInputs();
+    renderPreview();
+    renderQueue();
+  }
+
+  function fillSizeSelect() {
+    var sel = document.getElementById('tplSize');
+    var presets = window.lcLabelSizePresets;
+    sel.innerHTML = Object.keys(presets).map(function (k) {
+      return '<option value="' + k + '">' + presets[k].label + '</option>';
+    }).join('');
+    sel.value = tpl.sizeId || '50x30';
+  }
+
+  function applyTemplateToInputs() {
+    var fallback = (window.lcSettings && window.lcSettings.facilityShort && window.lcSettings.facilityShort()) || 'LABCORE';
+    document.getElementById('tplW').value = tpl.widthMm;
+    document.getElementById('tplH').value = tpl.heightMm;
+    document.getElementById('tplCopies').value = tpl.copiesPerSpecimen;
+    document.getElementById('tplLogo').checked = tpl.showLogo;
+    document.getElementById('tplHeader').checked = !!tpl.headerText;
+    document.getElementById('tplName').checked = tpl.showPatientName;
+    document.getElementById('tplPid').checked = tpl.showPatientId;
+    document.getElementById('tplVid').checked = tpl.showVisitId;
+    document.getElementById('tplTests').checked = tpl.showTests;
+    document.getElementById('tplContainer').checked = tpl.showContainer;
+    document.getElementById('tplDate').checked = tpl.showDate;
+    document.getElementById('tplPriority').checked = tpl.showPriority;
+    document.getElementById('tplEncodeTests').checked = tpl.encodeTestsInBarcode;
+    document.getElementById('tplHeaderText').value = tpl.headerText || fallback;
+    document.getElementById('tplBcHeight').value = tpl.barcodeHeightMm;
+  }
+
+  function onSizeChange() {
+    var id = document.getElementById('tplSize').value;
+    var p = window.lcLabelSizePresets[id];
+    if (p) {
+      tpl.sizeId = id;
+      tpl.widthMm = p.widthMm;
+      tpl.heightMm = p.heightMm;
+      document.getElementById('tplW').value = tpl.widthMm;
+      document.getElementById('tplH').value = tpl.heightMm;
+      // Auto-suggest logo off for small sizes
+      if (tpl.heightMm < 40 && tpl.showLogo) {
+        tpl.showLogo = false;
+        document.getElementById('tplLogo').checked = false;
+      }
+      renderPreview();
+    }
+  }
+
+  function onDimChange() {
+    tpl.widthMm = Number(document.getElementById('tplW').value) || 50;
+    tpl.heightMm = Number(document.getElementById('tplH').value) || 30;
+    tpl.sizeId = 'custom';
+    renderPreview();
+  }
+  function onCopiesChange() {
+    tpl.copiesPerSpecimen = Math.max(1, Number(document.getElementById('tplCopies').value) || 1);
+  }
+  function onFieldChange() {
+    tpl.showLogo = document.getElementById('tplLogo').checked;
+    var hText = document.getElementById('tplHeader').checked;
+    var fallback = (window.lcSettings && window.lcSettings.facilityShort && window.lcSettings.facilityShort()) || 'LABCORE';
+    tpl.headerText = hText ? (document.getElementById('tplHeaderText').value || fallback) : '';
+    tpl.showPatientName = document.getElementById('tplName').checked;
+    tpl.showPatientId = document.getElementById('tplPid').checked;
+    tpl.showVisitId = document.getElementById('tplVid').checked;
+    tpl.showTests = document.getElementById('tplTests').checked;
+    tpl.showContainer = document.getElementById('tplContainer').checked;
+    tpl.showDate = document.getElementById('tplDate').checked;
+    tpl.showPriority = document.getElementById('tplPriority').checked;
+    tpl.encodeTestsInBarcode = document.getElementById('tplEncodeTests').checked;
+    renderPreview();
+  }
+  function onHeaderChange() {
+    var fallback = (window.lcSettings && window.lcSettings.facilityShort && window.lcSettings.facilityShort()) || 'LABCORE';
+    tpl.headerText = document.getElementById('tplHeaderText').value || fallback;
+    renderPreview();
+  }
+  function onBcHeightChange() {
+    tpl.barcodeHeightMm = Number(document.getElementById('tplBcHeight').value) || 8;
+    renderPreview();
+  }
+
+  function saveTemplate() {
+    window.lcLabelSaveTemplate(tpl);
+    if (window.lcToast) window.lcToast('Label template saved', 'success');
+  }
+  function resetTemplate() {
+    if (!confirm('Reset to default template?')) return;
+    tpl = Object.assign({}, window.lcLabelDefaultTemplate);
+    window.lcLabelSaveTemplate(tpl);
+    applyTemplateToInputs();
+    fillSizeSelect();
+    renderPreview();
+    if (window.lcToast) window.lcToast('Template reset', 'info');
+  }
+
+   // ---------- PREVIEW DATA ----------
+  // Prefers the first real specimen in the queue so the preview reflects
+  // what you're actually about to print. Falls back to a generic sample
+  // only when there are no specimens at all.
+  var FALLBACK_SAMPLE = {
+    specimenId: 'SP-00000000-0000',
+    patientName: 'Sample Patient',
+    patientId: 'PT-000000',
+    visitId: 'ENC-00000000-0000',
+    tests: ['No tests — select a specimen'],
+    container: '—',
+    specimenType: '—',
+    priority: 'Routine',
+    receivedAt: new Date().toISOString()
+  };
+
+  function currentPreviewSpecimen() {
+    // 1. If the user has explicitly selected one or more in the queue,
+    //    preview the first selected specimen.
+    if (selected && selected.size) {
+      var firstSelectedId = Array.from(selected)[0];
+      var hit = window.lcSpecimenAll().find(function (s) {
+        return s.specimenId === firstSelectedId;
+      });
+      if (hit) return hit;
+    }
+    // 2. Otherwise preview the most recent unprinted specimen.
+    var unprinted = window.lcSpecimenUnprinted();
+    if (unprinted && unprinted.length) {
+      // Newest first
+      unprinted.sort(function (a, b) {
+        return String(b.receivedAt || '').localeCompare(String(a.receivedAt || ''));
+      });
+      return unprinted[0];
+    }
+    // 3. Otherwise the most recent specimen of any kind.
+    var all = window.lcSpecimenAll();
+    if (all && all.length) {
+      all = all.slice().sort(function (a, b) {
+        return String(b.receivedAt || '').localeCompare(String(a.receivedAt || ''));
+      });
+      return all[0];
+    }
+    // 4. Nothing at all in the system — use fallback.
+    return FALLBACK_SAMPLE;
+  }
+
+  var SAMPLE = FALLBACK_SAMPLE; // initial value; refreshed inside renderPreview() // ---------- SAMPLE DATA for preview ----------
+  var SAMPLE = {
+    specimenId: 'SP-20260924-0107',
+    patientName: 'John Kwesi Mensah',
+    patientId: 'PT-000124',
+    visitId: 'ENC-20260924-0042',
+    tests: ['FBC', 'Malaria RDT', 'Blood Film'],
+    container: 'EDTA Tube',
+    specimenType: 'Whole Blood',
+    priority: 'Routine',
+    receivedAt: new Date().toISOString()
+  };
+
+  // ---------- PREVIEW RENDER ----------
+   function renderPreview() {
+    // Pick the specimen to preview: first-selected, else newest unprinted,
+    // else newest of any kind, else fallback sample.
+    SAMPLE = currentPreviewSpecimen();
+
+    var stage = document.getElementById('previewWrap');
+    stage.style.width = tpl.widthMm + 'mm';
+    stage.style.height = tpl.heightMm + 'mm';
+    stage.style.transform = 'scale(3.5)';
+    stage.style.transformOrigin = 'top center';
+    document.getElementById('previewSizeLabel').textContent = '· ' + tpl.widthMm + ' × ' + tpl.heightMm + ' mm';
+    document.getElementById('previewLabel').innerHTML = buildLabelInnerHtml(SAMPLE);
+    setTimeout(function () {
+      var bc = document.getElementById('previewBarcode');
+      if (bc) {
+        var canvas = window.lcRenderBarcodeCanvas(
+          tpl.encodeTestsInBarcode
+            ? (SAMPLE.specimenId + ' ' + SAMPLE.tests.join(','))
+            : SAMPLE.specimenId,
+          { width: 1.6, height: 44, displayValue: tpl.showTests ? false : true, fontSize: 11, margin: 2 }
+        );
+        if (canvas) {
+          bc.innerHTML = '';
+          bc.appendChild(canvas);
+          canvas.style.maxWidth = '100%';
+          canvas.style.height = 'auto';
+        }
+      }
+    }, 0);
+  }
+
+  function buildLabelInnerHtml(spec) {
+    var esc = window.lcEsc || function (s) { return String(s || ''); };
+    var parts = [];
+
+    if (tpl.showLogo) {
+      var logoUrl = (window.lcSettings && window.lcSettings.logoDataUrl) ? window.lcSettings.logoDataUrl() : '';
+      var facilityName = (window.lcSettings && window.lcSettings.facilityName) ? window.lcSettings.facilityName() : 'Facility';
+      if (logoUrl) {
+        parts.push(
+          '<div style="display:flex;align-items:center;gap:4px;margin-bottom:2px">' +
+            '<img src="' + logoUrl + '" alt="logo" style="max-height:14px;max-width:40px;object-fit:contain;">' +
+            '<strong style="font-size:8pt;font-family:Arial;letter-spacing:0.5px">' + esc(facilityName) + '</strong>' +
+          '</div>'
+        );
+      } else {
+        var initials = (window.lcSettings && window.lcSettings.facilityShort && window.lcSettings.facilityShort())
+          ? window.lcSettings.facilityShort().slice(0, 2).toUpperCase() : 'LC';
+        parts.push(
+          '<div style="display:flex;align-items:center;gap:4px;margin-bottom:2px">' +
+            '<div style="width:14px;height:14px;background:#F2B5C8;color:#1E1B2E;border-radius:3px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:7pt;font-family:Arial">' + esc(initials) + '</div>' +
+            '<strong style="font-size:8pt;font-family:Arial;letter-spacing:0.5px">' + esc(facilityName) + '</strong>' +
+          '</div>'
+        );
+      }
+    }
+
+    if (tpl.headerText) {
+      parts.push(
+        '<div class="l-header">' +
+          '<span>' + esc(tpl.headerText) + '</span>' +
+          (tpl.showPriority ? '<span class="l-priority' + (String(spec.priority).toLowerCase() === 'urgent' || String(spec.priority).toLowerCase() === 'stat' ? ' urgent' : '') + '">' + esc(spec.priority) + '</span>' : '') +
+        '</div>'
+      );
+    }
+
+    // Barcode area
+    parts.push('<div class="l-barcode" id="previewBarcode"></div>');
+
+    // ID below barcode only if barcode hides its value
+    if (tpl.showTests) {
+      parts.push('<div class="l-id">' + esc(spec.specimenId) + '</div>');
+    }
+
+    if (tpl.showPatientName) {
+      parts.push('<div class="l-name">' + esc(spec.patientName) + '</div>');
+    }
+
+    var meta = [];
+    if (tpl.showPatientId) meta.push(esc(spec.patientId));
+    if (tpl.showVisitId) meta.push(esc(spec.visitId));
+    if (meta.length) parts.push('<div class="l-meta">' + meta.join(' · ') + '</div>');
+
+    if (tpl.showTests && spec.tests && spec.tests.length) {
+      parts.push('<div class="l-tests">' + spec.tests.map(esc).join(', ') + '</div>');
+    }
+
+    var foot = [];
+    if (tpl.showContainer && spec.container) foot.push(esc(spec.container));
+    if (tpl.showDate && spec.receivedAt) foot.push(new Date(spec.receivedAt).toISOString().slice(0, 10));
+    if (foot.length) parts.push('<div class="l-foot"><span>' + foot.join(' · ') + '</span></div>');
+
+    return parts.join('');
+  }
+
+  // ---------- QUEUE ----------
+  function renderQueue() {
+    var filter = document.getElementById('queueFilter').value;
+    var q = (document.getElementById('queueSearch').value || '').toLowerCase().trim();
+
+    var all = window.lcSpecimenAll();
+    var list = all.slice();
+
+    if (filter === 'unprinted') list = list.filter(s => !s.labelPrinted);
+    else if (filter === 'today') {
+      var today = new Date().toISOString().slice(0, 10);
+      list = list.filter(s => (s.receivedAt || '').slice(0, 10) === today);
+    }
+
+    if (q) {
+      list = list.filter(s =>
+        (s.patientName || '').toLowerCase().includes(q) ||
+        (s.patientId || '').toLowerCase().includes(q) ||
+        (s.specimenId || '').toLowerCase().includes(q) ||
+        (s.visitId || '').toLowerCase().includes(q) ||
+        (s.tests || []).join(' ').toLowerCase().includes(q)
+      );
+    }
+
+    // newest first
+    list.sort((a, b) => String(b.receivedAt || '').localeCompare(String(a.receivedAt || '')));
+    queueCache = list;
+
+    document.getElementById('queueCount').textContent = list.length + ' specimen(s)';
+    document.getElementById('queueList').innerHTML = list.length
+      ? list.map(s => {
+          var checked = selected.has(s.specimenId) ? ' checked' : '';
+          var urgent = String(s.priority).toLowerCase() === 'urgent' || String(s.priority).toLowerCase() === 'stat';
+          return '<div class="queue-row" onclick="toggleSelect(event, \'' + escAttr(s.specimenId) + '\')">' +
+            '<div style="display:flex;align-items:center;gap:10px;min-width:0;flex:1">' +
+              '<input type="checkbox" data-sid="' + escAttr(s.specimenId) + '"' + checked + ' onclick="event.stopPropagation(); toggleSelect(event, \'' + escAttr(s.specimenId) + '\')">' +
+              '<div style="min-width:0;flex:1">' +
+                '<div style="font-weight:700">' + escHtml(s.specimenId) + ' ' + (urgent ? '<span class="chip urgent">' + escHtml(s.priority) + '</span>' : '') + (s.labelPrinted ? ' <span class="chip" style="background:#e6f0e8;color:#2B7A4B">printed</span>' : '') + '</div>' +
+                '<div class="meta">' + escHtml(s.patientName) + ' · ' + escHtml(s.patientId) + ' · ' + escHtml(s.visitId) + '</div>' +
+                '<div class="tests">' + (s.tests || []).map(escHtml).join(', ') + '</div>' +
+              '</div>' +
+            '</div>' +
+            '<div style="text-align:right;font-size:10px;color:var(--lc-muted);white-space:nowrap">' +
+              escHtml(s.container || '') + '<br>' + (s.receivedAt ? new Date(s.receivedAt).toLocaleDateString() : '') +
+            '</div>' +
+          '</div>';
+        }).join('')
+      : '<div class="empty">No specimens match the current filter.<br>Register specimens in Sample Registration first.</div>';
+
+        updateSelectedCount();
+    renderPreview();          // <-- keep preview in sync with queue
+  }
+
+   function toggleSelect(ev, sid) {
+    if (ev) ev.stopPropagation();
+    if (selected.has(sid)) selected.delete(sid);
+    else selected.add(sid);
+    document.querySelectorAll('.queue-row input[data-sid]').forEach(cb => {
+      cb.checked = selected.has(cb.dataset.sid);
+    });
+    updateSelectedCount();
+    renderPreview();          // <-- reflect first selected specimen immediately
+  }
+  function toggleSelectAll() {
+    var visible = queueCache.map(s => s.specimenId);
+    var allSelected = visible.length && visible.every(id => selected.has(id));
+    if (allSelected) visible.forEach(id => selected.delete(id));
+    else visible.forEach(id => selected.add(id));
+    renderQueue();
+  }
+
+  function updateSelectedCount() {
+    document.getElementById('selectedCount').textContent = selected.size;
+  }
+
+  function markSelectedPrinted() {
+    if (!selected.size) { if (window.lcToast) window.lcToast('Select at least one specimen', 'warning'); return; }
+    var n = window.lcSpecimenMarkPrintedBulk(Array.from(selected), null);
+    if (window.lcToast) window.lcToast('Marked ' + n + ' as printed', 'success');
+    selected.clear();
+    renderQueue();
+  }
+
+  // ---------- PRINT ----------
+  function printSelected() {
+    if (!selected.size) { if (window.lcToast) window.lcToast('Select at least one specimen', 'warning'); return; }
+    var items = queueCache.filter(s => selected.has(s.specimenId));
+    if (!items.length) return;
+
+    // Build print sheet
+    var sheet = document.getElementById('printSheet');
+    sheet.innerHTML = '';
+    var copies = tpl.copiesPerSpecimen || 1;
+
+    items.forEach(spec => {
+      for (var c = 0; c < copies; c++) {
+        var wrap = document.createElement('div');
+        wrap.className = 'print-label';
+        wrap.style.width = tpl.widthMm + 'mm';
+        wrap.style.height = tpl.heightMm + 'mm';
+        wrap.style.border = '1px solid #ccc';
+        wrap.style.overflow = 'hidden';
+        var lbl = document.createElement('div');
+        lbl.className = 'label';
+        lbl.style.width = '100%';
+        lbl.style.height = '100%';
+        lbl.innerHTML = buildLabelInnerHtml(spec);
+        wrap.appendChild(lbl);
+        sheet.appendChild(wrap);
+
+        // Render barcode
+        setTimeout(function () {
+          var canvas = window.lcRenderBarcodeCanvas(
+            tpl.encodeTestsInBarcode ? (spec.specimenId + ' ' + (spec.tests || []).join(',')) : spec.specimenId,
+            { width: 1.6, height: 44, displayValue: tpl.showTests ? false : true, fontSize: 11, margin: 2 }
+          );
+          if (canvas) {
+            var bc = lbl.querySelector('.l-barcode');
+            if (bc) {
+              bc.innerHTML = '';
+              bc.appendChild(canvas);
+              canvas.style.maxWidth = '100%';
+              canvas.style.height = 'auto';
+            }
+          }
+        }, 0);
+      }
+    });
+
+    // Record audit + print log
+    if (window.lcAudit) {
+      window.lcAudit('label.printed', {
+        entity: 'specimen-batch',
+        note: items.length + ' label(s) · ' + tpl.widthMm + '×' + tpl.heightMm + ' mm'
+      });
+    }
+    window.lcLabelLogPrint(items.map(s => s.specimenId), tpl.sizeId);
+
+    // Give barcodes a moment to render, then print
+    setTimeout(function () {
+      window.print();
+      // After print dialog closes, offer to mark printed
+      setTimeout(function () {
+        if (confirm('Mark these ' + items.length + ' specimen label(s) as printed?')) {
+          window.lcSpecimenMarkPrintedBulk(items.map(s => s.specimenId), null);
+          selected.clear();
+          renderQueue();
+        }
+      }, 400);
+    }, 350);
+  }
+
+  function downloadZPLSelected() {
+    if (!selected.size) { if (window.lcToast) window.lcToast('Select at least one specimen', 'warning'); return; }
+    var items = queueCache.filter(s => selected.has(s.specimenId));
+    var zpl = window.lcBuildZPL(items, tpl);
+    window.lcDownloadText('LabCore_labels_' + new Date().toISOString().slice(0, 10) + '.zpl', zpl, 'text/plain');
+    if (window.lcToast) window.lcToast('ZPL downloaded (' + items.length + ' label(s))', 'success');
+  }
+
+  function exportPDFSelected() {
+    if (!selected.size) { if (window.lcToast) window.lcToast('Select at least one specimen', 'warning'); return; }
+    var items = queueCache.filter(s => selected.has(s.specimenId));
+    var stage = document.createElement('div');
+    stage.style.cssText = 'padding:8mm;background:#fff;display:flex;flex-wrap:wrap;gap:2mm;';
+
+    items.forEach(spec => {
+      var wrap = document.createElement('div');
+      wrap.style.width = tpl.widthMm + 'mm';
+      wrap.style.height = tpl.heightMm + 'mm';
+      wrap.style.border = '1px solid #ccc';
+      wrap.style.overflow = 'hidden';
+      var lbl = document.createElement('div');
+      lbl.className = 'label';
+      lbl.style.width = '100%';
+      lbl.style.height = '100%';
+      lbl.innerHTML = buildLabelInnerHtml(spec);
+      wrap.appendChild(lbl);
+      stage.appendChild(wrap);
+
+      setTimeout(function () {
+        var canvas = window.lcRenderBarcodeCanvas(
+          tpl.encodeTestsInBarcode ? (spec.specimenId + ' ' + (spec.tests || []).join(',')) : spec.specimenId,
+          { width: 1.6, height: 44, displayValue: tpl.showTests ? false : true, fontSize: 11, margin: 2 }
+        );
+        if (canvas) {
+          var bc = lbl.querySelector('.l-barcode');
+          if (bc) { bc.innerHTML = ''; bc.appendChild(canvas); canvas.style.maxWidth = '100%'; canvas.style.height = 'auto'; }
+        }
+      }, 0);
+    });
+
+    setTimeout(function () {
+      html2pdf().set({
+        margin: 5,
+        filename: 'LabCore_labels_' + new Date().toISOString().slice(0, 10) + '.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 3, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      }).from(stage).save().then(function () {
+        if (window.lcToast) window.lcToast('PDF exported', 'success');
+      }).catch(function (e) {
+        if (window.lcToast) window.lcToast('PDF export failed', 'error');
+      });
+    }, 400);
+  }
+
+  // ---------- UTIL ----------
+  function escHtml(s) { return (window.lcEsc || function (x) { return x; })(s); }
+  function escAttr(s) { return String(s || '').replace(/'/g, "\\'"); }
+
+  // ---------- EVENT WIRING ----------
+  document.getElementById('queueFilter').addEventListener('change', renderQueue);
+  document.getElementById('queueSearch').addEventListener('input', window.lcDebounce ? window.lcDebounce(renderQueue, 250) : renderQueue);
+
+  window.onSizeChange = onSizeChange;
+  window.onDimChange = onDimChange;
+  window.onCopiesChange = onCopiesChange;
+  window.onFieldChange = onFieldChange;
+  window.onHeaderChange = onHeaderChange;
+  window.onBcHeightChange = onBcHeightChange;
+    function syncFromSettings() {
+    if (!window.lcSettings) {
+      if (window.lcToast) window.lcToast('Settings module not loaded', 'error');
+      return;
+    }
+    var shortName = window.lcSettings.facilityShort() || 'LABCORE';
+    document.getElementById('tplHeaderText').value = shortName;
+    tpl.headerText = shortName;
+    document.getElementById('tplHeader').checked = true;
+    window.lcLabelSaveTemplate(tpl);
+    renderPreview();
+    if (window.lcToast) window.lcToast('Template synced from Settings', 'success');
+  }
+  window.saveTemplate = saveTemplate;
+  window.resetTemplate = resetTemplate;
+  window.syncFromSettings = syncFromSettings;
+  window.renderQueue = renderQueue;
+  window.toggleSelect = toggleSelect;
+  window.toggleSelectAll = toggleSelectAll;
+  window.markSelectedPrinted = markSelectedPrinted;
+  window.printSelected = printSelected;
+  window.downloadZPLSelected = downloadZPLSelected;
+  window.exportPDFSelected = exportPDFSelected;
+
+  init();
+    /* --------------------------------------------------
+     Pull fresh specimens from the server on page load
+  -------------------------------------------------- */
+  (async function refreshSpecimensFromServer() {
+    if (!window.lcApiGetSpecimens || !window.lcGetToken || !window.lcGetToken()) return;
+    try {
+      var serverSpecimens = await window.lcApiGetSpecimens();
+      if (!Array.isArray(serverSpecimens)) return;
+
+      var localRegistry = [];
+      try { localRegistry = JSON.parse(localStorage.getItem('labcore_specimens') || '[]'); } catch (e) {}
+
+      var byId = {};
+      serverSpecimens.forEach(function (s) { byId[s.specimenId] = s; });
+      localRegistry.forEach(function (s) { if (!byId[s.specimenId]) byId[s.specimenId] = s; });
+
+      localStorage.setItem('labcore_specimens', JSON.stringify(Object.values(byId)));
+      console.log('[specimens] refreshed from server:', serverSpecimens.length, 'records');
+
+      if (typeof renderQueue === 'function') {
+        try { renderQueue(); } catch (e) {}
+      }
+    } catch (e) {
+      console.warn('[specimens] could not load from server:', e.message);
+    }
+  })();
+  console.log('🏷️ Label Designer ready');
+})();
+</script>
+<script src="shared/labcore-scan.js"></script>
+</body>
+</html>

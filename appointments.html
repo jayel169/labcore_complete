@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Appointments | LabCore</title>
+  <link rel="stylesheet" href="shared/labcore-nav.css">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: var(--lc-font); background: var(--lc-bg); color: var(--lc-text); }
+    .main { padding: 28px; }
+    .page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+    .page-head h1 { font-size: 25px; margin: 0 0 4px; }
+    .page-head p, .timezone-note { color: var(--lc-muted); font-size: 13px; margin: 0; }
+    .timezone-note { margin-top: 5px; }
+    .btn { border: 1px solid var(--lc-border); border-radius: 5px; background: #fff; padding: 9px 13px; font: inherit; font-size: 13px; cursor: pointer; }
+    .btn:hover { border-color: var(--lc-brand-primary); }
+    .btn-primary { background: var(--lc-brand-primary); color: #fff; border-color: var(--lc-brand-primary); }
+    .btn-danger { color: var(--lc-danger); }
+    .btn-small { padding: 6px 8px; font-size: 12px; }
+    .summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
+    .summary-card, .panel { background: #fff; border: 1px solid var(--lc-border); border-radius: 7px; }
+    .summary-card { padding: 14px 16px; }
+    .summary-card span { display: block; color: var(--lc-muted); font-size: 12px; }
+    .summary-card strong { display: block; font-size: 23px; margin-top: 4px; }
+    .panel { padding: 16px; }
+    .filters { display: grid; grid-template-columns: minmax(180px, 1.4fr) repeat(3, minmax(130px, .8fr)) auto auto; align-items: end; gap: 10px; margin-bottom: 14px; }
+    label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px; }
+    input, select, textarea { width: 100%; border: 1px solid var(--lc-border); border-radius: 5px; padding: 9px 10px; font: inherit; font-size: 13px; color: var(--lc-text); background: #fff; }
+    input:focus, select:focus, textarea:focus { outline: 2px solid rgba(58, 53, 119, .2); border-color: var(--lc-brand-primary-hi); }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; min-width: 780px; }
+    th, td { text-align: left; border-bottom: 1px solid var(--lc-border); padding: 10px 9px; vertical-align: top; }
+    th { color: var(--lc-muted); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+    td { font-size: 13px; }
+    .subtext { display: block; color: var(--lc-muted); font-size: 11px; margin-top: 3px; }
+    .status { display: inline-block; border-radius: 14px; padding: 3px 8px; font-size: 11px; font-weight: 700; white-space: nowrap; background: #eee; }
+    .status-scheduled { background: #E4EFF7; color: #1F5F8B; }
+    .status-confirmed { background: #E5F1EA; color: #2B7A4B; }
+    .status-checked-in { background: #FBF0DA; color: #805400; }
+    .status-completed { background: #eceaf4; color: #3A3577; }
+    .status-cancelled, .status-no-show { background: #FBE9E7; color: #B3261E; }
+    .row-actions { display: flex; gap: 5px; flex-wrap: wrap; min-width: 160px; }
+    .empty, .notice { padding: 18px; text-align: center; color: var(--lc-muted); }
+    .notice { display: none; margin-bottom: 14px; text-align: left; border-radius: 5px; background: #E4EFF7; color: #1F5F8B; }
+    .notice.error { display: block; background: #FBE9E7; color: #8C1C16; }
+    .modal-bg { display: none; position: fixed; inset: 0; z-index: 300; background: rgba(20, 18, 43, .55); align-items: center; justify-content: center; padding: 18px; }
+    .modal-bg.open { display: flex; }
+    .modal { background: #fff; border-radius: 8px; width: min(620px, 100%); max-height: 92vh; overflow: auto; box-shadow: var(--lc-shadow-modal); }
+    .modal-head, .modal-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--lc-border); }
+    .modal-head h2 { font-size: 18px; margin: 0; }
+    .modal-foot { justify-content: flex-end; border-top: 1px solid var(--lc-border); border-bottom: 0; }
+    .modal-body { padding: 18px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
+    .form-field.full { grid-column: 1 / -1; }
+    .patient-search { position: relative; }
+    .suggestions { display: none; position: absolute; z-index: 5; top: 100%; left: 0; right: 0; max-height: 210px; overflow-y: auto; background: #fff; border: 1px solid var(--lc-border); box-shadow: var(--lc-shadow-menu); }
+    .suggestions.open { display: block; }
+    .suggestion { display: block; width: 100%; border: 0; border-bottom: 1px solid var(--lc-border); background: #fff; text-align: left; padding: 9px 10px; cursor: pointer; font: inherit; }
+    .suggestion:hover { background: var(--lc-surface-2); }
+    .modal-error { color: var(--lc-danger); font-size: 13px; min-height: 18px; margin-bottom: 8px; }
+    @media (max-width: 960px) {
+      .main { padding: 78px 18px 18px; }
+      .filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 560px) {
+      .page-head { flex-direction: column; }
+      .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .filters, .form-grid { grid-template-columns: 1fr; }
+      .form-field.full { grid-column: auto; }
+      .main { padding: 78px 14px 14px; }
+    }
+  </style>
+</head>
+<body>
+  <aside class="sidebar"></aside>
+  <div class="lc-sidebar-overlay"></div>
+  <main class="main">
+    <header class="page-head">
+      <div>
+        <h1>Appointments</h1>
+        <p>Book and manage patient visits with saved clinical staff accounts.</p>
+        <p class="timezone-note">All appointment times use Africa/Accra, including for colleagues abroad.</p>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" id="refreshButton" type="button">Refresh</button>
+        <button class="btn btn-primary" id="newAppointmentButton" type="button">＋ New appointment</button>
+      </div>
+    </header>
+    <section class="summary" aria-label="Appointment totals">
+      <div class="summary-card"><span>Shown</span><strong id="countShown">0</strong></div>
+      <div class="summary-card"><span>Scheduled</span><strong id="countScheduled">0</strong></div>
+      <div class="summary-card"><span>Checked in</span><strong id="countCheckedIn">0</strong></div>
+      <div class="summary-card"><span>Completed</span><strong id="countCompleted">0</strong></div>
+    </section>
+    <section class="panel">
+      <div class="notice" id="pageNotice" role="status"></div>
+      <div class="filters">
+        <div><label for="filterQuery">Patient or clinician</label><input id="filterQuery" type="search" placeholder="Search name, ID or phone"></div>
+        <div><label for="filterFrom">From</label><input id="filterFrom" type="date"></div>
+        <div><label for="filterTo">To</label><input id="filterTo" type="date"></div>
+        <div><label for="filterStatus">Status</label>
+          <select id="filterStatus">
+            <option value="">All statuses</option><option>Scheduled</option><option>Confirmed</option>
+            <option>Checked In</option><option>Completed</option><option>Cancelled</option><option>No Show</option>
+          </select>
+        </div>
+        <button class="btn" id="clearFiltersButton" type="button">Clear dates</button>
+        <button class="btn" id="exportButton" type="button">Export CSV</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Date & time (Accra)</th><th>Patient</th><th>Clinician</th><th>Visit</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="appointmentRows"><tr><td class="empty" colspan="6">Loading appointments…</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <div class="modal-bg" id="appointmentModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal">
+      <div class="modal-head"><h2 id="modalTitle">New appointment</h2><button class="btn btn-small" id="closeModalButton" type="button" aria-label="Close">×</button></div>
+      <form id="appointmentForm">
+        <div class="modal-body">
+          <div class="modal-error" id="formError" role="alert"></div>
+          <div class="form-grid">
+            <div class="form-field full patient-search">
+              <label for="patientSearch">Patient *</label>
+              <input id="patientSearch" autocomplete="off" placeholder="Search saved patients by name, ID or phone" required>
+              <input id="patientId" type="hidden">
+              <div class="suggestions" id="patientSuggestions"></div>
+            </div>
+            <div class="form-field"><label for="clinicianId">Clinician *</label><select id="clinicianId" required><option value="">Loading saved staff…</option></select></div>
+            <div class="form-field"><label for="appointmentType">Visit type *</label>
+              <select id="appointmentType" required>
+                <option>Consultation</option><option>Follow-up</option><option>Laboratory</option>
+                <option>Imaging</option><option>Procedure</option><option>Other</option>
+              </select>
+            </div>
+            <div class="form-field"><label for="appointmentAt">Date & time (Africa/Accra) *</label><input id="appointmentAt" type="datetime-local" required></div>
+            <div class="form-field"><label for="duration">Duration (minutes) *</label><input id="duration" type="number" min="5" max="480" step="5" value="30" required></div>
+            <div class="form-field full"><label for="reason">Reason for visit</label><input id="reason" maxlength="500"></div>
+            <div class="form-field full"><label for="notes">Notes</label><textarea id="notes" rows="3" maxlength="4000"></textarea></div>
+          </div>
+        </div>
+        <div class="modal-foot"><button class="btn" id="cancelModalButton" type="button">Close</button><button class="btn btn-primary" id="saveAppointmentButton" type="submit">Save appointment</button></div>
+      </form>
+    </div>
+  </div>
+  <script src="shared/labcore-api.js"></script>
+  <script src="shared/labcore-auth.js"></script>
+  <script src="shared/labcore-icons.js"></script>
+  <script src="shared/labcore-nav.js"></script>
+  <script>
+    (function () {
+      'use strict';
+      var TIME_ZONE = 'Africa/Accra';
+      var appointments = [];
+      var clinicians = [];
+      var editingId = null;
+      var patientSearchTimer = null;
+      var filterTimer = null;
+
+      function $(id) { return document.getElementById(id); }
+
+      function setNotice(message, isError) {
+        var notice = $('pageNotice');
+        notice.textContent = message || '';
+        notice.classList.toggle('error', !!isError);
+        notice.style.display = message ? 'block' : 'none';
+      }
+
+      function facilityParts(date) {
+        var parts = new Intl.DateTimeFormat('en-CA', {
+          timeZone: TIME_ZONE, year: 'numeric', month: '2-digit', day: '2-digit',
+          hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+        }).formatToParts(date);
+        return parts.reduce(function (out, part) { if (part.type !== 'literal') out[part.type] = part.value; return out; }, {});
+      }
+
+      function facilityDateValue(date) {
+        var p = facilityParts(date);
+        return p.year + '-' + p.month + '-' + p.day;
+      }
+
+      function facilityDateTimeValue(date) {
+        var p = facilityParts(date);
+        return p.year + '-' + p.month + '-' + p.day + 'T' + p.hour + ':' + p.minute;
+      }
+
+      function facilityDateTimeLabel(iso) {
+        return new Intl.DateTimeFormat(undefined, {
+          timeZone: TIME_ZONE, year: 'numeric', month: 'short', day: 'numeric',
+          hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+        }).format(new Date(iso));
+      }
+
+      function toUtcIso(localValue) {
+        var match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(localValue);
+        if (!match) throw new Error('Enter a valid appointment date and time.');
+        var desired = Date.UTC(+match[1], +match[2] - 1, +match[3], +match[4], +match[5]);
+        var guess = desired;
+        for (var i = 0; i < 4; i++) {
+          var p = facilityParts(new Date(guess));
+          var represented = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute);
+          var difference = desired - represented;
+          if (!difference) break;
+          guess += difference;
+        }
+        var finalParts = facilityParts(new Date(guess));
+        if (finalParts.year !== match[1] || finalParts.month !== match[2] ||
+            finalParts.day !== match[3] || finalParts.hour !== match[4] ||
+            finalParts.minute !== match[5]) {
+          throw new Error('That local time is not valid in the facility time zone.');
+        }
+        return new Date(guess).toISOString();
+      }
+
+      function statusClass(status) {
+        return 'status-' + status.toLowerCase().replace(/[^a-z]+/g, '-').replace(/^-|-$/g, '');
+      }
+
+      function addTextCell(row, value, subtext) {
+        var cell = document.createElement('td');
+        cell.textContent = value || '—';
+        if (subtext) {
+          var sub = document.createElement('span');
+          sub.className = 'subtext';
+          sub.textContent = subtext;
+          cell.appendChild(sub);
+        }
+        row.appendChild(cell);
+        return cell;
+      }
+
+      function actionButton(label, handler, danger) {
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'btn btn-small' + (danger ? ' btn-danger' : '');
+        button.textContent = label;
+        button.addEventListener('click', handler);
+        return button;
+      }
+
+      function renderAppointments() {
+        var body = $('appointmentRows');
+        body.replaceChildren();
+        $('countShown').textContent = appointments.length;
+        $('countScheduled').textContent = appointments.filter(function (a) { return a.status === 'Scheduled'; }).length;
+        $('countCheckedIn').textContent = appointments.filter(function (a) { return a.status === 'Checked In'; }).length;
+        $('countCompleted').textContent = appointments.filter(function (a) { return a.status === 'Completed'; }).length;
+        if (!appointments.length) {
+          var emptyRow = body.insertRow();
+          var emptyCell = emptyRow.insertCell();
+          emptyCell.colSpan = 6;
+          emptyCell.className = 'empty';
+          emptyCell.textContent = 'No appointments match these filters.';
+          return;
+        }
+        appointments.forEach(function (appointment) {
+          var row = body.insertRow();
+          addTextCell(row, facilityDateTimeLabel(appointment.appointmentAt),
+            appointment.durationMinutes + ' minutes');
+          addTextCell(row, appointment.patientName, appointment.patientNumber);
+          addTextCell(row, appointment.staffName,
+            appointment.department || appointment.staffRole);
+          addTextCell(row, appointment.type, appointment.reason);
+          var statusCell = row.insertCell();
+          var badge = document.createElement('span');
+          badge.className = 'status ' + statusClass(appointment.status);
+          badge.textContent = appointment.status;
+          statusCell.appendChild(badge);
+          var actions = row.insertCell();
+          actions.className = 'row-actions';
+          if (['Scheduled', 'Confirmed', 'Checked In'].includes(appointment.status)) {
+            actions.appendChild(actionButton('Edit / reschedule', function () { openEditor(appointment); }));
+          }
+          if (appointment.status === 'Scheduled') {
+            actions.appendChild(actionButton('Confirm', function () { changeStatus(appointment, 'Confirmed'); }));
+          }
+          if (['Scheduled', 'Confirmed'].includes(appointment.status)) {
+            actions.appendChild(actionButton('Check in', function () { changeStatus(appointment, 'Checked In'); }));
+            actions.appendChild(actionButton('No show', function () { changeStatus(appointment, 'No Show'); }, true));
+            actions.appendChild(actionButton('Cancel', function () { cancelAppointment(appointment); }, true));
+          }
+          if (appointment.status === 'Checked In') {
+            actions.appendChild(actionButton('Complete', function () { changeStatus(appointment, 'Completed'); }));
+            actions.appendChild(actionButton('Cancel', function () { cancelAppointment(appointment); }, true));
+          }
+        });
+      }
+
+      async function loadAppointments() {
+        setNotice('', false);
+        $('appointmentRows').innerHTML = '<tr><td class="empty" colspan="6">Loading appointments…</td></tr>';
+        try {
+          appointments = await window.lcApiGetAppointments({
+            from: $('filterFrom').value,
+            to: $('filterTo').value,
+            status: $('filterStatus').value,
+            q: $('filterQuery').value.trim()
+          });
+          if (!Array.isArray(appointments)) throw new Error('The server returned an invalid appointment list.');
+          renderAppointments();
+        } catch (error) {
+          appointments = [];
+          renderAppointments();
+          setNotice('Could not load appointments: ' + error.message, true);
+        }
+      }
+
+      async function loadClinicians() {
+        clinicians = await window.lcApiGetStaffDirectory();
+        if (!Array.isArray(clinicians)) throw new Error('The staff directory response was invalid.');
+        var select = $('clinicianId');
+        select.replaceChildren(new Option('Select a saved clinician…', ''));
+        clinicians.forEach(function (staff) {
+          var label = staff.name + (staff.department ? ' · ' + staff.department : '');
+          select.appendChild(new Option(label, staff.id));
+        });
+        if (!clinicians.length) select.appendChild(new Option('Create active clinician accounts first', ''));
+      }
+
+      function showPatientSuggestions(list) {
+        var box = $('patientSuggestions');
+        box.replaceChildren();
+        list.forEach(function (patient) {
+          var button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'suggestion';
+          button.textContent = patient.fullName + ' · ' + patient.id + (patient.mobile ? ' · ' + patient.mobile : '');
+          button.addEventListener('click', function () {
+            $('patientSearch').value = patient.fullName + ' · ' + patient.id;
+            $('patientId').value = patient.id;
+            box.classList.remove('open');
+          });
+          box.appendChild(button);
+        });
+        if (!list.length) {
+          var empty = document.createElement('div');
+          empty.className = 'suggestion';
+          empty.textContent = 'No active saved patients found.';
+          box.appendChild(empty);
+        }
+        box.classList.add('open');
+      }
+
+      async function searchPatients(query) {
+        if (query.length < 2) {
+          $('patientSuggestions').classList.remove('open');
+          return;
+        }
+        try {
+          var results = await window.lcApiFetch('/patients?q=' + encodeURIComponent(query));
+          showPatientSuggestions(results.filter(function (patient) { return patient.status === 'active'; }).slice(0, 12));
+        } catch (error) {
+          $('patientSuggestions').classList.remove('open');
+          $('formError').textContent = 'Could not search saved patients: ' + error.message;
+        }
+      }
+
+      function resetForm() {
+        $('appointmentForm').reset();
+        $('patientId').value = '';
+        $('duration').value = '30';
+        $('appointmentAt').value = facilityDateTimeValue(new Date(Date.now() + 3600000));
+        $('patientSuggestions').classList.remove('open');
+        $('formError').textContent = '';
+      }
+
+      function openEditor(appointment) {
+        resetForm();
+        editingId = appointment ? appointment.id : null;
+        $('modalTitle').textContent = appointment ? 'Edit / reschedule appointment' : 'New appointment';
+        $('saveAppointmentButton').textContent = appointment ? 'Save changes' : 'Save appointment';
+        if (appointment) {
+          $('patientSearch').value = appointment.patientName + ' · ' + appointment.patientNumber;
+          $('patientId').value = appointment.patientId;
+          $('clinicianId').value = appointment.staffId;
+          $('appointmentType').value = appointment.type;
+          $('appointmentAt').value = facilityDateTimeValue(new Date(appointment.appointmentAt));
+          $('duration').value = appointment.durationMinutes;
+          $('reason').value = appointment.reason || '';
+          $('notes').value = appointment.notes || '';
+        }
+        $('appointmentModal').classList.add('open');
+        $('patientSearch').focus();
+      }
+
+      function closeEditor() {
+        $('appointmentModal').classList.remove('open');
+        editingId = null;
+      }
+
+      async function changeStatus(appointment, status) {
+        try {
+          await window.lcApiSetAppointmentStatus(appointment.id, status);
+          await loadAppointments();
+          setNotice('Appointment updated: ' + status + '.', false);
+        } catch (error) {
+          setNotice('Could not update appointment: ' + error.message, true);
+        }
+      }
+
+      async function cancelAppointment(appointment) {
+        if (!window.confirm('Cancel the appointment for ' + appointment.patientName + '?')) return;
+        await changeStatus(appointment, 'Cancelled');
+      }
+
+      function exportCsv() {
+        var rows = [['Date/time (Africa/Accra)', 'Patient', 'Patient ID', 'Mobile', 'Clinician', 'Department', 'Type', 'Duration minutes', 'Status', 'Reason', 'Notes']];
+        appointments.forEach(function (item) {
+          rows.push([
+            facilityDateTimeLabel(item.appointmentAt), item.patientName, item.patientNumber,
+            item.patientMobile, item.staffName, item.department, item.type, item.durationMinutes,
+            item.status, item.reason, item.notes
+          ]);
+        });
+        var csv = rows.map(function (row) {
+          return row.map(function (cell) { return '"' + String(cell == null ? '' : cell).replace(/"/g, '""') + '"'; }).join(',');
+        }).join('\r\n');
+        var link = document.createElement('a');
+        link.href = URL.createObjectURL(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' }));
+        link.download = 'labcore-appointments-' + facilityDateValue(new Date()) + '.csv';
+        link.click();
+        URL.revokeObjectURL(link.href);
+      }
+
+      $('appointmentForm').addEventListener('submit', async function (event) {
+        event.preventDefault();
+        $('formError').textContent = '';
+        if (!$('patientId').value) {
+          $('formError').textContent = 'Select a saved patient from the search suggestions.';
+          $('patientSearch').focus();
+          return;
+        }
+        if (!$('clinicianId').value) {
+          $('formError').textContent = 'Select a saved active clinician account.';
+          $('clinicianId').focus();
+          return;
+        }
+        var payload;
+        try {
+          payload = {
+            patientId: $('patientId').value,
+            staffId: $('clinicianId').value,
+            appointmentAt: toUtcIso($('appointmentAt').value),
+            durationMinutes: Number($('duration').value),
+            type: $('appointmentType').value,
+            reason: $('reason').value.trim(),
+            notes: $('notes').value.trim()
+          };
+        } catch (error) {
+          $('formError').textContent = error.message;
+          return;
+        }
+        $('saveAppointmentButton').disabled = true;
+        var wasEditing = Boolean(editingId);
+        try {
+          if (editingId) await window.lcApiUpdateAppointment(editingId, payload);
+          else await window.lcApiCreateAppointment(payload);
+          closeEditor();
+          await loadAppointments();
+          setNotice(wasEditing ? 'Appointment updated.' : 'Appointment booked.', false);
+        } catch (error) {
+          $('formError').textContent = error.message;
+        } finally {
+          $('saveAppointmentButton').disabled = false;
+        }
+      });
+
+      $('newAppointmentButton').addEventListener('click', function () { openEditor(null); });
+      $('closeModalButton').addEventListener('click', closeEditor);
+      $('cancelModalButton').addEventListener('click', closeEditor);
+      $('appointmentModal').addEventListener('click', function (event) {
+        if (event.target === $('appointmentModal')) closeEditor();
+      });
+      $('patientSearch').addEventListener('input', function () {
+        $('patientId').value = '';
+        clearTimeout(patientSearchTimer);
+        patientSearchTimer = setTimeout(function () { searchPatients($('patientSearch').value.trim()); }, 250);
+      });
+      $('patientSearch').addEventListener('focus', function () {
+        if ($('patientSearch').value.trim().length >= 2) searchPatients($('patientSearch').value.trim());
+      });
+      document.addEventListener('click', function (event) {
+        if (!event.target.closest('.patient-search')) $('patientSuggestions').classList.remove('open');
+      });
+      ['filterFrom', 'filterTo', 'filterStatus'].forEach(function (id) {
+        $(id).addEventListener('change', loadAppointments);
+      });
+      $('filterQuery').addEventListener('input', function () {
+        clearTimeout(filterTimer);
+        filterTimer = setTimeout(loadAppointments, 250);
+      });
+      $('clearFiltersButton').addEventListener('click', function () {
+        $('filterFrom').value = '';
+        $('filterTo').value = '';
+        $('filterStatus').value = '';
+        $('filterQuery').value = '';
+        loadAppointments();
+      });
+      $('exportButton').addEventListener('click', exportCsv);
+      $('refreshButton').addEventListener('click', loadAppointments);
+      document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' && $('appointmentModal').classList.contains('open')) closeEditor();
+      });
+
+      $('filterFrom').value = facilityDateValue(new Date());
+      $('filterTo').value = facilityDateValue(new Date(Date.now() + 30 * 86400000));
+      Promise.all([loadClinicians(), loadAppointments()]).catch(function (error) {
+        setNotice('Could not load the staff directory: ' + error.message, true);
+      });
+      window.setInterval(function () {
+        if (document.visibilityState === 'visible') loadAppointments();
+      }, 60000);
+    })();
+  </script>
+</body>
+</html>
